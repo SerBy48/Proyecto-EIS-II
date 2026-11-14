@@ -1,0 +1,497 @@
+### =========================================================================
+### Coleccion de peticiones del sistema de e-commerce
+###
+### Lista para el REST Client de VS Code o el cliente HTTP de IntelliJ.
+### Las variables estan encadenadas: ejecuta primero los tres logins y las
+### demas peticiones tomaran el token automaticamente.
+###
+### Todo pasa por el API Gateway: ninguna peticion apunta a un microservicio
+### directamente, igual que haria un cliente real.
+### =========================================================================
+
+@gateway = http://localhost:8080
+@api = {{gateway}}/api
+
+### -------------------------------------------------------------- SALUD ----
+
+### Salud agregada de los nueve servicios
+GET {{api}}/health
+
+### Informacion del gateway y rutas disponibles
+GET {{gateway}}/
+
+### --------------------------------------------------------- AUTENTICACION -
+
+### Login de cliente (Ana)
+# @name loginAna
+POST {{api}}/auth/login
+Content-Type: application/json
+
+{ "email": "ana@correo.co", "password": "Password123" }
+
+### Login de otro cliente (Bruno) - para probar la disputa por la ultima unidad
+# @name loginBruno
+POST {{api}}/auth/login
+Content-Type: application/json
+
+{ "email": "bruno@correo.co", "password": "Password123" }
+
+### Login de administrador
+# @name loginAdmin
+POST {{api}}/auth/login
+Content-Type: application/json
+
+{ "email": "admin@tienda.co", "password": "Password123" }
+
+### Login de vendedor
+# @name loginVendedor
+POST {{api}}/auth/login
+Content-Type: application/json
+
+{ "email": "vendedor@tienda.co", "password": "Password123" }
+
+@ana = {{loginAna.response.body.token}}
+@bruno = {{loginBruno.response.body.token}}
+@admin = {{loginAdmin.response.body.token}}
+@vendedor = {{loginVendedor.response.body.token}}
+
+### Perfil del usuario autenticado
+GET {{api}}/auth/perfil
+Authorization: Bearer {{ana}}
+
+### Renovar el token de acceso
+POST {{api}}/auth/renovar
+Content-Type: application/json
+
+{ "refresh_token": "{{loginAna.response.body.refresh_token}}" }
+
+### Crear un usuario interno (solo administrador)
+POST {{api}}/auth/usuarios
+Authorization: Bearer {{admin}}
+Content-Type: application/json
+
+{ "email": "nuevo.vendedor@tienda.co", "password": "Password123", "rol": "vendedor" }
+
+### Cerrar sesion (revoca los refresh tokens)
+POST {{api}}/auth/logout
+Authorization: Bearer {{ana}}
+
+### -------------------------------------------------------------- CATALOGO -
+
+### Listar productos (ruta PUBLICA, sin token)
+GET {{api}}/catalogo/productos
+
+### Buscar por texto
+GET {{api}}/catalogo/productos?q=portatil
+
+### Filtrar por categoria y ordenar por precio
+GET {{api}}/catalogo/productos?categoria=tecnologia&orden=precio_asc
+
+### Filtrar por rango de precio
+GET {{api}}/catalogo/productos?precio_min=200000&precio_max=1000000
+
+### Detalle de un producto
+GET {{api}}/catalogo/productos/SKU-TEC-001
+
+### Categorias con conteo
+GET {{api}}/catalogo/categorias
+
+### Precio vigente (endpoint interno que usa el orquestador)
+GET {{api}}/catalogo/productos/SKU-TEC-001/precio
+
+### Validar un cupon
+GET {{api}}/catalogo/promociones/BIENVENIDA10
+
+### Cupon vencido: debe responder 400
+GET {{api}}/catalogo/promociones/EXPIRADO
+
+### Crear un producto (vendedor o administrador)
+POST {{api}}/catalogo/productos
+Authorization: Bearer {{vendedor}}
+Content-Type: application/json
+
+{
+  "sku": "SKU-TEC-099",
+  "nombre": "Tableta grafica Lineal 12",
+  "descripcion": "Tableta grafica con 8192 niveles de presion.",
+  "categoria": "tecnologia",
+  "marca": "Lineal",
+  "precio": 690000,
+  "descuento_porcentaje": 5,
+  "atributos": { "area_activa": "12x8 pulgadas", "presion": 8192 }
+}
+
+### Cambiar el precio de un producto
+PATCH {{api}}/catalogo/productos/SKU-TEC-001
+Authorization: Bearer {{vendedor}}
+Content-Type: application/json
+
+{ "descuento_porcentaje": 20 }
+
+### ------------------------------------------------------------ INVENTARIO -
+
+### Disponibilidad de varios SKU en una sola consulta
+GET {{api}}/inventario/disponibilidad?skus=SKU-TEC-001,SKU-TEC-004,SKU-HOG-002
+Authorization: Bearer {{admin}}
+
+### Stock detallado por bodega
+GET {{api}}/inventario/stock/SKU-TEC-004
+Authorization: Bearer {{admin}}
+
+### Alertas de reposicion (productos bajo el minimo)
+GET {{api}}/inventario/alertas
+Authorization: Bearer {{admin}}
+
+### Libro de movimientos de un producto
+GET {{api}}/inventario/movimientos/SKU-TEC-004
+Authorization: Bearer {{admin}}
+
+### Registrar entrada de mercancia
+POST {{api}}/inventario/stock/SKU-TEC-004/entrada
+Authorization: Bearer {{vendedor}}
+Content-Type: application/json
+
+{ "cantidad": 5 }
+
+### Reservar stock (la clave de idempotencia es OBLIGATORIA)
+# @name reserva
+POST {{api}}/inventario/reservas
+Authorization: Bearer {{admin}}
+Content-Type: application/json
+Idempotency-Key: manual-prueba-001
+
+{ "sku": "SKU-TEC-004", "cantidad": 1, "pedido_id": "prueba-manual" }
+
+### La MISMA clave: debe devolver la misma reserva (idempotente)
+POST {{api}}/inventario/reservas
+Authorization: Bearer {{admin}}
+Content-Type: application/json
+Idempotency-Key: manual-prueba-001
+
+{ "sku": "SKU-TEC-004", "cantidad": 1 }
+
+### Sin clave de idempotencia: debe responder 400
+POST {{api}}/inventario/reservas
+Authorization: Bearer {{admin}}
+Content-Type: application/json
+
+{ "sku": "SKU-TEC-004", "cantidad": 1 }
+
+### Consultar una reserva
+GET {{api}}/inventario/reservas/{{reserva.response.body.reserva_id}}
+Authorization: Bearer {{admin}}
+
+### Confirmar la reserva (pago aprobado: descuento definitivo)
+POST {{api}}/inventario/reservas/{{reserva.response.body.reserva_id}}/confirmar
+Authorization: Bearer {{admin}}
+
+### Liberar la reserva (compensacion de la saga)
+POST {{api}}/inventario/reservas/{{reserva.response.body.reserva_id}}/liberar
+Authorization: Bearer {{admin}}
+Content-Type: application/json
+
+{ "motivo": "prueba_manual" }
+
+### --------------------------------------------------------------- CLIENTES
+
+### Perfil propio
+GET {{api}}/clientes/1
+Authorization: Bearer {{ana}}
+
+### Perfil de OTRO cliente: debe responder 403
+GET {{api}}/clientes/2
+Authorization: Bearer {{ana}}
+
+### Direcciones del cliente
+GET {{api}}/clientes/1/direcciones
+Authorization: Bearer {{ana}}
+
+### Agregar una direccion
+POST {{api}}/clientes/1/direcciones
+Authorization: Bearer {{ana}}
+Content-Type: application/json
+
+{
+  "tipo": "envio",
+  "etiqueta": "Trabajo",
+  "linea1": "Carrera 43A # 1-50, Torre Sur",
+  "ciudad": "Medellin",
+  "departamento": "Antioquia",
+  "codigo_postal": "050022",
+  "predeterminada": false
+}
+
+### Actualizar datos personales
+PATCH {{api}}/clientes/1
+Authorization: Bearer {{ana}}
+Content-Type: application/json
+
+{ "telefono": "3009998877" }
+
+### Historial de compras (proyeccion alimentada por eventos)
+GET {{api}}/clientes/1/historial
+Authorization: Bearer {{ana}}
+
+### Registrar un cliente nuevo (ruta publica)
+POST {{api}}/clientes
+Content-Type: application/json
+
+{
+  "nombre": "Diana",
+  "apellido": "Osorio",
+  "email": "diana@correo.co",
+  "telefono": "3011234567",
+  "documento": "1020304099"
+}
+
+### ---------------------------------------------------------------- CARRITO
+
+### Ver el carrito
+GET {{api}}/carrito/1
+Authorization: Bearer {{ana}}
+
+### Agregar un producto (el precio lo pone el catalogo, no el cliente)
+POST {{api}}/carrito/1/items
+Authorization: Bearer {{ana}}
+Content-Type: application/json
+
+{ "sku": "SKU-TEC-001", "cantidad": 1 }
+
+### Agregar otro producto
+POST {{api}}/carrito/1/items
+Authorization: Bearer {{ana}}
+Content-Type: application/json
+
+{ "sku": "SKU-HOG-001", "cantidad": 2 }
+
+### Cambiar la cantidad
+PATCH {{api}}/carrito/1/items/SKU-TEC-001
+Authorization: Bearer {{ana}}
+Content-Type: application/json
+
+{ "cantidad": 3 }
+
+### Quitar un producto
+DELETE {{api}}/carrito/1/items/SKU-HOG-001
+Authorization: Bearer {{ana}}
+
+### Aplicar un cupon
+POST {{api}}/carrito/1/cupon
+Authorization: Bearer {{ana}}
+Content-Type: application/json
+
+{ "codigo": "BIENVENIDA10" }
+
+### Quitar el cupon
+DELETE {{api}}/carrito/1/cupon
+Authorization: Bearer {{ana}}
+
+### Vaciar el carrito
+DELETE {{api}}/carrito/1
+Authorization: Bearer {{ana}}
+
+### Carrito de OTRO cliente: debe responder 403
+GET {{api}}/carrito/2
+Authorization: Bearer {{ana}}
+
+### ---------------------------------------------------------------- PEDIDOS
+
+### CHECKOUT: compra exitosa (tok_ok aprueba el pago)
+# @name compra
+POST {{api}}/pedidos/checkout
+Authorization: Bearer {{ana}}
+Content-Type: application/json
+Idempotency-Key: compra-manual-001
+
+{ "medio_pago": "tarjeta_credito", "token_medio_pago": "tok_ok_4242" }
+
+### MISMA clave: no debe crear otro pedido (200 idempotente)
+POST {{api}}/pedidos/checkout
+Authorization: Bearer {{ana}}
+Content-Type: application/json
+Idempotency-Key: compra-manual-001
+
+{ "medio_pago": "tarjeta_credito", "token_medio_pago": "tok_ok_4242" }
+
+### CHECKOUT con pago RECHAZADO: debe responder 402 y liberar el stock
+POST {{api}}/pedidos/checkout
+Authorization: Bearer {{bruno}}
+Content-Type: application/json
+Idempotency-Key: compra-rechazo-001
+
+{ "medio_pago": "tarjeta_credito", "token_medio_pago": "tok_rechazo_1111" }
+
+### CHECKOUT con error tecnico de la pasarela
+POST {{api}}/pedidos/checkout
+Authorization: Bearer {{bruno}}
+Content-Type: application/json
+Idempotency-Key: compra-error-001
+
+{ "medio_pago": "tarjeta_credito", "token_medio_pago": "tok_error_9999" }
+
+### Listar mis pedidos
+GET {{api}}/pedidos
+Authorization: Bearer {{ana}}
+
+### Detalle de un pedido con items e historial de estados
+GET {{api}}/pedidos/{{compra.response.body.pedido.id}}
+Authorization: Bearer {{ana}}
+
+### BITACORA DE LA SAGA: paso a paso de lo que ocurrio (solo administrador)
+GET {{api}}/pedidos/{{compra.response.body.pedido.id}}/saga
+Authorization: Bearer {{admin}}
+
+### Avanzar el estado del pedido (personal interno)
+PATCH {{api}}/pedidos/{{compra.response.body.pedido.id}}/estado
+Authorization: Bearer {{vendedor}}
+Content-Type: application/json
+
+{ "estado": "en_preparacion" }
+
+### Transicion INVALIDA: debe responder 400
+PATCH {{api}}/pedidos/{{compra.response.body.pedido.id}}/estado
+Authorization: Bearer {{vendedor}}
+Content-Type: application/json
+
+{ "estado": "entregado" }
+
+### Cancelar un pedido (reembolsa y devuelve el inventario)
+POST {{api}}/pedidos/{{compra.response.body.pedido.id}}/cancelar
+Authorization: Bearer {{ana}}
+Content-Type: application/json
+
+{ "motivo": "Ya no lo necesito" }
+
+### Pedidos de todo el sistema (personal interno)
+GET {{api}}/pedidos?estado=pagado
+Authorization: Bearer {{admin}}
+
+### ------------------------------------------------------------------ PAGOS
+
+### Mis transacciones
+GET {{api}}/pagos/transacciones
+Authorization: Bearer {{ana}}
+
+### Detalle de una transaccion
+GET {{api}}/pagos/transacciones/{{compra.response.body.pago.referencia}}
+Authorization: Bearer {{ana}}
+
+### Cobro directo aprobado (normalmente lo invoca el orquestador)
+# @name cobro
+POST {{api}}/pagos/cobros
+Authorization: Bearer {{admin}}
+Content-Type: application/json
+Idempotency-Key: cobro-manual-001
+
+{
+  "pedido_id": 999,
+  "numero_pedido": "PED-MANUAL-999",
+  "cliente_id": 1,
+  "monto": 150000,
+  "medio_pago": "pse",
+  "token_medio_pago": "tok_ok_5555"
+}
+
+### Cobro rechazado
+POST {{api}}/pagos/cobros
+Authorization: Bearer {{admin}}
+Content-Type: application/json
+Idempotency-Key: cobro-manual-002
+
+{
+  "pedido_id": 998,
+  "cliente_id": 1,
+  "monto": 150000,
+  "medio_pago": "tarjeta_credito",
+  "token_medio_pago": "tok_rechazo_0000"
+}
+
+### Monto que excede el tope de la pasarela
+POST {{api}}/pagos/cobros
+Authorization: Bearer {{admin}}
+Content-Type: application/json
+Idempotency-Key: cobro-manual-003
+
+{
+  "pedido_id": 997,
+  "cliente_id": 1,
+  "monto": 99000000,
+  "medio_pago": "pse",
+  "token_medio_pago": "tok_ok_1234"
+}
+
+### Reembolsar una transaccion
+POST {{api}}/pagos/transacciones/{{cobro.response.body.transaccion.referencia}}/reembolsar
+Authorization: Bearer {{admin}}
+Content-Type: application/json
+
+{ "motivo": "Cancelacion del pedido" }
+
+### --------------------------------------------------------- NOTIFICACIONES
+
+### Mensajes enviados (generados por eventos, no por peticion)
+GET {{api}}/notificaciones/mensajes
+Authorization: Bearer {{admin}}
+
+### Filtrar por evento
+GET {{api}}/notificaciones/mensajes?evento=pedido.confirmado
+Authorization: Bearer {{admin}}
+
+### Mis notificaciones (un cliente solo ve las suyas)
+GET {{api}}/notificaciones/mensajes
+Authorization: Bearer {{ana}}
+
+### Plantillas disponibles
+GET {{api}}/notificaciones/plantillas
+Authorization: Bearer {{admin}}
+
+### Editar una plantilla
+PATCH {{api}}/notificaciones/plantillas/pedido.confirmado
+Authorization: Bearer {{admin}}
+Content-Type: application/json
+
+{ "asunto": "Confirmamos tu pedido {{numero}}" }
+
+### -------------------------------------------------------- SEGURIDAD -----
+### Las siguientes peticiones DEBEN fallar. Si alguna pasa, hay un problema.
+
+### Sin token: 401
+GET {{api}}/pedidos
+
+### Token invalido: 401
+GET {{api}}/pedidos
+Authorization: Bearer token.claramente.invalido
+
+### RBAC: un cliente en una ruta de personal interno: 403
+GET {{api}}/inventario/alertas
+Authorization: Bearer {{ana}}
+
+### Un cliente reservando stock por su cuenta: 403
+POST {{api}}/inventario/reservas
+Authorization: Bearer {{ana}}
+Content-Type: application/json
+Idempotency-Key: intento-no-autorizado
+
+{ "sku": "SKU-TEC-001", "cantidad": 500 }
+
+### Un cliente creando productos: 403
+POST {{api}}/catalogo/productos
+Authorization: Bearer {{ana}}
+Content-Type: application/json
+
+{ "sku": "SKU-HACK-001", "nombre": "Producto falso", "categoria": "tecnologia", "precio": 1 }
+
+### Inyeccion de cabeceras de confianza: el gateway las borra, sigue siendo 403
+GET {{api}}/inventario/alertas
+Authorization: Bearer {{ana}}
+x-usuario-rol: administrador
+x-llamada-interna: 1
+x-internal-token: secreto-interno-desarrollo
+
+### Un cliente viendo la bitacora de la saga: 403
+GET {{api}}/pedidos/1/saga
+Authorization: Bearer {{ana}}
+
+### Ruta inexistente: 404
+GET {{api}}/inventado/ruta
+Authorization: Bearer {{ana}}

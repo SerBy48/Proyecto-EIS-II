@@ -1,0 +1,267 @@
+# ============================================================================
+# Plataforma de comercio electronico - infraestructura completa
+#
+# Refleja la arquitectura de la Figura 2 del documento:
+#   - Una capa de datos con cuatro motores distintos, uno por necesidad
+#   - Un message broker para la comunicacion asincrona
+#   - Ocho microservicios, cada uno con su propia base de datos
+#   - Un API Gateway como unico punto expuesto
+#
+# Los microservicios NO publican puertos hacia el host en produccion: solo el
+# gateway y el frontend son accesibles desde fuera. Aqui se publican para
+# facilitar la depuracion durante el laboratorio (ver la seccion "ports" de
+# cada uno); en un despliegue real se comentarian.
+# ============================================================================
+
+name: ecommerce-distribuido
+
+x-servicio-base: &servicio-base
+  restart: unless-stopped
+  networks: [interna]
+  environment: &entorno-base
+    NODE_ENV: ${NODE_ENV:-development}
+    LOG_LEVEL: ${LOG_LEVEL:-info}
+    JWT_SECRET: ${JWT_SECRET:-FirmaSecretaEcommerceDesarrollo}
+    JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-FirmaRenovacionEcommerceDesarrollo}
+    INTERNAL_TOKEN: ${INTERNAL_TOKEN:-secreto-interno-desarrollo}
+    RABBITMQ_URL: amqp://ecommerce:ecommerce@rabbitmq:5672
+
+services:
+  # ------------------------------------------------------------- datos ------
+  postgres:
+    image: postgres:16-alpine
+    container_name: ecom_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: postgres
+    ports:
+      # Puerto del host configurable por si ya hay un PostgreSQL local en 5432.
+      - "${POSTGRES_PUERTO_HOST:-5432}:5432"
+    volumes:
+      - pg_datos:/var/lib/postgresql/data
+      # Los scripts se ejecutan en orden alfabetico la PRIMERA vez que se crea
+      # el volumen. Para volver a ejecutarlos: docker compose down -v
+      - ./infra/postgres:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    networks: [interna]
+
+  mongo:
+    image: mongo:7
+    container_name: ecom_mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-root}
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_datos:/data/db
+      - ./infra/mongo/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks: [interna]
+
+  redis:
+    image: redis:7-alpine
+    container_name: ecom_redis
+    restart: unless-stopped
+    # El carrito es efimero por naturaleza: si se pierde, el cliente vuelve a
+    # agregar sus productos. Aun asi se persiste para no vaciar los carritos de
+    # todos los clientes en cada reinicio.
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_datos:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [interna]
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: ecom_rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ecommerce
+      RABBITMQ_DEFAULT_PASS: ecommerce
+    ports:
+      - "5672:5672"    # protocolo AMQP
+      - "15672:15672"  # consola de administracion
+    volumes:
+      - rabbit_datos:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 25s
+    networks: [interna]
+
+  # ------------------------------------------------------ microservicios ----
+  auth-service:
+    <<: *servicio-base
+    build: { context: ., dockerfile: infra/Dockerfile.servicio, args: { SERVICIO: auth-service } }
+    container_name: ecom_auth
+    environment:
+      <<: *entorno-base
+      PORT: 3001
+      DATABASE_URL: postgresql://auth_user:auth_pass@postgres:5432/auth_db
+    ports: ["3001:3001"]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  clientes-service:
+    <<: *servicio-base
+    build: { context: ., dockerfile: infra/Dockerfile.servicio, args: { SERVICIO: clientes-service } }
+    container_name: ecom_clientes
+    environment:
+      <<: *entorno-base
+      PORT: 3002
+      DATABASE_URL: postgresql://clientes_user:clientes_pass@postgres:5432/clientes_db
+    ports: ["3002:3002"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+
+  catalogo-service:
+    <<: *servicio-base
+    build: { context: ., dockerfile: infra/Dockerfile.servicio, args: { SERVICIO: catalogo-service } }
+    container_name: ecom_catalogo
+    environment:
+      <<: *entorno-base
+      PORT: 3003
+      MONGO_URL: mongodb://catalogo_user:catalogo_pass@mongo:27017/catalogo_db?authSource=catalogo_db
+      URL_INVENTARIO: http://inventario-service:3004
+    ports: ["3003:3003"]
+    depends_on:
+      mongo: { condition: service_healthy }
+    # El catalogo concentra la mayor parte del trafico (el documento estima diez
+    # consultas por cada compra), asi que es el primer candidato a replicarse:
+    #   docker compose up -d --scale catalogo-service=3
+    # Para eso hay que quitar container_name y la publicacion de puertos.
+
+  inventario-service:
+    <<: *servicio-base
+    build: { context: ., dockerfile: infra/Dockerfile.servicio, args: { SERVICIO: inventario-service } }
+    container_name: ecom_inventario
+    environment:
+      <<: *entorno-base
+      PORT: 3004
+      DATABASE_URL: postgresql://inventario_user:inventario_pass@postgres:5432/inventario_db
+      MINUTOS_RESERVA: ${MINUTOS_RESERVA:-15}
+      INTERVALO_BARRIDO_MS: ${INTERVALO_BARRIDO_MS:-60000}
+    ports: ["3004:3004"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+
+  carrito-service:
+    <<: *servicio-base
+    build: { context: ., dockerfile: infra/Dockerfile.servicio, args: { SERVICIO: carrito-service } }
+    container_name: ecom_carrito
+    environment:
+      <<: *entorno-base
+      PORT: 3005
+      REDIS_URL: redis://redis:6379
+      URL_CATALOGO: http://catalogo-service:3003
+      TTL_CARRITO_SEGUNDOS: ${TTL_CARRITO_SEGUNDOS:-604800}
+    ports: ["3005:3005"]
+    depends_on:
+      redis: { condition: service_healthy }
+
+  pedidos-service:
+    <<: *servicio-base
+    build: { context: ., dockerfile: infra/Dockerfile.servicio, args: { SERVICIO: pedidos-service } }
+    container_name: ecom_pedidos
+    environment:
+      <<: *entorno-base
+      PORT: 3006
+      DATABASE_URL: postgresql://pedidos_user:pedidos_pass@postgres:5432/pedidos_db
+      URL_CLIENTES: http://clientes-service:3002
+      URL_CATALOGO: http://catalogo-service:3003
+      URL_INVENTARIO: http://inventario-service:3004
+      URL_CARRITO: http://carrito-service:3005
+      URL_PAGOS: http://pagos-service:3007
+    ports: ["3006:3006"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+
+  pagos-service:
+    <<: *servicio-base
+    build: { context: ., dockerfile: infra/Dockerfile.servicio, args: { SERVICIO: pagos-service } }
+    container_name: ecom_pagos
+    environment:
+      <<: *entorno-base
+      PORT: 3007
+      DATABASE_URL: postgresql://pagos_user:pagos_pass@postgres:5432/pagos_db
+      PASARELA_LATENCIA_MS: ${PASARELA_LATENCIA_MS:-150}
+    ports: ["3007:3007"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+
+  notificaciones-service:
+    <<: *servicio-base
+    build: { context: ., dockerfile: infra/Dockerfile.servicio, args: { SERVICIO: notificaciones-service } }
+    container_name: ecom_notificaciones
+    environment:
+      <<: *entorno-base
+      PORT: 3008
+      MONGO_URL: mongodb://notificaciones_user:notificaciones_pass@mongo:27017/notificaciones_db?authSource=notificaciones_db
+    ports: ["3008:3008"]
+    depends_on:
+      mongo: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+
+  # ------------------------------------------------------- api gateway -----
+  api-gateway:
+    <<: *servicio-base
+    build: { context: ., dockerfile: infra/Dockerfile.servicio, args: { SERVICIO: api-gateway } }
+    container_name: ecom_gateway
+    environment:
+      <<: *entorno-base
+      PORT: 8080
+      URL_AUTH: http://auth-service:3001
+      URL_CLIENTES: http://clientes-service:3002
+      URL_CATALOGO: http://catalogo-service:3003
+      URL_INVENTARIO: http://inventario-service:3004
+      URL_CARRITO: http://carrito-service:3005
+      URL_PEDIDOS: http://pedidos-service:3006
+      URL_PAGOS: http://pagos-service:3007
+      URL_NOTIFICACIONES: http://notificaciones-service:3008
+      CORS_ORIGENES: ${CORS_ORIGENES:-http://localhost:5173}
+    ports:
+      - "8080:8080"
+    depends_on:
+      - auth-service
+      - clientes-service
+      - catalogo-service
+      - inventario-service
+      - carrito-service
+      - pedidos-service
+      - pagos-service
+      - notificaciones-service
+
+networks:
+  interna:
+    driver: bridge
+
+volumes:
+  pg_datos:
+  mongo_datos:
+  redis_datos:
+  rabbit_datos:

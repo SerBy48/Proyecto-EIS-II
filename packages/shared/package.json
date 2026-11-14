@@ -1,0 +1,23 @@
+{
+  "name": "@ecommerce/shared",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Libreria transversal: JWT, RBAC, logging, resiliencia y bus de eventos",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "amqplib": "^0.10.4",
+    "express": "^4.21.1",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "@types/amqplib": "^0.10.5",
+    "@types/express": "^4.17.21",
+    "@types/jsonwebtoken": "^9.0.7",
+    "@types/pg": "^8.11.10"
+  }
+}

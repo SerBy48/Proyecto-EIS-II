@@ -1,0 +1,43 @@
+# ============================================================================
+# Imagen comun a los nueve servicios.
+#
+# El argumento SERVICIO decide cual se ejecuta. Se instalan las dependencias
+# del monorepo completo porque todos los servicios comparten @ecommerce/shared;
+# en un despliegue de produccion se usaria un build por servicio con
+# `npm ci --workspace` para reducir el tamano de cada imagen.
+# ============================================================================
+FROM node:22-alpine
+
+ARG SERVICIO
+ENV SERVICIO=${SERVICIO}
+
+WORKDIR /app
+
+# Se copian primero los manifiestos para aprovechar la cache de capas: si no
+# cambian las dependencias, no se reinstala nada al cambiar el codigo.
+COPY package.json package-lock.json* tsconfig.base.json ./
+COPY packages/shared/package.json ./packages/shared/
+COPY services/api-gateway/package.json ./services/api-gateway/
+COPY services/auth-service/package.json ./services/auth-service/
+COPY services/clientes-service/package.json ./services/clientes-service/
+COPY services/catalogo-service/package.json ./services/catalogo-service/
+COPY services/inventario-service/package.json ./services/inventario-service/
+COPY services/carrito-service/package.json ./services/carrito-service/
+COPY services/pedidos-service/package.json ./services/pedidos-service/
+COPY services/pagos-service/package.json ./services/pagos-service/
+COPY services/notificaciones-service/package.json ./services/notificaciones-service/
+COPY clients/web/package.json ./clients/web/
+
+RUN npm install --omit=optional --ignore-scripts
+
+COPY packages ./packages
+COPY services ./services
+
+# Usuario sin privilegios: un proceso comprometido no debe ser root.
+USER node
+
+# El healthcheck consulta el mismo endpoint que usaria el balanceador de carga.
+HEALTHCHECK --interval=15s --timeout=5s --start-period=20s --retries=3 \
+  CMD node -e "require('http').get('http://127.0.0.1:'+(process.env.PORT||3000)+'/health',r=>process.exit(r.statusCode<400?0:1)).on('error',()=>process.exit(1))"
+
+CMD ["sh", "-c", "npx tsx services/$SERVICIO/src/index.ts"]
