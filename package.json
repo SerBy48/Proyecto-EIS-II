@@ -31,7 +31,13 @@
     "test:http": "tsx --env-file-if-exists=.env tests/contrato-http.ts",
     "infra:carga": "docker compose --env-file .env --env-file .env.carga up -d --build --wait",
     "infra:normal": "docker compose --env-file .env up -d --build --wait",
-    "sembrar:carga": "tsx --env-file-if-exists=.env scripts/sembrar-datos-carga.ts"
+    "sembrar:carga": "tsx --env-file-if-exists=.env scripts/sembrar-datos-carga.ts",
+    "test:carga:catalogo": "bash tests/rendimiento/ejecutar.sh catalogo-busqueda",
+    "test:carga:login": "bash tests/rendimiento/ejecutar.sh login",
+    "test:carga:checkout": "bash tests/rendimiento/ejecutar.sh checkout",
+    "test:carga:flujo": "bash tests/rendimiento/ejecutar.sh flujo-completo",
+    "test:carga:bateria": "bash tests/rendimiento/bateria.sh",
+    "graficas:rendimiento": "python scripts/graficas/rendimiento.py"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",

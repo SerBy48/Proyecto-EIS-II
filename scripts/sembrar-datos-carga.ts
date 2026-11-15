@@ -12,7 +12,7 @@
  *     que la busqueda $text de MongoDB trabaje con volumen real.
  *   - Stock alto (10 000 u.) en los SKU que usa la prueba de checkout, y
  *     200 u. en cada producto nuevo (la primera entrada abre su inventario).
- *   - 100 clientes de carga: carga001@correo.co ... carga100@correo.co
+ *   - 100 clientes de carga (CLIENTES_CARGA): carga001@correo.co ... carga100@correo.co
  *     (contrasena Password123), cada uno con su direccion de envio.
  *   - Pedidos historicos: un checkout con tok_ok_* por cada uno de los
  *     primeros 60 clientes de carga.
@@ -27,7 +27,13 @@
 const GATEWAY = process.env.URL_GATEWAY || 'http://localhost:8080';
 const API = `${GATEWAY}/api`;
 const CONTRASENA = 'Password123';
-const TOTAL_CLIENTES = 100;
+/**
+ * 100 por defecto (lo que pide el plan). Las pruebas de estres y pico llegan a
+ * 300 VU, y cada VU necesita su propia cuenta: dos VU con la misma cuenta
+ * compartirian el carrito y se vaciarian el checkout entre si. Para esas
+ * corridas: CLIENTES_CARGA=300 npm run sembrar:carga
+ */
+const TOTAL_CLIENTES = Number(process.env.CLIENTES_CARGA || 100);
 const CLIENTES_CON_PEDIDO = 60;
 const META_STOCK = 10_000;
 /** Stock de los 60 productos nuevos: suficiente para que el catalogo los muestre disponibles. */

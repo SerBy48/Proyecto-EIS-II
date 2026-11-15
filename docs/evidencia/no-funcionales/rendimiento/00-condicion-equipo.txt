@@ -1,0 +1,48 @@
+Condicion del equipo antes de las corridas de rendimiento - 2026-11-14T21:53:43-05:00
+Se cerraron: npm run dev (gateway nativo duplicado en :8080 y 8 servicios en tsx watch), Epic Games Launcher/EOS overlay, software Huion.
+En l¡nea: 1 Car cter: 94
++ ... e Win32_Processor).LoadPercentage; Start-Sleep 1 }; ($m -join \", \") ...
++                                                                  ~
+Debe proporcionar una expresi¢n de valor despu‚s del operador '-join'.
+En l¡nea: 1 Car cter: 95
++ ... _Processor).LoadPercentage; Start-Sleep 1 }; ($m -join \", \") + \" | ...
++                                                            ~~~~~~
+Token '\", \"' inesperado en la expresi¢n o la instrucci¢n.
+En l¡nea: 1 Car cter: 94
++ ... e Win32_Processor).LoadPercentage; Start-Sleep 1 }; ($m -join \", \") ...
++                                                                  ~
+Falta el par‚ntesis de cierre ')' en la expresi¢n.
+En l¡nea: 1 Car cter: 101
++ ... Processor).LoadPercentage; Start-Sleep 1 }; ($m -join \", \") + \" |  ...
++                                                                 ~
+Token ')' inesperado en la expresi¢n o la instrucci¢n.
+En l¡nea: 1 Car cter: 104
++ ... ocessor).LoadPercentage; Start-Sleep 1 }; ($m -join \", \") + \" | pr ...
++                                                                  ~
+Falta una expresi¢n despu‚s del operador unario '+'.
+En l¡nea: 1 Car cter: 105
++ ... entage; Start-Sleep 1 }; ($m -join \", \") + \" | promedio \" + [int] ...
++                                                  ~~~~~~~~~~~~~~~~
+Token '\" | promedio \"' inesperado en la expresi¢n o la instrucci¢n.
+    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : ExpectedValueExpression
+ 
+Carga de CPU del host en reposo (Win32_Processor.LoadPercentage, 10 muestras): 
+Contenedores en reposo (docker stats):
+ecom_gateway  cpu=0.47%  mem=98.21MiB / 7.676GiB
+ecom_carrito  cpu=0.46%  mem=94.36MiB / 7.676GiB
+ecom_pedidos  cpu=0.31%  mem=84.48MiB / 7.676GiB
+ecom_pagos  cpu=0.24%  mem=82.43MiB / 7.676GiB
+ecom_notificaciones  cpu=0.69%  mem=93.08MiB / 7.676GiB
+ecom_clientes  cpu=0.17%  mem=89.69MiB / 7.676GiB
+ecom_catalogo  cpu=0.61%  mem=104.8MiB / 7.676GiB
+ecom_inventario  cpu=0.92%  mem=88.55MiB / 7.676GiB
+ecom_auth  cpu=0.34%  mem=83.83MiB / 7.676GiB
+ecom_rabbitmq  cpu=0.67%  mem=132.9MiB / 7.676GiB
+ecom_redis  cpu=1.30%  mem=3.441MiB / 7.676GiB
+ecom_postgres  cpu=0.33%  mem=44.82MiB / 7.676GiB
+ecom_mongo  cpu=121.43%  mem=337.1MiB / 7.676GiB
+Puerto 8080 (solo debe escuchar Docker):
+  TCP    0.0.0.0:8080           0.0.0.0:0              LISTENING       50736
+  TCP    [::]:8080              [::]:0                 LISTENING       50736
+  TCP    [::1]:8080             [::]:0                 LISTENING       43736

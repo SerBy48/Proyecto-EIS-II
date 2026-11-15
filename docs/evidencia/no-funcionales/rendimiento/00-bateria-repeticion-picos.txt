@@ -1,0 +1,29 @@
+  auth: 200 0.142872
+== login-pico contra http://localhost:8080
+    ✗ 'rate>0.99' rate=13.02%
+    ✗ 'p(95)<1000' p(95)=15.03s
+    ✗ 'rate<0.01' rate=86.97%
+    checks_succeeded...: 13.02% 428 out of 3286
+    ✗ login 200
+      ↳  13% — ✓ 214 / ✗ 1429
+    ✗ emite token
+      ↳  13% — ✓ 214 / ✗ 1429
+    http_req_duration..............: avg=13.64s min=108.91ms med=15s   p(90)=15.01s p(95)=15.03s p(99)=15.05s max=15.15s
+    http_req_failed................: 86.97% 1429 out of 1643
+    http_reqs......................: 1643   10.668814/s
+== login-pico terminado: codigo k6 99 (99 = algun umbral no se cumplio), lineas 5xx en el gateway: 0
+  auth: 000 5.015649
+  auth: 000 5.004622
+  auth: 000 5.009410
+  auth: 200 0.117668
+== flujo-completo-pico contra http://localhost:8080
+    ✗ 'rate>0.99' rate=36.57%
+    ✗ 'p(95)<1000' p(95)=15.03s
+    ✗ 'rate<0.01' rate=66.91%
+    checks_succeeded...: 36.57% 819 out of 2239
+    ✗ login 200
+      ↳  7% — ✓ 117 / ✗ 1420
+    http_req_duration..................: avg=10.41s   min=6.39ms   med=15s      p(90)=15.01s   p(95)=15.02s   p(99)=15.04s   max=15.1s   
+    http_req_failed....................: 66.91% 1420 out of 2122
+    http_reqs..........................: 2122   13.915145/s
+== flujo-completo-pico terminado: codigo k6 99 (99 = algun umbral no se cumplio), lineas 5xx en el gateway: 1

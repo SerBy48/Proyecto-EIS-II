@@ -1,0 +1,52 @@
+time="2026-11-14T22:43:29-05:00" level=warning msg="Request Failed" error="Post \"http://localhost:8080/api/pedidos/checkout\": dial tcp 127.0.0.1:8080: connectex: Only one usage of each socket address (protocol/network address/port) is normally permitted."
+
+
+  █ THRESHOLDS 
+
+    checks
+    ✓ 'rate>0.99' rate=99.99%
+
+    http_req_duration{endpoint:carrito_agregar}
+    ✗ 'p(95)<500' p(95)=505.2ms
+
+    http_req_duration{endpoint:checkout}
+    ✗ 'p(95)<1500' p(95)=6.83s
+
+    http_req_failed
+    ✓ 'rate<0.01' rate=0.00%
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 63033  106.706163/s
+    checks_succeeded...: 99.99% 63031 out of 63033
+    checks_failed......: 0.00%  2 out of 63033
+
+    ✓ login 200
+    ✓ carrito 200
+    ✗ checkout 201/200
+      ↳  99% — ✓ 20910 / ✗ 1
+    ✗ pedido queda pagado
+      ↳  99% — ✓ 20910 / ✗ 1
+
+    HTTP
+    http_req_duration................: avg=1.7s     min=0s     med=453.57ms p(90)=6s       p(95)=6.52s   p(99)=7.06s    max=7.98s 
+      { endpoint:carrito_agregar }...: avg=157.01ms min=4.34ms med=93.63ms  p(90)=394.59ms p(95)=505.2ms p(99)=721.07ms max=1.04s 
+      { endpoint:checkout }..........: avg=3.25s    min=0s     med=3.24s    p(90)=6.52s    p(95)=6.83s   p(99)=7.2s     max=7.98s 
+      { expected_response:true }.....: avg=1.7s     min=4.34ms med=453.6ms  p(90)=6s       p(95)=6.52s   p(99)=7.06s    max=7.98s 
+    http_req_failed..................: 0.00% 1 out of 42122
+    http_reqs........................: 42122 71.306728/s
+
+    EXECUTION
+    iteration_duration...............: avg=4.45s    min=1.11s  med=4.39s    p(90)=7.8s     p(95)=8.18s   p(99)=8.7s     max=11.81s
+    iterations.......................: 20911 35.399435/s
+    vus..............................: 8     min=2          max=300
+    vus_max..........................: 300   min=300        max=300
+
+    NETWORK
+    data_received....................: 50 MB 84 kB/s
+    data_sent........................: 20 MB 33 kB/s
+
+
+
+time="2026-11-14T22:50:25-05:00" level=error msg="thresholds on metrics 'http_req_duration{endpoint:carrito_agregar}, http_req_duration{endpoint:checkout}' have been crossed"
