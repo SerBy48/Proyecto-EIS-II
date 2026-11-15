@@ -3,7 +3,7 @@
 # Escaneo PASIVO de la web con zap-baseline.py: spider clasico y AJAX spider
 # (la web es una SPA de React), sin ataques.
 #
-#   tests/seguridad/zap-baseline.sh
+#   tests/seguridad/zap-baseline.sh [etiqueta]   (la etiqueta se agrega al nombre de los reportes)
 #
 # Requiere la web construida y servida con vite preview en el 4173:
 #   npm run build:web && (cd clients/web && npx vite preview --host 0.0.0.0 --port 4173)
@@ -12,6 +12,7 @@
 # Markdown (baseline-web.*).
 # ============================================================================
 source "$(dirname "$0")/zap-comun.sh"
+NOMBRE="baseline-web${1:+-$1}"
 
 # Vite 5 rechaza los Host desconocidos (allowedHosts). En lugar de abrir la
 # configuracion del proyecto, ZAP reescribe la cabecera Host a localhost.
@@ -22,8 +23,8 @@ zap zap-baseline.py \
   -t "http://$HOST_EQUIPO:4173" \
   -j -m 3 \
   -c zap-reglas.tsv \
-  -r baseline-web.html -J baseline-web.json -w baseline-web.md \
+  -r "$NOMBRE.html" -J "$NOMBRE.json" -w "$NOMBRE.md" \
   -z "$OPCIONES_ZAP" \
-  2>&1 | tee "$DESTINO/baseline-web-consola.txt"
+  2>&1 | tee "$DESTINO/$NOMBRE-consola.txt"
 # Codigos de zap-baseline: 0 sin alertas, 1 FAIL, 2 WARN, 3 error de ZAP.
 echo "== codigo de salida de ZAP: ${PIPESTATUS[0]} (0 limpio, 1 FAIL, 2 solo WARN, 3 error)"
