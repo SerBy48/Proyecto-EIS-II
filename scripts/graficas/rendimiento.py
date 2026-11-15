@@ -400,6 +400,62 @@ def grafica_comparativa(resumenes: dict, destino: Path, etiqueta: str = ""):
 
 
 # ---------------------------------------------------------------------------
+def grafica_antes_despues(salida: dict, destino: Path):
+    """
+    Antes y despues de las correcciones de la Fase 3, un panel por metrica
+    (cada una con su escala: nada de doble eje). El panel del checkout compara
+    la prueba A/B con y sin keep-alive, ejecutada en las mismas condiciones.
+    """
+
+    def escalon(nombre, vus):
+        return next((e for e in salida.get(nombre, {}).get("por_escalon", []) if e["vus"] == vus), None)
+
+    def exitosos(nombre):
+        r = salida.get(nombre, {}).get("resumen")
+        return round(r["peticiones"] * (1 - r["errores_pct"] / 100)) if r else None
+
+    def p95(nombre, ep):
+        r = salida.get(nombre, {}).get("resumen")
+        return r["por_endpoint"][ep]["p(95)"] if r and r["por_endpoint"].get(ep) else None
+
+    paneles = [
+        ("Login, 50 VU: logins por segundo", "antes", "después",
+         (escalon("login-carga", 50) or {}).get("rps"), (escalon("login-carga-despues", 50) or {}).get("rps")),
+        ("Login, 50 VU: p95 (ms)", "antes", "después",
+         (escalon("login-carga", 50) or {}).get("p95_ms"), (escalon("login-carga-despues", 50) or {}).get("p95_ms")),
+        ("Login en estrés: logins exitosos", "antes", "después",
+         exitosos("login-estres"), exitosos("login-estres-despues")),
+        ("Catálogo, 300 VU: errores (%)", "antes", "después",
+         (escalon("catalogo-busqueda-estres", 300) or {}).get("errores_pct"),
+         (escalon("catalogo-busqueda-estres-despues", 300) or {}).get("errores_pct")),
+        ("Checkout, 50 VU: p95 (ms), prueba A/B", "sin keep-alive", "con keep-alive",
+         p95("checkout-carga-ab-sin-keepalive", "checkout"), p95("checkout-carga-despues-r4-saga-vacia", "checkout")),
+    ]
+    paneles = [p for p in paneles if p[3] is not None and p[4] is not None]
+    if not paneles:
+        return
+    columnas = 3
+    filas = math.ceil(len(paneles) / columnas)
+    fig, ejes = plt.subplots(filas, columnas, figsize=(7.6, 2.5 * filas))
+    ejes = list(ejes.flat) if hasattr(ejes, "flat") else [ejes]
+    for ax, (titulo, rotulo_a, rotulo_b, a, b) in zip(ejes, paneles):
+        barras = ax.bar([rotulo_a, rotulo_b], [a, b], color=[VERDE_CLARO, VERDE], width=0.55)
+        for barra, valor in zip(barras, (a, b)):
+            texto = f"{valor:,.1f}" if valor < 100 else f"{valor:,.0f}"
+            ax.annotate(texto.replace(",", "X").replace(".", ",").replace("X", "."),
+                        (barra.get_x() + barra.get_width() / 2, valor),
+                        ha="center", textcoords="offset points", xytext=(0, 3), fontsize=8, color=TINTA)
+        ax.set_ylim(0, max(a, b, 1) * 1.2)
+        ax.set_title(titulo, fontsize=8.5)
+        ax.grid(axis="x", visible=False)
+    for ax in ejes[len(paneles):]:
+        ax.axis("off")
+    fig.suptitle("Fase 3: antes y después de las correcciones R1 a R4", x=0.01, ha="left", fontsize=10, fontweight="bold")
+    fig.tight_layout()
+    fig.savefig(destino)
+    plt.close(fig)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--solo", default="", help="procesar solo las corridas que empiezan por este prefijo")
@@ -440,6 +496,7 @@ def main():
 
     if not args.solo:
         grafica_comparativa(resumenes, GRAFICAS / "p95-por-escenario.png")
+        grafica_antes_despues(salida, GRAFICAS / "antes-despues-fase3.png")
         (EVIDENCIA / "resumen-metricas.json").write_text(json.dumps(salida, indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"Listo: {len(salida)} corridas procesadas.", file=sys.stderr)
 

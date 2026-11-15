@@ -25,6 +25,14 @@ for escenario in $ESCENARIOS; do
       CLIENTES_CARGA=300 npx tsx --env-file-if-exists=.env scripts/sembrar-datos-carga.ts > /dev/null 2>&1 \
         || echo "   (aviso: el poblado termino con errores)"
     fi
+    # Cada corrida empieza con la cola de notificaciones vacia: si la anterior
+    # dejo eventos pendientes, el consumidor los drenaria durante la medicion.
+    for _ in $(seq 1 180); do
+      PENDIENTES="$(docker exec ecom_rabbitmq rabbitmqctl list_queues -q name messages 2>/dev/null | awk '$1=="notificaciones.envio"{print $2}')"
+      [ "${PENDIENTES:-0}" -le "${COLA_MAXIMA_INICIO:-50}" ] && break
+      echo "   esperando a que se vacie la cola de notificaciones ($PENDIENTES pendientes)"
+      sleep 20
+    done
     bash tests/rendimiento/ejecutar.sh "$escenario" "$perfil" "$ETIQUETA" \
       | grep -E '^==|✗|checks_succeeded|http_req_duration\.\.|http_req_failed\.\.|http_reqs\.\.|vus_max'
     sleep 30

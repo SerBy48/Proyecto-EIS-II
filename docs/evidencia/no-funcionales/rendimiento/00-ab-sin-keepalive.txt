@@ -1,0 +1,32 @@
+-- reponiendo stock antes de checkout-carga
+   esperando a que se vacie la cola de notificaciones (4361 pendientes)
+   esperando a que se vacie la cola de notificaciones (4158 pendientes)
+   esperando a que se vacie la cola de notificaciones (3956 pendientes)
+   esperando a que se vacie la cola de notificaciones (3756 pendientes)
+   esperando a que se vacie la cola de notificaciones (3555 pendientes)
+   esperando a que se vacie la cola de notificaciones (3352 pendientes)
+   esperando a que se vacie la cola de notificaciones (3149 pendientes)
+   esperando a que se vacie la cola de notificaciones (2946 pendientes)
+   esperando a que se vacie la cola de notificaciones (2741 pendientes)
+   esperando a que se vacie la cola de notificaciones (2540 pendientes)
+   esperando a que se vacie la cola de notificaciones (2339 pendientes)
+   esperando a que se vacie la cola de notificaciones (2135 pendientes)
+   esperando a que se vacie la cola de notificaciones (1932 pendientes)
+   esperando a que se vacie la cola de notificaciones (1727 pendientes)
+   esperando a que se vacie la cola de notificaciones (1526 pendientes)
+   esperando a que se vacie la cola de notificaciones (1322 pendientes)
+   esperando a que se vacie la cola de notificaciones (1119 pendientes)
+   esperando a que se vacie la cola de notificaciones (917 pendientes)
+   esperando a que se vacie la cola de notificaciones (716 pendientes)
+   esperando a que se vacie la cola de notificaciones (514 pendientes)
+   esperando a que se vacie la cola de notificaciones (313 pendientes)
+   esperando a que se vacie la cola de notificaciones (114 pendientes)
+== checkout-carga-ab-sin-keepalive contra http://localhost:8080
+    ✗ 'p(95)<1500' p(95)=1.57s
+    checks_succeeded...: 100.00% 18461 out of 18461
+    http_req_duration................: avg=411.02ms min=5.58ms   med=264.22ms p(90)=1.08s    p(95)=1.31s    p(99)=2.06s    max=4.5s    
+    http_req_failed..................: 0.00%  0 out of 12374
+    http_reqs........................: 12374  45.723258/s
+    vus_max..........................: 50     min=50         max=50
+== checkout-carga-ab-sin-keepalive terminado: codigo k6 99 (99 = algun umbral no se cumplio), lineas 5xx en el gateway: 0
+== bateria terminada 2026-11-15T02:24:05-05:00

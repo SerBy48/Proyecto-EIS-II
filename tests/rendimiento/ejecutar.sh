@@ -30,11 +30,21 @@ NOMBRE="${ESCENARIO}-${PERFIL}${ETIQUETA:+-$ETIQUETA}"
 URL="${K6_URL_BASE:-http://localhost:8080}"
 mkdir -p "$DESTINO"
 
+# Mensajes pendientes en la cola de notificaciones. Si una corrida empieza con
+# cola acumulada por la anterior, el consumidor la drena en segundo plano y
+# compite por CPU con la medicion (docs/calidad/RENDIMIENTO.md, hallazgo R6).
+cola_notificaciones() {
+  docker exec ecom_rabbitmq rabbitmqctl list_queues -q name messages 2>/dev/null \
+    | awk '$1=="notificaciones.envio"{print $2}' | grep . || echo null
+}
+
 salud() {
   local momento="$1"
-  printf '"%s": {"hora": "%s", "gateway": %s, "catalogo": %s}' "$momento" "$(date -Iseconds)" \
+  printf '"%s": {"hora": "%s", "cola_notificaciones": %s, "gateway": %s, "catalogo": %s, "auth": %s}' \
+    "$momento" "$(date -Iseconds)" "$(cola_notificaciones)" \
     "$(curl -s --max-time 5 "$URL/api/health" || echo null)" \
-    "$(curl -s --max-time 5 http://localhost:3003/health || echo null)"
+    "$(curl -s --max-time 5 http://localhost:3003/health || echo null)" \
+    "$(curl -s --max-time 5 http://localhost:3001/health || echo null)"
 }
 
 echo "== $NOMBRE contra $URL"
