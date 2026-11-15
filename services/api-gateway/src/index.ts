@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express, { NextFunction, Request, Response } from 'express';
 import { randomUUID } from 'node:crypto';
+import { Agent, IncomingMessage } from 'node:http';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
@@ -241,17 +242,39 @@ app.use('/api', (req: PeticionAutenticada, res: Response, next: NextFunction) =>
 // --------------------------------------------------------------------------
 // Proxy hacia los microservicios
 // --------------------------------------------------------------------------
+const PROXY_TIMEOUT_MS = Number(process.env.PROXY_TIMEOUT_MS || 15000);
+
+/**
+ * Conexiones persistentes hacia los servicios.
+ *
+ * Sin un agent, http-proxy envia "Connection: close" a cada servicio y
+ * reenvia esa cabecera al cliente: cada peticion abria dos conexiones TCP
+ * nuevas, y con 300 usuarios el equipo generador agotaba sus puertos
+ * (docs/calidad/RENDIMIENTO.md, hallazgo R3). Con keep-alive se reutilizan.
+ * 'lifo' reutiliza primero la conexion usada mas recientemente, que es la que
+ * menos riesgo tiene de que el servicio la haya cerrado por inactividad.
+ */
+const agenteServicios = new Agent({ keepAlive: true, scheduling: 'lifo' });
+
+/** Peticiones cuyo proxyTimeout vencio: se responden con 504 y no con 503. */
+const tiempoAgotado = new WeakSet<IncomingMessage>();
+
 const opcionesComunes = (destino: Destino): Options => ({
   target: destino.url,
+  agent: agenteServicios,
   changeOrigin: true,
   // El prefijo /api/<servicio> se elimina: cada servicio publica sus rutas en
   // la raiz y no necesita saber bajo que prefijo lo expone el gateway.
   pathRewrite: { [`^${destino.prefijo}`]: '' },
-  proxyTimeout: Number(process.env.PROXY_TIMEOUT_MS || 15000),
-  timeout: Number(process.env.PROXY_TIMEOUT_MS || 15000),
+  // Solo proxyTimeout (espera por el servicio). La opcion "timeout" de
+  // http-proxy se aplica al socket del CLIENTE y, al vencer, lo destruye sin
+  // responder: el cliente recibia un EOF en vez del 504 de abajo (hallazgo R4).
+  proxyTimeout: PROXY_TIMEOUT_MS,
   on: {
     proxyReq: (proxyReq, req) => {
       const peticion = req as PeticionAutenticada;
+
+      proxyReq.once('timeout', () => tiempoAgotado.add(req));
 
       proxyReq.setHeader('x-request-id', peticion.requestId ?? '');
 
@@ -270,6 +293,12 @@ const opcionesComunes = (destino: Destino): Options => ({
         }
       }
     },
+    proxyRes: (proxyRes) => {
+      // Keep-Alive es una cabecera de salto (hop-by-hop): describe la conexion
+      // gateway-servicio (65 s), no la del cliente con el gateway. Si se
+      // reenviara, el cliente reutilizaria sockets que el gateway ya cerro.
+      delete proxyRes.headers['keep-alive'];
+    },
     error: (error, req, res) => {
       const peticion = req as PeticionAutenticada;
       log.con({ request_id: peticion.requestId }).error('Error al enrutar la peticion', {
@@ -278,12 +307,15 @@ const opcionesComunes = (destino: Destino): Options => ({
       });
 
       if ('writeHead' in res && !res.headersSent) {
-        res.writeHead(503, { 'Content-Type': 'application/json' });
+        const servicio = destino.prefijo.replace('/api/', '');
+        const vencido = tiempoAgotado.has(req);
+        res.writeHead(vencido ? 504 : 503, { 'Content-Type': 'application/json' });
         res.end(
-          JSON.stringify({
-            mensaje: `El servicio ${destino.prefijo.replace('/api/', '')} no esta disponible en este momento.`,
-            codigo: 'SERVICIO_NO_DISPONIBLE'
-          })
+          JSON.stringify(
+            vencido
+              ? { mensaje: `El servicio ${servicio} no respondio a tiempo. Intente de nuevo.`, codigo: 'TIEMPO_AGOTADO' }
+              : { mensaje: `El servicio ${servicio} no esta disponible en este momento.`, codigo: 'SERVICIO_NO_DISPONIBLE' }
+          )
         );
       }
     }

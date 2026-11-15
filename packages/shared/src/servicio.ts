@@ -140,6 +140,14 @@ export const crearServicio = async (opciones: OpcionesServicio): Promise<void> =
     log.info(`Servicio escuchando en http://localhost:${opciones.puerto}`);
   });
 
+  // El gateway reutiliza conexiones (keep-alive). Con los 5 s por defecto de
+  // Node, el servicio podia cerrar un socket ocioso justo cuando el gateway lo
+  // reutilizaba, y esa peticion fallaba con ECONNRESET. El servicio mantiene la
+  // conexion mas tiempo y anuncia el valor en "Keep-Alive: timeout=65", que el
+  // agente HTTP de Node respeta para soltar el socket antes.
+  servidor.keepAliveTimeout = 65_000;
+  servidor.headersTimeout = 66_000;
+
   const detener = async (senal: string) => {
     log.info(`Recibida ${senal}, cerrando de forma ordenada`);
     servidor.close();
