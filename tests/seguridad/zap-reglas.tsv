@@ -1,0 +1,7 @@
+# Configuracion de reglas de ZAP (formato de los scripts empaquetados: id<TAB>accion<TAB>(nombre)).
+# Acciones: IGNORE, INFO, WARN, FAIL.
+#
+# POLITICA: aqui solo entran falsos positivos YA ANALIZADOS, cada uno con su
+# justificacion en docs/calidad/SEGURIDAD.md. Nunca se silencia un hallazgo
+# real. Mientras una regla no este analizada, se queda con su accion por
+# defecto (WARN).
