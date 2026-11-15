@@ -1,0 +1,17 @@
+﻿Entorno de pruebas - capturado con comandos el 2026-11-14 20:33:53 -05:00
+
+Hardware
+  CPU:            Intel(R) Core(TM) i5-9300H CPU @ 2.40GHz
+  Nucleos/hilos:  4 / 8
+  RAM fisica:     15.8 GB
+Sistema operativo
+  Microsoft Windows 11 Home Single Language 10.0.26200 (build 26200), 64 bits
+Software
+  Node.js:        v25.8.0
+  npm:            11.14.1
+  Docker:         Docker version 29.2.1, build a5c7197
+  Docker Compose: 5.1.0
+  Docker Desktop: CPUs asignadas=8, RAM asignada=8242036736 bytes, kernel=6.6.87.2-microsoft-standard-WSL2
+  k6:             k6.exe v1.5.0 (commit/7961cefa12, go1.25.5, windows/amd64)
+  Python:         Python 3.12.5
+  Git:            git version 2.47.0.windows.2

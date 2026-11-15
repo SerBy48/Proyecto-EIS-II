@@ -28,7 +28,10 @@
     "test:salud": "tsx --env-file-if-exists=.env tests/salud.ts",
     "test:e2e": "tsx --env-file-if-exists=.env tests/e2e-compra.ts",
     "test:concurrencia": "tsx --env-file-if-exists=.env tests/concurrencia-stock.ts",
-    "test:http": "tsx --env-file-if-exists=.env tests/contrato-http.ts"
+    "test:http": "tsx --env-file-if-exists=.env tests/contrato-http.ts",
+    "infra:carga": "docker compose --env-file .env --env-file .env.carga up -d --build --wait",
+    "infra:normal": "docker compose --env-file .env up -d --build --wait",
+    "sembrar:carga": "tsx --env-file-if-exists=.env scripts/sembrar-datos-carga.ts"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",

@@ -1,0 +1,51 @@
+== npm run test:salud (2026-11-14T20:55:43-05:00) - despliegue: docker compose (contenedores)
+
+> ecommerce-distribuido@1.0.0 test:salud
+> tsx --env-file-if-exists=.env tests/salud.ts
+
+
+Salud del sistema  http://localhost:8080
+
+  OK   auth             ok
+         └─ postgres:auth_db     conectado
+  OK   clientes         ok
+         └─ postgres:clientes_db conectado
+         └─ rabbitmq             conectado
+  OK   catalogo         ok
+         └─ mongo:catalogo_db    conectado
+  OK   inventario       ok
+         └─ postgres:inventario_db conectado
+         └─ rabbitmq             conectado
+  OK   carrito          ok
+         └─ redis                conectado
+  OK   pedidos          ok
+         └─ postgres:pedidos_db  conectado
+         └─ rabbitmq             conectado
+  OK   pagos            ok
+         └─ postgres:pagos_db    conectado
+         └─ rabbitmq             conectado
+  OK   notificaciones   ok
+         └─ mongo:notificaciones_db conectado
+         └─ rabbitmq             conectado
+
+Los nueve servicios responden. El sistema esta listo.
+Siguiente paso: npm run test:e2e
+
+
+== GET /api/health
+{"gateway":"ok","hora":"2026-11-15T01:55:51.189Z","servicios_caidos":[],"servicios":[{"servicio":"auth","ok":true,"estado":"ok","dependencias":[{"nombre":"postgres:auth_db","ok":true,"critica":true}]},{"servicio":"clientes","ok":true,"estado":"ok","dependencias":[{"nombre":"postgres:clientes_db","ok":true,"critica":true},{"nombre":"rabbitmq","ok":true,"critica":false}]},{"servicio":"catalogo","ok":true,"estado":"ok","dependencias":[{"nombre":"mongo:catalogo_db","ok":true,"critica":true}]},{"servicio":"inventario","ok":true,"estado":"ok","dependencias":[{"nombre":"postgres:inventario_db","ok":true,"critica":true},{"nombre":"rabbitmq","ok":true,"critica":false}]},{"servicio":"carrito","ok":true,"estado":"ok","dependencias":[{"nombre":"redis","ok":true,"critica":true}]},{"servicio":"pedidos","ok":true,"estado":"ok","dependencias":[{"nombre":"postgres:pedidos_db","ok":true,"critica":true},{"nombre":"rabbitmq","ok":true,"critica":false}]},{"servicio":"pagos","ok":true,"estado":"ok","dependencias":[{"nombre":"postgres:pagos_db","ok":true,"critica":true},{"nombre":"rabbitmq","ok":true,"critica":false}]},{"servicio":"notificaciones","ok":true,"estado":"ok","dependencias":[{"nombre":"mongo:notificaciones_db","ok":true,"critica":true},{"nombre":"rabbitmq","ok":true,"critica":true}]}]}
+
+== docker ps
+ecom_gateway	Up About a minute (healthy)
+ecom_auth	Up About a minute (healthy)
+ecom_notificaciones	Up About a minute (healthy)
+ecom_clientes	Up About a minute (healthy)
+ecom_inventario	Up About a minute (healthy)
+ecom_catalogo	Up About a minute (healthy)
+ecom_pagos	Up About a minute (healthy)
+ecom_pedidos	Up About a minute (healthy)
+ecom_carrito	Up About a minute (healthy)
+ecom_rabbitmq	Up 39 minutes (healthy)
+ecom_postgres	Up 40 minutes (healthy)
+ecom_redis	Up 40 minutes (healthy)
+ecom_mongo	Up 40 minutes (healthy)

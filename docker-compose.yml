@@ -244,6 +244,12 @@ services:
       URL_PAGOS: http://pagos-service:3007
       URL_NOTIFICACIONES: http://notificaciones-service:3008
       CORS_ORIGENES: ${CORS_ORIGENES:-http://localhost:5173}
+      # Limites del rate limiting. Mismos valores por defecto que el codigo; el
+      # perfil .env.carga los eleva para medir el sistema y no el limitador.
+      LIMITE_GENERAL: ${LIMITE_GENERAL:-300}
+      LIMITE_LOGIN: ${LIMITE_LOGIN:-10}
+      LIMITE_CHECKOUT: ${LIMITE_CHECKOUT:-10}
+      PROXY_TIMEOUT_MS: ${PROXY_TIMEOUT_MS:-15000}
     ports:
       - "8080:8080"
     depends_on:

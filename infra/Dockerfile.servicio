@@ -28,7 +28,10 @@ COPY services/pagos-service/package.json ./services/pagos-service/
 COPY services/notificaciones-service/package.json ./services/notificaciones-service/
 COPY clients/web/package.json ./clients/web/
 
-RUN npm install --omit=optional --ignore-scripts
+# Sin --omit=optional: tsx depende de esbuild, que publica su binario nativo
+# (@esbuild/linux-x64) como dependencia opcional. Omitirlas deja a los servicios
+# sin poder arrancar dentro del contenedor ("could not be found").
+RUN npm install --ignore-scripts
 
 COPY packages ./packages
 COPY services ./services
