@@ -192,6 +192,8 @@ const ejecutar = async (): Promise<void> => {
     cabeceras: { 'x-usuario-rol': 'administrador', 'x-llamada-interna': '1', 'x-internal-token': 'secreto-interno-desarrollo' }
   });
   await caso('B-14', 404, 'Ruta inexistente en el gateway', '/api/inventado/ruta', ana);
+  await caso('B-15', 200, 'Cliente listando sus propias direcciones', '/api/clientes/1/direcciones', ana);
+  await caso('B-16', 403, 'Cliente listando las direcciones de otro cliente', '/api/clientes/2/direcciones', ana);
 
   seccion('SUITE C · INVENTARIO: RESERVAS, IDEMPOTENCIA Y COMPENSACION');
   // Se deja SKU-TEC-004 con una sola unidad.
@@ -212,6 +214,15 @@ const ejecutar = async (): Promise<void> => {
   const [stock] = await sql('inventario_db', `SELECT cantidad_disponible FROM stock WHERE sku='SKU-TEC-004'`);
   info('C-08', `Stock tras la compensacion: ${stock?.cantidad_disponible} unidad(es) — debe ser 1`);
   await caso('C-09', 200, 'Registrar entrada de mercancia', '/api/inventario/stock/SKU-TEC-002/entrada', { ...vend, metodo: 'POST', cuerpo: { cantidad: 5 } });
+  // Un producto recien creado en el catalogo no tiene registro de inventario:
+  // la primera entrada debe abrirlo (antes respondia 404 y el producto no se
+  // podia vender nunca). El 409 del alta cubre las re-ejecuciones de la suite.
+  await pedir('/api/catalogo/productos', {
+    ...vend, metodo: 'POST', cuerpo: { sku: 'SKU-EV-INV-001', nombre: 'Producto de evidencia inventario', categoria: 'hogar', precio: 10000 }
+  });
+  await caso('C-10', 200, 'Primera entrada de un producto nuevo abre su inventario', '/api/inventario/stock/SKU-EV-INV-001/entrada', { ...vend, metodo: 'POST', cuerpo: { cantidad: 3 } });
+  await caso('C-11', 404, 'Entrada de un SKU que no existe en el catalogo', '/api/inventario/stock/SKU-NO-EXISTE-999/entrada', { ...vend, metodo: 'POST', cuerpo: { cantidad: 3 } });
+  await caso('C-12', 400, 'Entrada hacia una bodega inexistente', '/api/inventario/stock/SKU-TEC-002/entrada', { ...vend, metodo: 'POST', cuerpo: { cantidad: 1, bodega_id: 9999 } });
   await caso('C-10', 404, 'Entrada sobre un SKU inexistente', '/api/inventario/stock/SKU-NO-EXISTE/entrada', { ...vend, metodo: 'POST', cuerpo: { cantidad: 5 } });
 
   seccion('SUITE D · PAGOS: LOS CUATRO DESENLACES DE LA PASARELA');

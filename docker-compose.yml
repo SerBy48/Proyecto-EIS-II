@@ -103,11 +103,11 @@ services:
     volumes:
       - rabbit_datos:/var/lib/rabbitmq
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_port_connectivity"]
       interval: 10s
-      timeout: 5s
+      timeout: 15s
       retries: 10
-      start_period: 25s
+      start_period: 90s
     networks: [interna]
 
   # ------------------------------------------------------ microservicios ----
@@ -163,6 +163,8 @@ services:
       DATABASE_URL: postgresql://inventario_user:inventario_pass@postgres:5432/inventario_db
       MINUTOS_RESERVA: ${MINUTOS_RESERVA:-15}
       INTERVALO_BARRIDO_MS: ${INTERVALO_BARRIDO_MS:-60000}
+      # Para confirmar que un SKU existe antes de abrirle su primer registro de stock.
+      URL_CATALOGO: http://catalogo-service:3003
     ports: ["3004:3004"]
     depends_on:
       postgres: { condition: service_healthy }

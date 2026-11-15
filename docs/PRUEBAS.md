@@ -6,9 +6,9 @@ electrónico.
 
 | | |
 |---|---|
-| **Última ejecución** | 1 de octubre de 2026 |
-| **Casos ejecutados** | 142 (33 de concurrencia + 60 por HTTP + 49 extremo a extremo) |
-| **Resultado** | 142 pasan, 0 fallan |
+| **Última ejecución** | 14 de noviembre de 2026 (servicios en contenedores y base poblada con `npm run sembrar:carga`) |
+| **Casos ejecutados** | 147 (33 de concurrencia + 65 por HTTP + 49 extremo a extremo) |
+| **Resultado** | 147 pasan, 0 fallan |
 | **Entorno** | Windows 11, Node 25, Docker: PostgreSQL 16 (puerto 5434 del host), MongoDB 7, Redis 7, RabbitMQ 3. Infraestructura completa |
 | **Evidencia** | [`evidencia/`](evidencia/) — salida literal de cada suite |
 
@@ -117,7 +117,7 @@ Escenario 2: veinte compradores, cinco unidades
 
 ### Nivel 4 — Contrato HTTP
 
-`npm run test:http` → **60 casos, 60 pasan**
+`npm run test:http` → **65 casos, 65 pasan**
 ([`evidencia/02-contrato-http.txt`](evidencia/02-contrato-http.txt)).
 
 | Suite | Área | Casos |
@@ -346,7 +346,7 @@ notificaciones   ok=False  estado=inalcanzable
 
 ## 4. Defectos encontrados y corregidos
 
-Las pruebas encontraron cinco defectos reales. Los cinco están corregidos y
+Las pruebas encontraron nueve defectos reales. Los nueve están corregidos y
 tienen un caso que impide que vuelvan.
 
 ### 4.1 Escalada de privilegios por el token interno — **grave**
@@ -430,6 +430,114 @@ esa lista. Para el administrador funcionaba (E-14) porque no pasa por esa regla.
 de estados del cliente se aplica después.
 
 **Casos que lo cubren.** E-15, E-16.
+
+> Los defectos 4.6 a 4.9 se encontraron el 14 de noviembre de 2026, al preparar
+> las pruebas no funcionales (Fase 1 de
+> [`PLAN-ESTRATEGIAS-VALIDACION.md`](PLAN-ESTRATEGIAS-VALIDACION.md)). Fue la
+> primera vez que el sistema se desplegó **completo en contenedores** y se pobló
+> con volumen. Las ejecuciones anteriores usaban `npm run dev` y los diez
+> productos de la semilla.
+
+### 4.6 Los servicios no arrancaban en contenedores — **grave**
+
+**Síntoma.** Con `docker compose up`, los nueve servicios entraban en un bucle de
+reinicio:
+
+```
+Error: The package "@esbuild/linux-x64" could not be found, and is needed by esbuild.
+```
+
+Una vez corregido eso, el gateway seguía marcado como `unhealthy` aunque
+respondía bien. Y en un arranque en frío, `rabbitmq` fallaba su healthcheck y
+arrastraba a los servicios que dependen de él.
+
+**Causa.** Tres problemas de despliegue:
+
+- `infra/Dockerfile.servicio` instalaba con `npm install --omit=optional`. Así
+  se excluía el binario nativo de esbuild, del que depende `tsx`.
+- El `HEALTHCHECK` de la imagen consulta `/health`, pero el gateway solo
+  exponía `/api/health` y respondía 404.
+- El healthcheck de RabbitMQ daba 5 s de timeout y 25 s de gracia. Con nueve
+  servicios compilando TypeScript al mismo tiempo, el broker tardó 75 s en
+  arrancar.
+- Además, ese healthcheck usaba `rabbitmq-diagnostics ping`, que da sano en
+  cuanto el nodo responde, **antes** de que el listener AMQP acepte
+  conexiones. `notificaciones` se conectaba en ese hueco, recibía
+  `ECONNREFUSED` y, como `BusEventos` no reintenta la primera conexión
+  (sección 5), quedaba caído.
+
+**Corrección.**
+
+- Se quita `--omit=optional`.
+- El gateway tiene un `GET /health` de *liveness*. No consulta a los demás
+  servicios a propósito: si uno cae, no se debe reiniciar el gateway.
+- El healthcheck de RabbitMQ pasa a 15 s de timeout y 90 s de gracia, y usa
+  `check_port_connectivity`, que espera a que los listeners estén arriba. Con
+  eso, un arranque en frío (`docker compose down` seguido de `up --wait`) deja
+  los 13 contenedores sanos al primer intento.
+
+**Evidencia.** `evidencia/no-funcionales/00-salud-previa.txt` (los 13
+contenedores `healthy`).
+
+### 4.7 Error 500 al listar las direcciones de un cliente
+
+**Síntoma.** `GET /api/clientes/:id/direcciones` devolvía siempre
+`500 ERROR_INTERNO`, también para el propio dueño.
+
+**Causa.** El `SELECT id, …` hace `JOIN` de `clientes` con `direcciones`, y las
+dos tablas tienen columna `id`:
+
+```
+column reference "id" is ambiguous
+```
+
+Ningún cliente (web ni móvil) ni ninguna suite usaba la ruta, y por eso no se
+había detectado.
+
+**Corrección.** Las columnas se califican con el alias `d.`.
+
+**Casos que lo cubren.** B-15, B-16.
+
+### 4.8 Un producto nuevo no se podía abastecer nunca
+
+**Síntoma.** Un producto creado con `POST /api/catalogo/productos` (o desde el
+panel de administración) quedaba agotado para siempre. La entrada de mercancía
+respondía `404 No hay registro de inventario`. Al poblar 60 productos, la primera
+página del catálogo quedó entera sin stock y `test:e2e` falló en «Hay al menos un
+producto con existencias».
+
+**Causa.** `registrarEntrada` solo hacía `UPDATE` sobre filas existentes de
+`stock`, y ningún endpoint creaba la fila. Solo existían las diez de
+`06-datos-prueba.sql`.
+
+**Corrección.** La entrada hace un *upsert* (`INSERT … ON CONFLICT DO UPDATE`).
+La fila la sigue escribiendo inventario, su único propietario (invariante 3).
+Las condiciones son:
+
+- El registro nuevo solo se abre si el catálogo confirma que el producto
+  existe. Así un SKU mal escrito no deja filas huérfanas.
+- Una `bodega_id` inexistente responde `400`.
+
+**Casos que lo cubren.** C-10, C-11, C-12.
+
+### 4.9 Una entrada sin bodega se sumaba en todas las bodegas del SKU
+
+**Síntoma.** Un defecto latente que ningún dato de prueba activaba: todos los
+SKU de la semilla están en una sola bodega. Una entrada de 5 unidades sin
+`bodega_id`, sobre un SKU con stock en dos bodegas, sumaba 10.
+
+**Causa.** El `UPDATE … WHERE sku = $1 AND ($3 IS NULL OR bodega_id = $3)`
+alcanzaba todas las filas del SKU. La respuesta mostraba solo la primera, así que
+el efecto no se veía. `pedidos-service` usa esta misma ruta para devolver
+inventario al cancelar, de modo que una cancelación habría devuelto unidades de
+más.
+
+**Corrección.** Sin `bodega_id`, la entrada va a una sola bodega: la que ya
+tiene el SKU (la de menor id) o, si el SKU es nuevo, la primera bodega activa.
+Es la misma corrección que la del defecto 4.8.
+
+**Caso que lo cubre.** C-09 (ruta sin `bodega_id`). E-14 y E-15 validan la
+devolución de stock al cancelar.
 
 ---
 

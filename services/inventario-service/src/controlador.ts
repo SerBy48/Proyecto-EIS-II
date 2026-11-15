@@ -1,6 +1,8 @@
 import { Response } from 'express';
 import {
   BusEventos,
+  ClienteServicio,
+  ErrorApp,
   Eventos,
   PeticionAutenticada,
   crearLogger,
@@ -229,24 +231,82 @@ export const obtenerReserva = async (req: PeticionAutenticada, res: Response): P
   res.status(200).json(rows[0]);
 };
 
-/** POST /stock/:sku/entrada - ingreso de mercancia (vendedor o administrador). */
+/**
+ * Cliente hacia el catalogo, usado solo para confirmar que un SKU existe antes
+ * de abrirle su primer registro de inventario. Es una operacion administrativa
+ * de bajo trafico; el circuit breaker y el timeout vienen del cliente comun.
+ */
+const catalogo = new ClienteServicio({
+  nombre: 'catalogo',
+  urlBase: process.env.URL_CATALOGO || 'http://localhost:3003',
+  timeoutMs: Number(process.env.HTTP_TIMEOUT_MS || 3000)
+});
+
+/**
+ * POST /stock/:sku/entrada - ingreso de mercancia (vendedor o administrador).
+ *
+ * Si el SKU todavia no tiene registro de inventario (un producto recien creado
+ * en el catalogo), la primera entrada lo abre. Antes no habia ninguna forma de
+ * hacerlo por la API: el producto quedaba agotado para siempre. El registro
+ * solo se abre si el catalogo confirma que el producto existe, para que un SKU
+ * mal escrito no deje filas huerfanas.
+ *
+ * Sin bodega_id, la entrada va a UNA sola bodega: la que ya tenga el SKU (la de
+ * menor id) o, si es nuevo, la primera bodega activa. Antes la actualizacion
+ * sin bodega sumaba la cantidad en todas las bodegas del SKU a la vez.
+ */
 export const registrarEntrada = async (req: PeticionAutenticada, res: Response): Promise<void> => {
   const { cantidad, bodega_id } = req.body as { cantidad: number; bodega_id?: number };
   if (!Number.isInteger(cantidad) || cantidad <= 0) {
     throw errorSolicitud('La cantidad debe ser un entero positivo.');
   }
+  if (bodega_id !== undefined && !Number.isInteger(bodega_id)) {
+    throw errorSolicitud('La bodega debe ser un identificador entero.');
+  }
+  const sku = req.params.sku;
 
-  const { rows } = await pool.query(
-    `UPDATE stock
-        SET cantidad_disponible = cantidad_disponible + $2,
-            version = version + 1,
-            actualizado_en = NOW()
-      WHERE sku = $1 AND ($3::INT IS NULL OR bodega_id = $3)
-      RETURNING sku, bodega_id, cantidad_disponible, version`,
-    [req.params.sku, cantidad, bodega_id ?? null]
+  const existente = await pool.query(
+    `SELECT 1 FROM stock WHERE sku = $1 AND ($2::INT IS NULL OR bodega_id = $2) LIMIT 1`,
+    [sku, bodega_id ?? null]
   );
 
-  if (!rows[0]) throw errorNoEncontrado(`No hay registro de inventario para ${req.params.sku}.`);
+  if (!existente.rowCount) {
+    try {
+      await catalogo.pedir({ ruta: `/productos/${encodeURIComponent(sku)}/precio`, requestId: req.requestId });
+    } catch (error) {
+      if (error instanceof ErrorApp && error.estado === 404) {
+        throw errorNoEncontrado(`El producto ${sku} no existe en el catalogo.`);
+      }
+      throw error;
+    }
+  }
+
+  let rows: Array<{ sku: string; bodega_id: number; cantidad_disponible: number; version: number }>;
+  try {
+    ({ rows } = await pool.query(
+    `WITH destino AS (
+       SELECT COALESCE(
+                $3::INT,
+                (SELECT MIN(bodega_id) FROM stock WHERE sku = $1),
+                (SELECT MIN(id) FROM bodegas WHERE activa)
+              ) AS bodega_id
+     )
+     INSERT INTO stock (sku, bodega_id, cantidad_disponible)
+     SELECT $1, destino.bodega_id, $2 FROM destino WHERE destino.bodega_id IS NOT NULL
+     ON CONFLICT (sku, bodega_id) DO UPDATE
+        SET cantidad_disponible = stock.cantidad_disponible + EXCLUDED.cantidad_disponible,
+            version = stock.version + 1,
+            actualizado_en = NOW()
+     RETURNING sku, bodega_id, cantidad_disponible, version`,
+    [sku, cantidad, bodega_id ?? null]
+    ));
+  } catch (error) {
+    // 23503: la bodega indicada no existe (violacion de la llave foranea).
+    if ((error as { code?: string }).code === '23503') throw errorSolicitud(`La bodega ${bodega_id} no existe.`);
+    throw error;
+  }
+
+  if (!rows[0]) throw errorNoEncontrado(`No hay una bodega disponible para ${sku}.`);
 
   await pool.query(
     `INSERT INTO movimientos (sku, bodega_id, tipo, cantidad, saldo_despues, referencia, request_id)
