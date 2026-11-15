@@ -1,4 +1,5 @@
-== npm run test:salud (2026-11-14T20:55:43-05:00) - despliegue: docker compose (contenedores)
+== Despliegue: docker compose --env-file .env up -d --build --wait (contenedores, sin tsx watch)
+== npm run test:salud (2026-11-14T21:19:59-05:00)
 
 > ecommerce-distribuido@1.0.0 test:salud
 > tsx --env-file-if-exists=.env tests/salud.ts
@@ -33,19 +34,19 @@ Siguiente paso: npm run test:e2e
 
 
 == GET /api/health
-{"gateway":"ok","hora":"2026-11-15T01:55:51.189Z","servicios_caidos":[],"servicios":[{"servicio":"auth","ok":true,"estado":"ok","dependencias":[{"nombre":"postgres:auth_db","ok":true,"critica":true}]},{"servicio":"clientes","ok":true,"estado":"ok","dependencias":[{"nombre":"postgres:clientes_db","ok":true,"critica":true},{"nombre":"rabbitmq","ok":true,"critica":false}]},{"servicio":"catalogo","ok":true,"estado":"ok","dependencias":[{"nombre":"mongo:catalogo_db","ok":true,"critica":true}]},{"servicio":"inventario","ok":true,"estado":"ok","dependencias":[{"nombre":"postgres:inventario_db","ok":true,"critica":true},{"nombre":"rabbitmq","ok":true,"critica":false}]},{"servicio":"carrito","ok":true,"estado":"ok","dependencias":[{"nombre":"redis","ok":true,"critica":true}]},{"servicio":"pedidos","ok":true,"estado":"ok","dependencias":[{"nombre":"postgres:pedidos_db","ok":true,"critica":true},{"nombre":"rabbitmq","ok":true,"critica":false}]},{"servicio":"pagos","ok":true,"estado":"ok","dependencias":[{"nombre":"postgres:pagos_db","ok":true,"critica":true},{"nombre":"rabbitmq","ok":true,"critica":false}]},{"servicio":"notificaciones","ok":true,"estado":"ok","dependencias":[{"nombre":"mongo:notificaciones_db","ok":true,"critica":true},{"nombre":"rabbitmq","ok":true,"critica":true}]}]}
+{"gateway":"ok","hora":"2026-11-15T02:20:05.533Z","servicios_caidos":[],"servicios":[{"servicio":"auth","ok":true,"estado":"ok","dependencias":[{"nombre":"postgres:auth_db","ok":true,"critica":true}]},{"servicio":"clientes","ok":true,"estado":"ok","dependencias":[{"nombre":"postgres:clientes_db","ok":true,"critica":true},{"nombre":"rabbitmq","ok":true,"critica":false}]},{"servicio":"catalogo","ok":true,"estado":"ok","dependencias":[{"nombre":"mongo:catalogo_db","ok":true,"critica":true}]},{"servicio":"inventario","ok":true,"estado":"ok","dependencias":[{"nombre":"postgres:inventario_db","ok":true,"critica":true},{"nombre":"rabbitmq","ok":true,"critica":false}]},{"servicio":"carrito","ok":true,"estado":"ok","dependencias":[{"nombre":"redis","ok":true,"critica":true}]},{"servicio":"pedidos","ok":true,"estado":"ok","dependencias":[{"nombre":"postgres:pedidos_db","ok":true,"critica":true},{"nombre":"rabbitmq","ok":true,"critica":false}]},{"servicio":"pagos","ok":true,"estado":"ok","dependencias":[{"nombre":"postgres:pagos_db","ok":true,"critica":true},{"nombre":"rabbitmq","ok":true,"critica":false}]},{"servicio":"notificaciones","ok":true,"estado":"ok","dependencias":[{"nombre":"mongo:notificaciones_db","ok":true,"critica":true},{"nombre":"rabbitmq","ok":true,"critica":true}]}]}
 
 == docker ps
-ecom_gateway	Up About a minute (healthy)
-ecom_auth	Up About a minute (healthy)
-ecom_notificaciones	Up About a minute (healthy)
-ecom_clientes	Up About a minute (healthy)
-ecom_inventario	Up About a minute (healthy)
-ecom_catalogo	Up About a minute (healthy)
-ecom_pagos	Up About a minute (healthy)
-ecom_pedidos	Up About a minute (healthy)
-ecom_carrito	Up About a minute (healthy)
-ecom_rabbitmq	Up 39 minutes (healthy)
-ecom_postgres	Up 40 minutes (healthy)
-ecom_redis	Up 40 minutes (healthy)
-ecom_mongo	Up 40 minutes (healthy)
+ecom_gateway	ecommerce-distribuido-api-gateway	Up 33 seconds (healthy)
+ecom_clientes	ecommerce-distribuido-clientes-service	Up 34 seconds (healthy)
+ecom_notificaciones	ecommerce-distribuido-notificaciones-service	Up 34 seconds (healthy)
+ecom_pedidos	ecommerce-distribuido-pedidos-service	Up 34 seconds (healthy)
+ecom_inventario	ecommerce-distribuido-inventario-service	Up 34 seconds (healthy)
+ecom_pagos	ecommerce-distribuido-pagos-service	Up 34 seconds (healthy)
+ecom_carrito	ecommerce-distribuido-carrito-service	Up About a minute (healthy)
+ecom_auth	ecommerce-distribuido-auth-service	Up About a minute (healthy)
+ecom_catalogo	ecommerce-distribuido-catalogo-service	Up About a minute (healthy)
+ecom_rabbitmq	rabbitmq:3.13-management-alpine	Up About a minute (healthy)
+ecom_redis	redis:7-alpine	Up About a minute (healthy)
+ecom_postgres	postgres:16-alpine	Up About a minute (healthy)
+ecom_mongo	mongo:7	Up About a minute (healthy)
