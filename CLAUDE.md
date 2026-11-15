@@ -53,6 +53,9 @@ npm run test:salud          # los nueve servicios responden
 npm run test:concurrencia   # no hay sobreventa
 npm run test:e2e            # flujo de compra completo
 npm run infra:reset         # borra volúmenes y recrea desde cero
+npm run test:seguridad      # 16 verificaciones de seguridad (ver docs/calidad/SEGURIDAD.md)
+npm run usabilidad:recorrido # 8 tareas en Chromium: KLM, capturas y axe (requiere vite preview en 4173)
+npm run usabilidad:sus      # puntaje SUS; falla si no hay respuestas reales
 ```
 
 ---
