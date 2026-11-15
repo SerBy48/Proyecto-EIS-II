@@ -201,7 +201,15 @@ arrancan antes que RabbitMQ, notificaciones queda caído hasta reiniciar
 `docs/PRUEBAS.md`): escalada de privilegios por el token interno, error 500 al
 consultar un pedido por su número, código 201 en una réplica idempotente, la
 suite que no era re-ejecutable, y la cancelación repetida por el cliente que
-devolvía 403.
+devolvía 403. Bajo carga (4.10 a 4.12): bcrypt en el hilo principal de auth
+(ahora un pool de hilos con cola acotada, `pool-hash.ts`), el gateway sin
+keep-alive y el gateway que cortaba con EOF en lugar de responder 504.
+
+**Pruebas de carga:** `tests/rendimiento/` (k6). Corren con `npm run infra:carga`
+(límites altos del gateway) y `CLIENTES_CARGA=300 npm run sembrar:carga`. Ojo:
+`test:http` borra los pedidos, y la cola `notificaciones.envio` se drena a solo
+~10 mensajes/s (`prefetch(1)` y 100 ms por envío). `bateria.sh` espera a que esa
+cola se vacíe antes de cada corrida.
 
 **Pendientes, en orden de valor:**
 

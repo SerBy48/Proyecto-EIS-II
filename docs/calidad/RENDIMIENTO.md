@@ -21,7 +21,7 @@ Versión usada: **k6 v1.5.0** (ver [`00-entorno.txt`](../evidencia/no-funcionale
 | Equipo | Intel Core i5-9300H (4 núcleos y 8 hilos), 15,8 GB de RAM, Windows 11 |
 | Docker Desktop (WSL2) | 8 CPU y 7,7 GB de RAM asignados |
 | Despliegue | `docker compose` con los 9 servicios y los 4 motores, todos en contenedores (`npm run infra:carga`). Sin `tsx watch` ni recarga |
-| Perfil de entorno | [`.env.carga`](../../.env.carga): `LIMITE_GENERAL`, `LIMITE_LOGIN` y `LIMITE_CHECKOUT` en 100 000 y `LOG_LEVEL=warn`. Así se mide la capacidad del sistema y no la del limitador. Los valores por defecto del código no se tocan (sección 7) |
+| Perfil de entorno | [`.env.carga`](../../.env.carga): `LIMITE_GENERAL`, `LIMITE_LOGIN` y `LIMITE_CHECKOUT` en 100 000 y `LOG_LEVEL=warn`. Así se mide la capacidad del sistema y no la del limitador. Los valores por defecto del código no se tocan (sección 4.5) |
 | Datos | 70 productos, 303 clientes (300 cuentas de carga, una por VU) y stock de 10 000 unidades en los 5 SKU de carga, repuesto antes de cada escenario que compra |
 | Generador | k6 nativo en el mismo equipo, contra `http://localhost:8080` |
 | Condición previa | Solo el contenedor escucha en el 8080. Se cerraron las aplicaciones de fondo que cargaban la CPU ([`00-condicion-equipo.txt`](../evidencia/no-funcionales/rendimiento/00-condicion-equipo.txt)) |
@@ -273,13 +273,93 @@ Lo relevante para la calidad es que el sistema **se degrada con elegancia**: má
 | R3 | Gateway sin keep-alive (`Connection: close`) | Eficiencia | Media | 5.3 |
 | R4 | Gateway corta con EOF en lugar de responder 503 | Robustez y experiencia de uso | Media | 5.3 |
 | R5 | Checkout saturado en ~39 compras/s, con Postgres como recurso limitante | Capacidad | Baja: sin errores, y por encima de la carga esperada | 5.4 |
+| R6 | Notificaciones consume ~10 eventos/s (`prefetch(1)` y 100 ms por envío), menos de lo que produce el checkout | Capacidad (asíncrona) | Media: los correos llegan con minutos de retraso | 7.4 |
 
-R1, R3 y R4 son candidatos a corrección en la Fase 3, con su medición de antes y después. Se confirmarán antes de implementarlos.
+R1 a R4 se corrigieron en la Fase 3 (sección 7). R5 y R6 quedan registrados como mejoras pendientes.
 
-## 6. Limitaciones
+## 7. Correcciones de la Fase 3: antes y después
+
+Las correcciones se confirmaron con el equipo antes de implementarlas. Todas se midieron con los mismos escenarios, perfiles, cuentas y entorno (`.env.carga`) que la batería original; las corridas del después llevan el sufijo `-despues`.
+
+### 7.1 Qué se cambió
+
+| # | Corrección | Archivos |
+|---|---|---|
+| R1 | bcrypt se ejecuta en un pool de `worker_threads` (`AUTH_HILOS_HASH`, por defecto hasta 4 hilos) en lugar del hilo principal. No hay dependencias nuevas ni cambia el formato de los hashes | `auth-service/src/pool-hash.ts`, `trabajador-hash.ts` y `controlador.ts` |
+| R2 | Cola acotada (`AUTH_COLA_HASH`, 25 tareas por hilo): si se llena, `503 SERVICIO_SATURADO` con `Retry-After: 2`. Las tareas de clientes que ya cerraron la conexión se descartan sin calcularse. El estado del pool se publica en `/health` (`metricas.pool_hash`) | `pool-hash.ts` |
+| R3 | `http.Agent` con keep-alive en el gateway. Los servicios mantienen las conexiones ociosas 65 s, y el gateway no reenvía la cabecera de salto `Keep-Alive` | `api-gateway/src/index.ts` y `shared/src/servicio.ts` |
+| R4 | Se quitó la opción `timeout` de `http-proxy`. Si vence `proxyTimeout`, el cliente recibe `504 TIEMPO_AGOTADO` con un mensaje en español | `api-gateway/src/index.ts` |
+
+La regresión completa pasa ([`04-regresion-fase3-rendimiento.txt`](../evidencia/no-funcionales/04-regresion-fase3-rendimiento.txt)): typecheck, salud de los 9 servicios, 65/65 casos HTTP, concurrencia sin sobreventa, 49/49 comprobaciones e2e y build de la web. Los defectos quedan registrados como 4.10 a 4.12 en [`PRUEBAS.md`](../PRUEBAS.md).
+
+### 7.2 Resultados
+
+![Antes y después](../evidencia/no-funcionales/graficas/antes-despues-fase3.png)
+
+**Login (R1 y R2)**
+
+| Métrica | Antes | Después | Cambio |
+|---|---|---|---|
+| Throughput con 50 VU (meseta) | 10,0 logins/s | **26,4 logins/s** | ×2,6 |
+| p95 con 50 VU (meseta) | 4 328 ms | **1 300 ms** | −70 % |
+| p95 con 100 VU (estrés) | 11 469 ms | **4 169 ms** | −64 % |
+| Logins exitosos en todo el estrés (10 min) | 2 535 | **11 793** | ×4,7 |
+| Fallos en estrés | 4 561 EOF tras **15 s** de espera | 31 658 × `503` en **~100 ms** (mediana) | Fallo rápido y explícito |
+| CPU de `ecom_auth` en estrés | 99,5 % (1 núcleo) | 408 % (4 núcleos) | El servicio usa los hilos |
+| Salud de auth al empezar la corrida siguiente | `inalcanzable` | sano | Sin trabajo huérfano |
+
+Con 50 usuarios, el login **sigue sin cumplir** su umbral de p95 < 1000 ms (1 300 ms). La corrección eleva el techo de ~10 a ~26 logins/s, pero bcrypt sigue siendo deliberadamente caro: es su función de seguridad, y bajar las rondas no es aceptable. El siguiente paso sería escalar auth horizontalmente (`--scale auth-service=N`), algo que ahora sí rinde porque cada réplica aprovecha varios núcleos.
+
+**Gateway (R3 y R4)**
+
+| Métrica | Antes | Después |
+|---|---|---|
+| Errores del catálogo con 300 VU | 14,0 % (agotamiento de puertos) | **0 %** |
+| p95 del catálogo con 50 / 100 / 200 VU | 93 / 193 / 645 ms | **34 / 79 / 327 ms** |
+| Conexiones TCP para 3 peticiones seguidas | 3 | **1** |
+| Respuestas sin código (EOF, estado 0) en todas las corridas | 4 561 en `login-estres`, 2 517 en `flujo-estres`… | **0** en las 9 corridas del después |
+| Servicio que no responde | EOF a los 15 s | `504 TIEMPO_AGOTADO` a los 15,07 s (verificado con `docker pause ecom_auth`) |
+
+El p95 del catálogo con 300 VU no cambia (829 frente a 836 ms): a ese nivel el límite es la CPU compartida del equipo, no las conexiones.
+
+**Flujo completo en estrés.** El throughput pasó de 26 a **79 peticiones/s** y las compras completadas en toda la corrida de 1 874 a **6 162** (×3,3). Como ahora muchos más usuarios superan el login, la carga llega al checkout, y su p95 sube de 444 ms a 3,7 s. **El cuello de botella se desplazó de auth a la compra**, que es justamente R5 (sección 5.4).
+
+### 7.3 Checkout: una regresión aparente y cómo se descartó
+
+La primera medición del checkout después de las correcciones dio un p95 **peor** (735 ms frente a 546 ms). Antes de aceptar o descartar el dato, se investigó:
+
+| Corrida | Condición | Mediana | p95 | Lectura |
+|---|---|---|---|---|
+| `checkout-carga` | Antes, batería original | 340 | 546 | Línea base |
+| `-despues` (intento 1) | Carritos heredados de la corrida anterior | — | — | **4 120 de 5 548 compras dieron 402**: inválida (ver abajo) |
+| `-despues` | Carritos vaciados | 412 | 735 | |
+| `-despues-r2` | 10 533 eventos pendientes en la cola de notificaciones | 1 445 | 2 380 | Contaminada por R6 |
+| `-despues-r3` | Cola vacía al empezar | 386 | 786 | |
+| `-despues-r4-saga-vacia` | `saga_pasos` vaciada (tenía 901 227 filas) | 380 | 734 | La tabla de auditoría **no** es la causa |
+| `-ab-sin-keepalive` | **Código de `develop` sin R3**, mismas condiciones que r4 | 633 | **1 576** | |
+
+1. **Carritos heredados.** Los carritos viven en Redis y sobreviven entre corridas. Un VU que heredaba productos superaba el tope por transacción de la pasarela (`MONTO_EXCEDE_LIMITE`, 402), y como tras un 402 el carrito no se vacía, ese VU quedaba rechazado en todas las iteraciones siguientes. Los scripts ahora vacían el carrito al iniciar sesión y después de cada 402 o 409 ([`lib/comun.js`](../../tests/rendimiento/lib/comun.js)).
+2. **Cola de notificaciones (R6, sección 7.4).** Se drena a ~10 eventos/s, así que una corrida que empieza con la cola llena compite por CPU con el consumidor. `ejecutar.sh` registra ahora la profundidad de la cola antes y después, y `bateria.sh` espera a que esté vacía.
+3. **Prueba A/B.** Con el gateway y `servicio.ts` de `develop`, en las mismas condiciones, el p95 fue de **1 576 ms**, frente a **734 ms** con keep-alive. **R3 reduce a la mitad la latencia del checkout.** El mismo código de `develop` dio 546 ms en la batería original y 1 576 ms en esta, así que la diferencia frente a la línea base es una degradación del entorno: el equipo llevaba más de 4 horas de carga sostenida. No es un efecto de las correcciones.
+
+En reposo (humo, 2 VU), el checkout del después mide p50 330 ms y p95 482 ms, frente a 400 y 497 ms antes.
+
+> **Lección de método.** Una medición de antes y después en un equipo compartido solo es comparable si el estado también lo es: carritos, colas asíncronas, tamaño de las tablas y temperatura del equipo. Ante una diferencia inesperada, la prueba A/B intercalada en las mismas condiciones es lo único que permite atribuirla al código.
+
+### 7.4 Hallazgo nuevo: R6, la cola de notificaciones
+
+`notificaciones-service` consume con `prefetch(1)` y simula 100 ms por envío (`LATENCIA_ENVIO_MS`), así que procesa como máximo ~10 eventos por segundo (medido: 211 mensajes en 20 s). El checkout bajo carga publica varios eventos por compra, y la cola crece sin límite: tras 5 minutos de `checkout-carga` quedan entre 3 700 y 5 300 eventos pendientes, que tardan de 6 a 9 minutos en drenarse. Tras el estrés llegó a 10 533.
+
+No afecta la corrección de las compras: la publicación es asíncrona (invariante 12) y ningún mensaje se perdió. Sí afecta la experiencia del cliente, porque el correo de confirmación llega con minutos de retraso.
+
+La corrección natural es subir el `prefetch` para procesar varios envíos en paralelo: la espera es de E/S y no de CPU. Queda **propuesta y sin implementar**, pendiente de confirmación.
+
+## 8. Limitaciones
 
 - **El generador comparte el equipo** con los 13 contenedores (sección 2). En las corridas de 300 VU, k6 compite por CPU con el sistema, así que las latencias son cotas superiores.
 - **Puertos efímeros de Windows.** Los errores de conexión del catálogo con 300 VU son del cliente. El defecto R3 los provoca, pero no se observarían con un generador en Linux con `tcp_tw_reuse`.
 - **Un solo nodo por servicio.** No se probó el escalado horizontal (`docker compose --scale`), que es la respuesta natural a R1 y R5.
 - **Datos acotados.** Hay 70 productos y 5 SKU de carga. Un catálogo de miles de productos cambiaría el coste de la búsqueda en Mongo.
+- **Deriva del entorno.** Una laptop bajo carga sostenida durante horas no rinde igual al principio que al final (sección 7.3). Por eso la atribución de la mejora del checkout se basa en la prueba A/B intercalada, y no en la comparación con la batería original.
+- **Una sola corrida por condición.** No se repitió cada corrida varias veces para estimar la varianza. Las diferencias de R1 a R4 (×2,6, ×4,7, del 14 % al 0 % de errores, la mitad del p95) superan con holgura la variación observada entre repeticiones; diferencias menores al 20 % no deberían interpretarse.
 - **Modelo cerrado.** Con `ramping-vus`, cuando el sistema se ralentiza los VU también envían menos peticiones. Con usuarios reales (modelo abierto) la cola de auth crecería todavía más rápido.

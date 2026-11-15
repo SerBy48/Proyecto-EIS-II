@@ -346,8 +346,9 @@ notificaciones   ok=False  estado=inalcanzable
 
 ## 4. Defectos encontrados y corregidos
 
-Las pruebas encontraron nueve defectos reales. Los nueve están corregidos y
-tienen un caso que impide que vuelvan.
+Las pruebas encontraron doce defectos reales, y los doce están corregidos:
+- Los nueve primeros salieron de las pruebas funcionales y tienen un caso que impide que vuelvan.
+- Los tres últimos (4.10 a 4.12) solo aparecen bajo carga. Su verificación es la medición de antes y después de [`calidad/RENDIMIENTO.md`](calidad/RENDIMIENTO.md), que se repite con `npm run test:carga:bateria`.
 
 ### 4.1 Escalada de privilegios por el token interno — **grave**
 
@@ -538,6 +539,56 @@ Es la misma corrección que la del defecto 4.8.
 
 **Caso que lo cubre.** C-09 (ruta sin `bodega_id`). E-14 y E-15 validan la
 devolución de stock al cancelar.
+
+### 4.10 El login no pasaba de ~10 por segundo — **grave bajo carga**
+
+Encontrado con las pruebas de carga del Módulo 1 (hallazgos R1 y R2 de
+[`calidad/RENDIMIENTO.md`](calidad/RENDIMIENTO.md)).
+
+**Síntoma.**
+- Con 50 usuarios, el p95 del login fue de 4,3 s.
+- Con 200 usuarios, el 96 % de los logins no respondía.
+- Al terminar la carga, auth tardaba 30–40 s en volver a responder.
+
+**Causa.**
+- `bcryptjs` es JavaScript puro: cada comparación ocupaba el hilo principal de Node unos 100 ms. El contenedor usaba un solo núcleo (99,5 % de CPU) aunque tuviera ocho disponibles.
+- Sin límite de cola, el servicio seguía calculando hashes de clientes que ya habían abandonado.
+
+**Corrección** (`auth-service/src/pool-hash.ts`):
+- Los hashes corren en un pool de `worker_threads` (`AUTH_HILOS_HASH`, por defecto hasta 4 hilos).
+- La cola está acotada (`AUTH_COLA_HASH`). Si se llena, se responde `503 SERVICIO_SATURADO` con `Retry-After`.
+- Las tareas de clientes que cerraron la conexión se descartan sin calcularse.
+- El estado del pool se publica en `/health`.
+- No cambia el formato de los hashes guardados.
+
+**Verificación.**
+- Con 50 usuarios, el throughput pasó de 9,5 a 23,4 logins/s y el p95 de 4 294 a 1 280 ms.
+- En estrés, los logins exitosos se multiplicaron por cuatro. El exceso recibe un 503 en ~100 ms, en lugar de esperar 15 s y recibir un EOF.
+
+### 4.11 El gateway abría dos conexiones TCP por petición
+
+**Síntoma.** Con 300 usuarios, el 14 % de las búsquedas en el catálogo fallaba con `connectex: Only one usage of each socket address`: el equipo cliente se quedaba sin puertos.
+
+**Causa.** Sin un `agent`, `http-proxy` fuerza `Connection: close` hacia el servicio y reenvía esa cabecera al cliente. Cada petición abría por tanto dos conexiones nuevas.
+
+**Corrección.**
+- El gateway usa un `http.Agent` con keep-alive y no reenvía la cabecera de salto `Keep-Alive`.
+- Los servicios mantienen las conexiones ociosas 65 s (`keepAliveTimeout`, en `shared/src/servicio.ts`), para que el gateway nunca reutilice un socket que el servicio está cerrando.
+
+**Verificación.**
+- Tres peticiones seguidas con curl usan una sola conexión (`num_connects` 1, 0, 0).
+- El estrés del catálogo pasó del 5,3 % al 0 % de errores.
+- El p95 a 100 VU bajó de 193 a 79 ms.
+
+### 4.12 El gateway cortaba la conexión en lugar de responder 504
+
+**Síntoma.** Cuando un servicio no respondía, el cliente recibía un cierre abrupto (EOF) a los 15 s, sin código ni mensaje.
+
+**Causa.** La opción `timeout` de `http-proxy` se aplica al socket **del cliente**, y al vencer lo destruye. El manejador de errores, que tenía programado un 503 en español, nunca llegaba a ejecutarse.
+
+**Corrección.** Solo se usa `proxyTimeout`, que es la espera por el servicio. Si vence, el cliente recibe `504 TIEMPO_AGOTADO` con un mensaje en español; los demás errores de conexión siguen respondiendo `503 SERVICIO_NO_DISPONIBLE`.
+
+**Verificación.** Con auth congelado (`docker pause`), el login responde 504 con el mensaje a los 15,07 s. En la batería del después no hubo ni un solo estado 0 (EOF).
 
 ---
 

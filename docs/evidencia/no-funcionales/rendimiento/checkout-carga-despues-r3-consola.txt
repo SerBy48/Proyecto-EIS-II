@@ -1,0 +1,48 @@
+
+
+  █ THRESHOLDS 
+
+    checks
+    ✓ 'rate>0.99' rate=100.00%
+
+    http_req_duration{endpoint:carrito_agregar}
+    ✓ 'p(95)<500' p(95)=62.59ms
+
+    http_req_duration{endpoint:checkout}
+    ✓ 'p(95)<1500' p(95)=786.46ms
+
+    http_req_failed
+    ✓ 'rate<0.01' rate=0.00%
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 23075   85.227923/s
+    checks_succeeded...: 100.00% 23075 out of 23075
+    checks_failed......: 0.00%   0 out of 23075
+
+    ✓ login 200
+    ✓ carrito 200
+    ✓ checkout 201/200
+    ✓ pedido queda pagado
+
+    HTTP
+    http_req_duration................: avg=231.84ms min=3.7ms    med=159.41ms p(90)=548.04ms p(95)=662.04ms p(99)=1.01s    max=1.6s   
+      { endpoint:carrito_agregar }...: avg=23.01ms  min=5.3ms    med=15.28ms  p(90)=44.77ms  p(95)=62.59ms  p(99)=127.81ms max=338.9ms
+      { endpoint:checkout }..........: avg=442.74ms min=235.05ms med=386.25ms p(90)=662.91ms p(95)=786.46ms p(99)=1.17s    max=1.6s   
+      { expected_response:true }.....: avg=231.84ms min=3.7ms    med=159.41ms p(90)=548.04ms p(95)=662.04ms p(99)=1.01s    max=1.6s   
+    http_req_failed..................: 0.00%  0 out of 15450
+    http_reqs........................: 15450  57.06485/s
+
+    EXECUTION
+    iteration_duration...............: avg=1.46s    min=1.24s    med=1.4s     p(90)=1.7s     p(95)=1.83s    p(99)=2.23s    max=2.72s  
+    iterations.......................: 7675   28.347749/s
+    vus..............................: 1      min=0          max=50
+    vus_max..........................: 50     min=50         max=50
+
+    NETWORK
+    data_received....................: 18 MB  67 kB/s
+    data_sent........................: 7.2 MB 27 kB/s
+
+
+

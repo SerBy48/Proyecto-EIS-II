@@ -1,0 +1,71 @@
+== login-carga-despues contra http://localhost:8080
+    ✗ 'p(95)<1000' p(95)=1.28s
+    checks_succeeded...: 100.00% 12656 out of 12656
+    http_req_duration..............: avg=779.12ms min=88.07ms med=794.31ms p(90)=1.16s p(95)=1.28s p(99)=1.69s max=2.24s
+    http_req_failed................: 0.00%  0 out of 6328
+    http_reqs......................: 6328   23.352492/s
+    vus_max........................: 50     min=50        max=50
+== login-carga-despues terminado: codigo k6 99 (99 = algun umbral no se cumplio), lineas 5xx en el gateway: 0
+== login-estres-despues contra http://localhost:8080
+    ✗ 'rate>0.99' rate=27.14%
+    ✗ 'p(95)<1000' p(95)=5.74s
+    ✗ 'rate<0.01' rate=72.85%
+    checks_succeeded...: 27.14% 23586 out of 86902
+    ✗ login 200
+      ↳  27% — ✓ 11793 / ✗ 31658
+    ✗ emite token
+      ↳  27% — ✓ 11793 / ✗ 31658
+    http_req_duration..............: avg=1.14s min=517.1µs med=102.6ms p(90)=5s    p(95)=5.74s p(99)=7.9s   max=11.5s
+    http_req_failed................: 72.85% 31658 out of 43451
+    http_reqs......................: 43451  73.531083/s
+    vus_max........................: 300    min=300            max=300
+== login-estres-despues terminado: codigo k6 99 (99 = algun umbral no se cumplio), lineas 5xx en el gateway: 31658
+== login-pico-despues contra http://localhost:8080
+    ✗ 'rate>0.99' rate=15.86%
+    ✗ 'p(95)<1000' p(95)=5.63s
+    ✗ 'rate<0.01' rate=84.13%
+    checks_succeeded...: 15.86% 4094 out of 25808
+    ✗ login 200
+      ↳  15% — ✓ 2047 / ✗ 10857
+    ✗ emite token
+      ↳  15% — ✓ 2047 / ✗ 10857
+    http_req_duration..............: avg=722.79ms min=2.55ms  med=63.9ms p(90)=4.79s p(95)=5.63s p(99)=6.28s max=7.61s
+    http_req_failed................: 84.13% 10857 out of 12904
+    http_reqs......................: 12904  91.672323/s
+    vus_max........................: 300    min=300            max=300
+== login-pico-despues terminado: codigo k6 99 (99 = algun umbral no se cumplio), lineas 5xx en el gateway: 10857
+== bateria terminada 2026-11-15T00:31:49-05:00
+== catalogo-busqueda-estres-despues contra http://localhost:8080
+    ✗ 'p(95)<500' p(95)=688.07ms
+    checks_succeeded...: 100.00% 156458 out of 156458
+    http_req_duration..................: avg=182.93ms min=2.52ms med=66.65ms p(90)=531.88ms p(95)=688.07ms p(99)=931.36ms max=1.29s
+    http_req_failed....................: 0.00%  0 out of 78229
+    http_reqs..........................: 78229  132.514257/s
+    vus_max............................: 300    min=300        max=300
+== catalogo-busqueda-estres-despues terminado: codigo k6 99 (99 = algun umbral no se cumplio), lineas 5xx en el gateway: 0
+-- reponiendo stock antes de flujo-completo-estres
+   (aviso: el poblado termino con errores)
+== flujo-completo-estres-despues contra http://localhost:8080
+    ✗ 'rate>0.99' rate=81.47%
+    ✗ 'p(95)<1500' p(95)=2.64s
+    ✗ 'p(95)<1000' p(95)=8.95s
+    ✗ 'rate<0.01' rate=20.96%
+    checks_succeeded...: 81.47% 45902 out of 56341
+    ✗ login 200
+      ↳  38% — ✓ 6558 / ✗ 10439
+    http_req_duration..................: avg=890.45ms min=3.62ms  med=148.22ms p(90)=1.8s     p(95)=7.08s    p(99)=9.3s     max=11.47s
+    http_req_failed....................: 20.96% 10439 out of 49784
+    http_reqs..........................: 49784  83.583162/s
+    vus_max............................: 300    min=300            max=300
+== flujo-completo-estres-despues terminado: codigo k6 99 (99 = algun umbral no se cumplio), lineas 5xx en el gateway: 10439
+== bateria terminada 2026-11-15T00:53:17-05:00
+-- reponiendo stock antes de checkout-carga
+== checkout-carga-despues contra http://localhost:8080
+    ✗ 'p(95)<1500' p(95)=1.75s
+    checks_succeeded...: 100.00% 16694 out of 16694
+    http_req_duration................: avg=513.41ms min=5.51ms   med=262.18ms p(90)=1.37s   p(95)=1.56s    p(99)=2.06s    max=2.56s   
+    http_req_failed..................: 0.00%  0 out of 11146
+    http_reqs........................: 11146  41.103766/s
+    vus_max..........................: 50     min=50         max=50
+== checkout-carga-despues terminado: codigo k6 99 (99 = algun umbral no se cumplio), lineas 5xx en el gateway: 0
+== bateria terminada 2026-11-15T00:58:39-05:00
