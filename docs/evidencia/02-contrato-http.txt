@@ -38,6 +38,9 @@ Estado restablecido.
   B-15    PASA   Cliente listando sus propias direcciones             esperado 200, obtenido 200
   B-16    PASA   Cliente listando las direcciones de otro cliente     esperado 403, obtenido 403
   B-17    PASA   Seis SKU inexistentes no abren el circuito del carrito esperado 200, obtenido 200
+  B-18    PASA   Operador NoSQL en un filtro del catalogo             esperado 400, obtenido 400
+  B-19    PASA   Id de pedido fuera del rango de un entero            esperado 400, obtenido 400
+  B-20    PASA   Peticion desde un origen no permitido por CORS       esperado 403, obtenido 403
 
 ============================================================================
  SUITE C · INVENTARIO: RESERVAS, IDEMPOTENCIA Y COMPENSACION
@@ -138,5 +141,5 @@ Estado restablecido.
            notificaciones   ok=true  estado=ok
 
 ============================================================================
- RESULTADO: 70 casos PASA, 0 casos FALLA
+ RESULTADO: 73 casos PASA, 0 casos FALLA
 ============================================================================

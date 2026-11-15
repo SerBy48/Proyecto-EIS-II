@@ -1,0 +1,37 @@
+Verificaciones manuales de seguridad contra http://localhost:8080
+
+  V-01   SEGURO   Registro público vinculado al cliente_id de otra persona
+         El registro con cliente_id=1 y otro correo respondió 403 (El cliente indicado no corresponde a este correo.); no se creó ninguna cuenta vinculada a Ana.
+  V-02   SEGURO   Inyección de operadores NoSQL en categoria y marca
+         Los operadores no se interpretan (estados 400 y 400).
+  V-03   SEGURO   Búsqueda con q como objeto (q[$gt]=)
+         Respondió 400. 
+  V-04   SEGURO   Inyección SQL en /pedidos/:id
+         Estados: 404 (30 ms), 404 (11 ms), 404 (13 ms). Las consultas son parametrizadas (invariante 8) y pg_sleep no se ejecuta.
+  V-05   SEGURO   XSS almacenado: texto del usuario en la web y en los correos
+         Producto creado (201); la API guarda y devuelve el HTML tal cual. Web: no usa dangerouslySetInnerHTML ni innerHTML, React lo muestra como texto. Correo: los datos se escapan ("Hola &lt;img src=x onerror=&quot;alert(document.cookie)&quot;&gt;, recibimos tu pedido.").
+  V-06   SEGURO   Contraseñas con bcrypt y el hash nunca expuesto
+         305 de 305 usuarios con hash bcrypt de 10 rondas. El hash no aparece en la respuesta del login ni en /auth/perfil, y aparece 0 veces en los logs de auth.
+  V-07   SEGURO   Errores sin stack traces ni detalles internos
+         JSON mal formado → 400; ruta inexistente → 401; sin stack, rutas ni versiones, y sin x-powered-by.
+  V-08   SEGURO   IDOR entre clientes y cabeceras de confianza inyectadas
+         pedido de otro cliente → sin datos; carrito de otro cliente → 403; perfil de otro cliente → 403; ruta de administrador con x-usuario-rol: administrador inyectada → sin datos; carrito ajeno con x-cliente-id: 2 inyectada → 403
+  V-09   SEGURO   Tokens manipulados y refresh token reutilizado tras la rotación
+         alg:none → 401; rol cambiado sin refirmar → 401; firma alterada → 401; primera renovación → 200; reutilizar el refresh token ya rotado → 401.
+  V-10   SEGURO   Token de administrador forjado con el secreto JWT por defecto
+         El token forjado fue rechazado (401 / 401): el entorno no usa el secreto por defecto.
+  V-11   SEGURO   CORS con un origen no permitido
+         Origen malicioso → 403, Access-Control-Allow-Origin: (ausente); origen permitido → 200, http://localhost:5173. 
+  V-12   SEGURO   Cabeceras de seguridad en la web
+         Presentes todas.
+  V-13   HALLAZGO JWT y refresh token en localStorage
+         api.js guarda token, refresh_token, usuario en localStorage. Cualquier XSS lee el refresh token (vigencia de 7 días) y suplanta la sesión.
+  V-14   SEGURO   Los 404 de un usuario abren el circuit breaker de todos
+         Tras 6 SKU inexistentes de Ana (404, 404, 404, 404, 404, 404), Bruno sigue agregando productos (200).
+  V-15   SEGURO   El registro acepta un correo sin formato de correo
+         POST /auth/registro con email "no-es-un-correo-1794775655647" → 400. El escaneo activo creó además 115 usuarios administradores con "correos" como http://www.google.com/ o plantillas de inyección por POST /auth/usuarios.
+  V-16   SEGURO   Servicio interno alcanzable sin el gateway con el token interno por defecto
+         Directo a http://localhost:3004 con el token interno publicado → 401: el servicio ya no acepta ese secreto. Los puertos de los servicios quedan ligados a 127.0.0.1 en docker-compose.yml.
+
+16 verificaciones: 1 hallazgos, 15 seguras, 0 informativas.
+Evidencia: docs\evidencia\no-funcionales\seguridad\verificaciones-manuales.json

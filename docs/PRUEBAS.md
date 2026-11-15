@@ -7,8 +7,8 @@ electrónico.
 | | |
 |---|---|
 | **Última ejecución** | 15 de noviembre de 2026 (servicios en contenedores, base poblada con `npm run sembrar:carga` y secretos propios en `.env`) |
-| **Casos ejecutados** | 152 (33 de concurrencia + 70 por HTTP + 49 extremo a extremo) |
-| **Resultado** | 152 pasan, 0 fallan |
+| **Casos ejecutados** | 155 (33 de concurrencia + 73 por HTTP + 49 extremo a extremo) |
+| **Resultado** | 155 pasan, 0 fallan |
 | **Entorno** | Windows 11, Node 25, Docker: PostgreSQL 16 (puerto 5434 del host), MongoDB 7, Redis 7, RabbitMQ 3. Infraestructura completa |
 | **Evidencia** | [`evidencia/`](evidencia/) — salida literal de cada suite |
 
@@ -117,13 +117,13 @@ Escenario 2: veinte compradores, cinco unidades
 
 ### Nivel 4 — Contrato HTTP
 
-`npm run test:http` → **70 casos, 70 pasan**
+`npm run test:http` → **73 casos, 73 pasan**
 ([`evidencia/02-contrato-http.txt`](evidencia/02-contrato-http.txt)).
 
 | Suite | Área | Casos |
 |---|---|---|
 | A | Autenticación, emisión de tokens y registro | 9 |
-| B | Control de acceso: RBAC, propiedad del dato y circuit breaker | 17 |
+| B | Control de acceso, circuit breaker y validación de entradas | 20 |
 | C | Inventario: reservas, idempotencia, compensación | 12 |
 | D | Pagos: los cuatro desenlaces de la pasarela | 9 |
 | E | Pedidos: identificadores y ciclo de vida | 16 |
@@ -346,10 +346,10 @@ notificaciones   ok=False  estado=inalcanzable
 
 ## 4. Defectos encontrados y corregidos
 
-Las pruebas encontraron dieciséis defectos reales, y los dieciséis están corregidos:
+Las pruebas encontraron veintidós defectos reales, y los veintidós están corregidos:
 - Los nueve primeros salieron de las pruebas funcionales y tienen un caso que impide que vuelvan.
 - Del 4.10 al 4.12 solo aparecen bajo carga. Su verificación es la medición de antes y después de [`calidad/RENDIMIENTO.md`](calidad/RENDIMIENTO.md), que se repite con `npm run test:carga:bateria`.
-- Del 4.13 al 4.16 son de seguridad. Tienen casos en `test:http` y en `npm run test:seguridad`, documentados en [`calidad/SEGURIDAD.md`](calidad/SEGURIDAD.md).
+- Del 4.13 al 4.22 son de seguridad o surgieron al verificar las correcciones de seguridad. Tienen casos en `test:http` y en `npm run test:seguridad`, documentados en [`calidad/SEGURIDAD.md`](calidad/SEGURIDAD.md).
 
 ### 4.1 Escalada de privilegios por el token interno — **grave**
 
@@ -640,6 +640,54 @@ Encontrado con las verificaciones de seguridad (S-02 y S-03 de [`calidad/SEGURID
 **Corrección.** Formato y longitud máxima (150) en `/auth/registro` y `/auth/usuarios`, que también exige una contraseña de 8 caracteres como mínimo.
 
 **Caso que lo cubre.** A-10 de `test:http` y V-15.
+
+### 4.17 Inyección de operadores NoSQL en los filtros del catálogo
+
+**Síntoma.** `?categoria[$ne]=tecnologia` devolvía los 45 productos de las otras categorías, y `?marca[$regex]=.*` los 70. MongoDB ejecutaba el operador.
+
+**Causa.** Express convierte `categoria[$ne]=x` en el objeto `{ $ne: 'x' }`, y el controlador lo pasaba al filtro tal cual.
+
+**Corrección.** `textoDeConsulta()` (`shared/src/utilidades.ts`) rechaza con 400 cualquier parámetro que no sea una cadena.
+
+**Caso que lo cubre.** B-18 de `test:http` y V-02.
+
+### 4.18 Entradas inválidas que respondían 500
+
+**Síntoma.** Durante el escaneo activo de ZAP hubo 781 respuestas 500, por textos más largos que la columna, `NaN` en un entero, `"1"` como UUID, un byte nulo, un ID fuera de rango o un JSON mal formado. Esos 500 además abrían los circuit breakers.
+
+**Causa.** No había validación en la entrada; el error de PostgreSQL o de body-parser llegaba al manejador como un error no controlado.
+
+**Corrección.** `traducirErrorDeEntrada()` (`shared/src/errores.ts`) responde 400 para los errores de body-parser y para los códigos de PostgreSQL que solo provoca una entrada mal formada (22001, 22003, 22007, 22008, 22021, 22P02, 23502 y 23514), sin revelar la columna. Cada caso queda registrado como advertencia con su código de origen.
+
+**Verificación.** En el escaneo repetido, **0 respuestas 500 y 0 errores no controlados**. Casos: B-19 y V-03/V-07.
+
+### 4.19 El rechazo de CORS respondía 500
+
+**Corrección.** El origen no permitido se responde con `403 ORIGEN_NO_PERMITIDO`.
+
+**Caso que lo cubre.** B-20 y V-11.
+
+### 4.20 La web se servía sin cabeceras de seguridad
+
+**Síntoma.** ZAP marcó la ausencia de CSP, de protección contra clickjacking, de `nosniff`, de `Permissions-Policy` y de COOP, COEP y CORP.
+
+**Corrección.** `clients/web/cabeceras-seguridad.js`, que aplica `vite preview` (con CSP estricta) y el servidor de desarrollo (sin CSP).
+
+**Verificación.** El baseline de ZAP baja de 8 a 2 advertencias, ambas informativas. Playwright recorre la tienda e inicia sesión con la CSP activa, sin violaciones.
+
+### 4.21 Los correos interpolaban HTML del usuario sin escapar
+
+**Corrección.** `notificaciones-service/src/plantillas.ts` escapa los valores en el canal de correo.
+
+**Caso que lo cubre.** V-05.
+
+### 4.22 El build de producción no podía iniciar sesión
+
+**Síntoma.** Encontrado al verificar 4.20 con Playwright: desde la web servida en el 4173, el login respondía 500.
+
+**Causa.** `CORS_ORIGENES` solo incluía el 5173 de desarrollo, y el rechazo se respondía como 500 (4.19).
+
+**Corrección.** Se agregó `http://localhost:4173` en `docker-compose.yml`, `.env.example` y el valor por defecto del gateway.
 
 ---
 

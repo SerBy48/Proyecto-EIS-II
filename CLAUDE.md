@@ -188,9 +188,9 @@ Tokens de la pasarela simulada (resultado determinista):
 
 **Verificado y funcionando** (ver `docs/PRUEBAS.md` para el detalle y la
 evidencia; última ejecución el 2026-11-15 con los servicios en contenedores y la
-base poblada con `npm run sembrar:carga`): 152 casos ejecutados, 152 pasan. Los nueve servicios compilan y arrancan sanos; la prueba
+base poblada con `npm run sembrar:carga`): 155 casos ejecutados, 155 pasan. Los nueve servicios compilan y arrancan sanos; la prueba
 de concurrencia pasa sus 33 comprobaciones (20 compradores simultáneos por 5
-unidades → exactamente 5 ganan); `test:http` pasa sus 70 casos sobre
+unidades → exactamente 5 ganan); `test:http` pasa sus 73 casos sobre
 autenticación, RBAC, aislamiento entre clientes, idempotencia, los cuatro
 desenlaces de la pasarela, el ciclo de vida de los pedidos, rate limiting,
 PCI-DSS y aislamiento de las bases; `test:e2e` pasa sus 49 comprobaciones
@@ -216,7 +216,11 @@ devolvía 403. Bajo carga (4.10 a 4.12): bcrypt en el hilo principal de auth
 (ahora un pool de hilos con cola acotada, `pool-hash.ts`), el gateway sin
 keep-alive y el gateway que cortaba con EOF en lugar de responder 504. De
 seguridad (4.13 a 4.16): secretos por defecto, registro con el `cliente_id` de
-otra persona, circuit breaker abierto por 404 y correo sin validar.
+otra persona, circuit breaker abierto por 404 y correo sin validar. Segunda
+tanda (4.17 a 4.22): inyección NoSQL, 500 ante entradas inválidas
+(`traducirErrorDeEntrada()`), CORS que respondía 500, cabeceras de la web
+(`clients/web/cabeceras-seguridad.js`), correos sin escapar y CORS sin el
+origen del build (4173).
 
 **Pruebas de carga:** `tests/rendimiento/` (k6). Corren con `npm run infra:carga`
 (límites altos del gateway) y `CLIENTES_CARGA=300 npm run sembrar:carga`. Ojo:
@@ -225,6 +229,10 @@ otra persona, circuit breaker abierto por 404 y correo sin validar.
 cola se vacíe antes de cada corrida.
 
 **Pendientes, en orden de valor:**
+
+- **S-09 (riesgo aceptado, ver `docs/calidad/SEGURIDAD.md` 9.4):** refresh token
+  en cookie `HttpOnly` para la web, almacenamiento seguro en la app móvil y
+  protección CSRF. Hoy el token vive en `localStorage`, mitigado por la CSP.
 
 - Pruebas unitarias con Jest o Vitest. Solo hay pruebas de integración.
 - Caché del catálogo en Redis (el motor ya está desplegado para el carrito).

@@ -1,0 +1,26 @@
+Estados HTTP del gateway durante los dos escaneos activos tras la segunda tanda (desde 2026-11-15T20:50:58Z)
+   4992 "estado":403
+   3461 "estado":400
+   1960 "estado":409
+   1196 "estado":404
+    610 "estado":401
+    116 "estado":429
+
+Errores no controlados por servicio:
+ecom_auth: 0
+ecom_clientes: 0
+ecom_catalogo: 0
+ecom_inventario: 0
+ecom_carrito: 0
+ecom_pedidos: 0
+ecom_pagos: 0
+ecom_notificaciones: 0
+
+Entradas rechazadas (antes 500, ahora 400), por codigo de origen:
+    481 "codigo_origen":"22001"
+      1 "codigo_origen":"22003"
+      7 "codigo_origen":"22021"
+    123 "codigo_origen":"22P02"
+     29 "codigo_origen":"23514"
+      4 "codigo_origen":"22021"
+    128 "codigo_origen":"22P02"
