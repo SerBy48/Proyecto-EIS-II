@@ -8,6 +8,7 @@ import Admin from './paginas/Admin.jsx';
 const CUENTAS = [
   ['ana@correo.co', 'Ana (cliente)'],
   ['bruno@correo.co', 'Bruno (cliente)'],
+  ['carla@correo.co', 'Carla (cliente)'],
   ['vendedor@tienda.co', 'Vendedor'],
   ['admin@tienda.co', 'Administrador']
 ];
@@ -175,9 +176,17 @@ function BotonNav({ activo, onClick, children }) {
   );
 }
 
+/**
+ * Inicio de sesion con correo y contrasena.
+ *
+ * Antes el correo era un desplegable con las cuatro cuentas de prueba y la
+ * contrasena venia escrita: nadie mas podia entrar (hallazgo U-01 de
+ * docs/calidad/USABILIDAD.md, severidad 4). Las cuentas de prueba siguen a la
+ * vista, pero como ayuda, no como unica opcion.
+ */
 function Login({ onIngreso }) {
-  const [email, setEmail] = useState('ana@correo.co');
-  const [password, setPassword] = useState('Password123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
   const [cargando, setCargando] = useState(false);
 
@@ -197,10 +206,7 @@ function Login({ onIngreso }) {
   return (
     <div className="max-w-md mx-auto p-4 sm:p-6 mt-6 sm:mt-10">
       <form onSubmit={enviar} className="bg-white border border-gray-200 rounded-xl p-6 sm:p-8">
-        <h1 className="text-xl font-bold mb-1">Iniciar sesion</h1>
-        <p className="text-sm text-gray-500 mb-6">
-          Todas las cuentas de prueba usan la contrasena <code>Password123</code>.
-        </p>
+        <h1 className="text-xl font-bold mb-6">Iniciar sesion</h1>
 
         {error && (
           <div role="alert" className="mb-4 bg-red-50 border border-red-200 text-red-800 rounded-lg p-3 text-sm">
@@ -211,18 +217,16 @@ function Login({ onIngreso }) {
         <label htmlFor="login-correo" className="block text-sm font-semibold text-gray-700 mb-1">
           Correo
         </label>
-        <select
+        <input
           id="login-correo"
+          type="email"
+          autoComplete="username"
+          required
+          placeholder="nombre@correo.co"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           className="w-full border border-gray-300 rounded-lg px-3 py-2 mb-4"
-        >
-          {CUENTAS.map(([correo, etiqueta]) => (
-            <option key={correo} value={correo}>
-              {etiqueta} — {correo}
-            </option>
-          ))}
-        </select>
+        />
 
         <label htmlFor="login-password" className="block text-sm font-semibold text-gray-700 mb-1">
           Contrasena
@@ -231,6 +235,7 @@ function Login({ onIngreso }) {
           id="login-password"
           type="password"
           autoComplete="current-password"
+          required
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           className="w-full border border-gray-300 rounded-lg px-3 py-2 mb-6"
@@ -243,6 +248,22 @@ function Login({ onIngreso }) {
         >
           {cargando ? 'Verificando...' : 'Ingresar'}
         </button>
+
+        {/* Ayuda del entorno de laboratorio: las cuentas de prueba a la vista,
+            sin escribirlas por el usuario. */}
+        <details className="mt-6 text-sm text-gray-600">
+          <summary className="cursor-pointer font-semibold text-gray-700">Cuentas de prueba</summary>
+          <p className="mt-2">
+            Todas usan la contrasena <code>Password123</code>.
+          </p>
+          <ul className="mt-2 space-y-1">
+            {CUENTAS.map(([correo, etiqueta]) => (
+              <li key={correo}>
+                <code>{correo}</code> · {etiqueta}
+              </li>
+            ))}
+          </ul>
+        </details>
       </form>
     </div>
   );

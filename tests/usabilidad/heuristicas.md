@@ -32,6 +32,8 @@ Capturas en [`docs/evidencia/no-funcionales/usabilidad/capturas/`](../../docs/ev
 
 ## Hallazgos
 
+> **Estado tras la Fase 3:** U-01, U-02, U-03, U-04 y U-16 están **corregidos y verificados** (ver la sección 10 de [`USABILIDAD.md`](../../docs/calidad/USABILIDAD.md)). No queda ningún hallazgo de severidad 3 o 4. Esta tabla conserva la evaluación original.
+
 | ID | Heurística | Pantalla | Problema | Sev. | Evidencia | Recomendación |
 |---|---|---|---|---|---|---|
 | **U-01** | H2, H4 | Inicio de sesión | El "correo" es un **desplegable con 4 cuentas de prueba** y la contraseña viene escrita. Ningún otro usuario puede entrar: ni Carla (cliente 3) ni las 300 cuentas de carga. Tampoco hay forma de registrarse. Es un atajo de demostración, pero en una tienda real nadie podría comprar | **4** | [`T1-formulario.png`](../../docs/evidencia/no-funcionales/usabilidad/capturas/T1-formulario.png) | Campo de correo (`type="email"`, `autocomplete="username"`) y contraseña vacía; las cuentas de prueba, como texto de ayuda |

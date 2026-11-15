@@ -20,6 +20,11 @@ export default function Catalogo({ usuario, alAgregar }) {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
   const [agregando, setAgregando] = useState(null);
+  // Paginacion: antes solo se veian los 20 primeros productos y el resto solo
+  // se encontraba buscandolo por nombre (hallazgo U-02 de USABILIDAD.md).
+  const [pagina, setPagina] = useState(1);
+  const [total, setTotal] = useState(0);
+  const POR_PAGINA = 20;
 
   const cargar = async () => {
     setCargando(true);
@@ -29,9 +34,12 @@ export default function Catalogo({ usuario, alAgregar }) {
       if (filtros.q) parametros.set('q', filtros.q);
       if (filtros.categoria) parametros.set('categoria', filtros.categoria);
       if (filtros.orden) parametros.set('orden', filtros.orden);
+      parametros.set('pagina', String(pagina));
+      parametros.set('limite', String(POR_PAGINA));
 
       const datos = await api(`/catalogo/productos?${parametros}`);
       setProductos(datos.productos || []);
+      setTotal(datos.total ?? 0);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -49,7 +57,19 @@ export default function Catalogo({ usuario, alAgregar }) {
     const temporizador = setTimeout(cargar, filtros.q ? 350 : 0);
     return () => clearTimeout(temporizador);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtros.q, filtros.categoria, filtros.orden]);
+  }, [filtros.q, filtros.categoria, filtros.orden, pagina]);
+
+  // Un filtro nuevo siempre empieza en la primera pagina.
+  const cambiarFiltro = (cambio) => {
+    setFiltros({ ...filtros, ...cambio });
+    setPagina(1);
+  };
+
+  const totalPaginas = Math.max(1, Math.ceil(total / POR_PAGINA));
+  const irAPagina = (n) => {
+    setPagina(n);
+    window.scrollTo({ top: 0 });
+  };
 
   const agregar = async (sku) => {
     setAgregando(sku);
@@ -87,14 +107,14 @@ export default function Catalogo({ usuario, alAgregar }) {
           type="search"
           placeholder="Buscar productos..."
           value={filtros.q}
-          onChange={(e) => setFiltros({ ...filtros, q: e.target.value })}
+          onChange={(e) => cambiarFiltro({ q: e.target.value })}
           className="flex-1 min-w-[200px] border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
         />
         <label htmlFor="filtro-categoria" className="sr-only">Categoria</label>
         <select
           id="filtro-categoria"
           value={filtros.categoria}
-          onChange={(e) => setFiltros({ ...filtros, categoria: e.target.value })}
+          onChange={(e) => cambiarFiltro({ categoria: e.target.value })}
           className="flex-1 sm:flex-none border border-gray-300 rounded-lg px-3 py-2"
         >
           <option value="">Todas las categorias</option>
@@ -108,7 +128,7 @@ export default function Catalogo({ usuario, alAgregar }) {
         <select
           id="filtro-orden"
           value={filtros.orden}
-          onChange={(e) => setFiltros({ ...filtros, orden: e.target.value })}
+          onChange={(e) => cambiarFiltro({ orden: e.target.value })}
           className="flex-1 sm:flex-none border border-gray-300 rounded-lg px-3 py-2"
         >
           <option value="">Mas recientes</option>
@@ -117,6 +137,13 @@ export default function Catalogo({ usuario, alAgregar }) {
           <option value="nombre">Nombre</option>
         </select>
       </div>
+
+      {!cargando && !error && total > 0 && (
+        <p className="text-sm text-gray-600 mb-4" aria-live="polite">
+          Mostrando {(pagina - 1) * POR_PAGINA + 1}–{Math.min(pagina * POR_PAGINA, total)} de {total} productos
+          {filtros.q && <> para «{filtros.q}»</>}
+        </p>
+      )}
 
       {error && (
         <div role="alert" className="mb-6 bg-red-50 border border-red-200 text-red-800 rounded-lg p-4">
@@ -193,6 +220,38 @@ export default function Catalogo({ usuario, alAgregar }) {
             </article>
           ))}
         </div>
+      )}
+
+      {!cargando && !error && totalPaginas > 1 && (
+        <nav aria-label="Paginas del catalogo" className="mt-8 flex flex-wrap items-center justify-center gap-2">
+          <button
+            onClick={() => irAPagina(pagina - 1)}
+            disabled={pagina === 1}
+            className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm disabled:text-gray-400 disabled:bg-gray-50 hover:bg-gray-50"
+          >
+            Anterior
+          </button>
+          {Array.from({ length: totalPaginas }, (_, i) => i + 1).map((n) => (
+            <button
+              key={n}
+              onClick={() => irAPagina(n)}
+              aria-current={n === pagina ? 'page' : undefined}
+              aria-label={`Pagina ${n}`}
+              className={`w-9 py-1.5 rounded-lg text-sm font-semibold ${
+                n === pagina ? 'bg-indigo-600 text-white' : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              {n}
+            </button>
+          ))}
+          <button
+            onClick={() => irAPagina(pagina + 1)}
+            disabled={pagina === totalPaginas}
+            className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm disabled:text-gray-400 disabled:bg-gray-50 hover:bg-gray-50"
+          >
+            Siguiente
+          </button>
+        </nav>
       )}
 
       {!cargando && !error && productos.length === 0 && (

@@ -7,6 +7,12 @@ export default function MisPedidos({ usuario }) {
   const [detalle, setDetalle] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
+  // Cancelacion en dos pasos, con su propio error y su confirmacion de exito
+  // (hallazgos U-03 y U-04 de docs/calidad/USABILIDAD.md).
+  const [confirmando, setConfirmando] = useState(false);
+  const [cancelando, setCancelando] = useState(false);
+  const [errorDetalle, setErrorDetalle] = useState(null);
+  const [aviso, setAviso] = useState(null);
 
   const cargar = async () => {
     setCargando(true);
@@ -29,11 +35,21 @@ export default function MisPedidos({ usuario }) {
   // abrio. Sin esto, un usuario de teclado queda detras del velo.
   const dialogo = useRef(null);
   const origenFoco = useRef(null);
+  const alertaDetalle = useRef(null);
+
+  // El error aparece al final del dialogo, que puede tener desplazamiento: se
+  // lleva a la vista y recibe el foco para que se lea completo.
+  useEffect(() => {
+    if (!errorDetalle) return;
+    alertaDetalle.current?.scrollIntoView({ block: 'nearest' });
+    alertaDetalle.current?.focus();
+    // Tambien al recargar el detalle: el historial nuevo empuja el aviso hacia abajo.
+  }, [errorDetalle, detalle]);
 
   useEffect(() => {
     if (!detalle) return;
     dialogo.current?.focus();
-    const alTeclear = (e) => e.key === 'Escape' && setDetalle(null);
+    const alTeclear = (e) => e.key === 'Escape' && cerrarDetalle();
     document.addEventListener('keydown', alTeclear);
     return () => {
       document.removeEventListener('keydown', alTeclear);
@@ -41,8 +57,17 @@ export default function MisPedidos({ usuario }) {
     };
   }, [detalle]);
 
+  const cerrarDetalle = () => {
+    setDetalle(null);
+    setConfirmando(false);
+    setErrorDetalle(null);
+  };
+
   const verDetalle = async (id) => {
     origenFoco.current = document.activeElement;
+    setAviso(null);
+    setConfirmando(false);
+    setErrorDetalle(null);
     try {
       setDetalle(await api(`/pedidos/${id}`));
     } catch (e) {
@@ -50,16 +75,31 @@ export default function MisPedidos({ usuario }) {
     }
   };
 
-  const cancelar = async (id) => {
+  const cancelar = async (pedido) => {
+    setCancelando(true);
+    setErrorDetalle(null);
     try {
-      await api(`/pedidos/${id}/cancelar`, {
+      await api(`/pedidos/${pedido.id}/cancelar`, {
         metodo: 'POST',
         cuerpo: { motivo: 'Cancelado por el cliente' }
       });
       await cargar();
-      setDetalle(null);
+      cerrarDetalle();
+      setAviso(`El pedido ${pedido.numero} fue cancelado. Si ya se habia cobrado, el reembolso se procesa automaticamente.`);
     } catch (e) {
-      setError(e.message);
+      // El error se muestra DENTRO del dialogo: antes quedaba detras del velo
+      // y el usuario creia que no habia pasado nada. Ademas se recarga el
+      // detalle, porque el pedido pudo cambiar de estado (p. ej. ya se despacho).
+      setErrorDetalle(e.message);
+      setConfirmando(false);
+      try {
+        setDetalle(await api(`/pedidos/${pedido.id}`));
+        await cargar();
+      } catch {
+        /* se conserva el detalle anterior */
+      }
+    } finally {
+      setCancelando(false);
     }
   };
 
@@ -81,6 +121,14 @@ export default function MisPedidos({ usuario }) {
           {error}
         </div>
       )}
+
+      <div role="status" aria-live="polite">
+        {aviso && (
+          <div className="mb-4 bg-green-50 border border-green-200 text-green-800 rounded-lg p-4 text-sm">
+            {aviso}
+          </div>
+        )}
+      </div>
 
       {cargando ? (
         <p role="status" className="text-gray-500">Cargando...</p>
@@ -131,7 +179,7 @@ export default function MisPedidos({ usuario }) {
       )}
 
       {detalle && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50" onClick={() => setDetalle(null)}>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50" onClick={cerrarDetalle}>
           <div
             ref={dialogo}
             role="dialog"
@@ -152,7 +200,7 @@ export default function MisPedidos({ usuario }) {
                 </p>
               </div>
               <button
-                onClick={() => setDetalle(null)}
+                onClick={cerrarDetalle}
                 aria-label="Cerrar detalle"
                 className="w-8 h-8 text-gray-500 hover:text-gray-700"
               >
@@ -213,13 +261,46 @@ export default function MisPedidos({ usuario }) {
               </div>
             )}
 
-            {['creado', 'pagado'].includes(detalle.estado) && (
+            {errorDetalle && (
+              <div ref={alertaDetalle} tabIndex={-1} role="alert" className="mt-6 bg-red-50 border border-red-200 text-red-800 rounded-lg p-3 text-sm focus:outline-none">
+                <p className="font-semibold">No se pudo cancelar el pedido</p>
+                <p className="mt-1">{errorDetalle}</p>
+              </div>
+            )}
+
+            {['creado', 'pagado'].includes(detalle.estado) && !confirmando && (
               <button
-                onClick={() => cancelar(detalle.id)}
+                onClick={() => setConfirmando(true)}
                 className="mt-6 w-full border border-red-300 text-red-700 hover:bg-red-50 font-semibold py-2 rounded-lg"
               >
                 Cancelar pedido
               </button>
+            )}
+
+            {/* Cancelar es irreversible: se pide confirmacion explicita. */}
+            {confirmando && (
+              <div className="mt-6 border border-red-200 bg-red-50 rounded-lg p-4">
+                <p id="pregunta-cancelar" className="text-sm text-red-900 font-semibold">
+                  ¿Cancelar el pedido {detalle.numero}? Esta accion no se puede deshacer.
+                </p>
+                <div className="mt-3 flex flex-col sm:flex-row gap-2">
+                  <button
+                    onClick={() => cancelar(detalle)}
+                    disabled={cancelando}
+                    aria-describedby="pregunta-cancelar"
+                    className="flex-1 bg-red-700 hover:bg-red-800 disabled:bg-red-300 text-white font-semibold py-2 rounded-lg"
+                  >
+                    {cancelando ? 'Cancelando...' : 'Si, cancelar pedido'}
+                  </button>
+                  <button
+                    onClick={() => setConfirmando(false)}
+                    disabled={cancelando}
+                    className="flex-1 border border-gray-300 bg-white hover:bg-gray-50 font-semibold py-2 rounded-lg"
+                  >
+                    No, conservarlo
+                  </button>
+                </div>
+              </div>
             )}
           </div>
         </div>

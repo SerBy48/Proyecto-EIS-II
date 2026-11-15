@@ -223,7 +223,9 @@ otra persona, circuit breaker abierto por 404 y correo sin validar. Segunda
 tanda (4.17 a 4.22): inyección NoSQL, 500 ante entradas inválidas
 (`traducirErrorDeEntrada()`), CORS que respondía 500, cabeceras de la web
 (`clients/web/cabeceras-seguridad.js`), correos sin escapar y CORS sin el
-origen del build (4173).
+origen del build (4173). De usabilidad (4.23 a 4.25): inicio de sesion real
+(antes, un desplegable de cuentas de prueba), paginacion del catalogo y
+cancelacion con confirmacion y error visible dentro del dialogo.
 
 **Pruebas de carga:** `tests/rendimiento/` (k6). Corren con `npm run infra:carga`
 (límites altos del gateway) y `CLIENTES_CARGA=300 npm run sembrar:carga`. Ojo:

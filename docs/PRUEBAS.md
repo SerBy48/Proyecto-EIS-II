@@ -346,10 +346,11 @@ notificaciones   ok=False  estado=inalcanzable
 
 ## 4. Defectos encontrados y corregidos
 
-Las pruebas encontraron veintidós defectos reales, y los veintidós están corregidos:
+Las pruebas encontraron veinticinco defectos reales, y los veinticinco están corregidos:
 - Los nueve primeros salieron de las pruebas funcionales y tienen un caso que impide que vuelvan.
 - Del 4.10 al 4.12 solo aparecen bajo carga. Su verificación es la medición de antes y después de [`calidad/RENDIMIENTO.md`](calidad/RENDIMIENTO.md), que se repite con `npm run test:carga:bateria`.
-- Del 4.13 al 4.22 son de seguridad o surgieron al verificar las correcciones de seguridad. Tienen casos en `test:http` y en `npm run test:seguridad`, documentados en [`calidad/SEGURIDAD.md`](calidad/SEGURIDAD.md).
+- Del 4.13 al 4.22 son de seguridad o surgieron al verificar las correcciones de seguridad.
+- Del 4.23 al 4.25 son de usabilidad. Se verifican con el recorrido automatizado (`npm run usabilidad:recorrido`). Tienen casos en `test:http` y en `npm run test:seguridad`, documentados en [`calidad/SEGURIDAD.md`](calidad/SEGURIDAD.md).
 
 ### 4.1 Escalada de privilegios por el token interno — **grave**
 
@@ -688,6 +689,28 @@ Encontrado con las verificaciones de seguridad (S-02 y S-03 de [`calidad/SEGURID
 **Causa.** `CORS_ORIGENES` solo incluía el 5173 de desarrollo, y el rechazo se respondía como 500 (4.19).
 
 **Corrección.** Se agregó `http://localhost:4173` en `docker-compose.yml`, `.env.example` y el valor por defecto del gateway.
+
+### 4.23 El inicio de sesión solo admitía cuatro cuentas de demostración
+
+Encontrado con la evaluación heurística (U-01 de [`calidad/USABILIDAD.md`](calidad/USABILIDAD.md), severidad 4).
+
+**Síntoma.** El correo se elegía en un desplegable con 4 cuentas y la contraseña venía escrita: ningún otro usuario podía entrar (E11, Carla).
+
+**Corrección.** Campo de correo y contraseña vacía; las cuentas de prueba quedan como ayuda plegable.
+
+**Verificación.** E11 de `npm run usabilidad:recorrido`: Carla entra escribiendo sus credenciales.
+
+### 4.24 El catálogo solo mostraba 20 de 71 productos
+
+**Corrección.** Paginación con el total de resultados (U-02).
+
+**Verificación.** E3: 71 de 71 productos alcanzables en 4 páginas.
+
+### 4.25 Cancelar un pedido sin confirmación, con el error tapado por el modal
+
+**Corrección.** Confirmación en dos pasos, aviso de éxito y error dentro del diálogo, con foco y desplazamiento (U-03 y U-04).
+
+**Verificación.** T6 y E8: el error queda visible y completo, y el detalle muestra el estado real.
 
 ---
 

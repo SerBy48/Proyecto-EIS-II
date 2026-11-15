@@ -20,6 +20,7 @@
  *                tests/seguridad/zap-recorrido.sh). En ese modo solo se hacen
  *                las tareas, sin capturas, axe ni estados especiales.
  *   DEGRADADO=1  detiene inventario un momento para capturar la degradacion.
+ *   ETIQUETA     sufijo de la evidencia (p. ej. "despues"), para conservar el antes.
  *
  * El KLM es una ESTIMACION del tiempo de un usuario experto sin errores; no
  * sustituye la observacion de personas reales (tareas.md, seccion 4).
@@ -45,7 +46,9 @@ const URL_API = process.env.URL_API || 'http://localhost:8080/api';
 const PROXY = process.env.ZAP_PROXY;
 const COMPLETO = !PROXY;
 const SALIDA = path.join(RAIZ, 'docs', 'evidencia', 'no-funcionales', 'usabilidad');
-const CAPTURAS = path.join(SALIDA, 'capturas');
+/** Sufijo de la evidencia (p. ej. ETIQUETA=despues), para no sobrescribir el antes. */
+const SUFIJO = process.env.ETIQUETA ? `-${process.env.ETIQUETA}` : '';
+const CAPTURAS = path.join(SALIDA, `capturas${SUFIJO}`);
 const CLAVE = 'Password123';
 
 // ---------------------------------------------------------------------------
@@ -209,10 +212,25 @@ const analizar = async (pagina: Page, pantalla: string): Promise<void> => {
 // ---------------------------------------------------------------------------
 const sinCarga = (p: Page) => p.waitForFunction(() => !document.querySelector('[aria-busy="true"]'));
 const nav = (p: Page, nombre: RegExp) => p.getByRole('navigation', { name: 'Principal' }).getByRole('button', { name: nombre });
+/**
+ * Escribe correo y contrasena. Si el formulario aun tiene el desplegable de
+ * cuentas de prueba (version anterior a la correccion U-01), se elige de el.
+ */
+const esDesplegable = async (p: Page) => (await p.locator('#login-correo').evaluate((e) => e.tagName)) === 'SELECT';
+
+const escribirCredenciales = async (t: Tarea, correo: string) => {
+  if (await esDesplegable(t.pagina)) {
+    await t.elegir(t.pagina.locator('#login-correo'), correo, `Elegir la cuenta ${correo} en el desplegable`);
+    t.leer('Comprobar la contrasena (el campo ya viene lleno)');
+    return;
+  }
+  await t.escribir(t.pagina.locator('#login-correo'), correo, 'Escribir el correo');
+  await t.escribir(t.pagina.locator('#login-password'), CLAVE, 'Escribir la contrasena');
+};
+
 const iniciarSesionUI = async (t: Tarea, correo: string) => {
   await t.clic(t.pagina.getByRole('button', { name: 'Iniciar sesion' }), 'Abrir el formulario de inicio de sesion');
-  await t.elegir(t.pagina.locator('#login-correo'), correo, `Elegir la cuenta ${correo} en el desplegable`);
-  t.leer('Comprobar la contrasena (el campo ya viene lleno)');
+  await escribirCredenciales(t, correo);
   await t.clic(t.pagina.getByRole('button', { name: 'Ingresar' }), 'Pulsar Ingresar', { pensar: false });
   await t.esperar(() => t.pagina.getByRole('button', { name: 'Salir' }).waitFor(), 'Esperar la sesion iniciada');
 };
@@ -250,13 +268,22 @@ const tareas = async (pagina: Page): Promise<ResultadoTarea[]> => {
     await t.clic(pagina.getByRole('button', { name: 'Iniciar sesion' }), 'Abrir el formulario de inicio de sesion');
     await analizar(pagina, 'Inicio de sesion');
     await t.captura('T1-formulario');
-    t.leer('Reconocer a Ana en el desplegable de cuentas (viene elegida por defecto)');
-    t.leer('Comprobar la contrasena (el campo ya viene lleno)');
+    const desplegable = await esDesplegable(pagina);
+    if (desplegable) {
+      t.leer('Reconocer a Ana en el desplegable de cuentas (viene elegida por defecto)');
+      t.leer('Comprobar la contrasena (el campo ya viene lleno)');
+    } else {
+      await escribirCredenciales(t, 'ana@correo.co');
+    }
     await t.clic(pagina.getByRole('button', { name: 'Ingresar' }), 'Pulsar Ingresar', { pensar: false });
     await t.esperar(() => pagina.getByRole('button', { name: 'Salir' }).waitFor(), 'Esperar la sesion iniciada');
     await sinCarga(pagina);
     await t.captura('T1-sesion-iniciada');
-    t.observaciones.push('El correo se elige en un desplegable con 4 cuentas de prueba y la contrasena viene escrita: no hay forma de entrar con otra cuenta.');
+    t.observaciones.push(
+      desplegable
+        ? 'El correo se elige en un desplegable con 4 cuentas de prueba y la contrasena viene escrita: no hay forma de entrar con otra cuenta.'
+        : 'Correo y contrasena se escriben; las cuentas de prueba aparecen como ayuda plegable.'
+    );
   }));
 
   r.push(await ejecutarTarea(pagina, 'T2', 'Buscar un producto y filtrar por categoria', 30, async (t) => {
@@ -266,12 +293,23 @@ const tareas = async (pagina: Page): Promise<ResultadoTarea[]> => {
       await pagina.waitForFunction(() => [...document.querySelectorAll('article h2')].some((h) => /portatil/i.test(h.textContent ?? '')));
       await sinCarga(pagina);
     }, 'Esperar los resultados (la busqueda se lanza sola tras 350 ms)');
+    // La consulta filtrada sale tras el debounce de 350 ms: se espera su
+    // respuesta, no solo la ausencia de carga (que es cierta antes de empezar).
+    const filtrada = pagina.waitForResponse((r) => r.url().includes('/catalogo/productos') && r.url().includes('categoria=tecnologia'));
     await t.elegir(pagina.locator('#filtro-categoria'), 'tecnologia', 'Elegir la categoria tecnologia');
-    await t.esperar(() => sinCarga(pagina), 'Esperar la lista filtrada');
+    await t.esperar(async () => {
+      await filtrada;
+      await sinCarga(pagina);
+    }, 'Esperar la lista filtrada');
     t.leer('Revisar la lista resultante');
     await t.captura('T2-resultados');
     const n = await pagina.locator('article').count();
-    t.observaciones.push(`La busqueda muestra ${n} producto(s); no se indica cuantos resultados hay en total.`);
+    const conteo = (await pagina.getByText(/^Mostrando/).count()) ? (await pagina.getByText(/^Mostrando/).textContent())?.trim() : null;
+    t.observaciones.push(
+      conteo
+        ? `La busqueda muestra ${n} producto(s) e indica "${conteo}".`
+        : `La busqueda muestra ${n} producto(s); no se indica cuantos resultados hay en total.`
+    );
   }));
 
   r.push(await ejecutarTarea(pagina, 'T3', 'Agregar dos productos y cambiar una cantidad', 60, async (t) => {
@@ -322,13 +360,25 @@ const tareas = async (pagina: Page): Promise<ResultadoTarea[]> => {
     await analizar(pagina, 'Detalle del pedido (modal)');
     await t.captura('T6-detalle');
     await t.clic(pagina.getByRole('button', { name: 'Cancelar pedido' }), 'Pulsar Cancelar pedido');
+    const confirmacion = pagina.getByRole('button', { name: 'Si, cancelar pedido' });
+    const pideConfirmacion = (await confirmacion.count()) > 0;
+    if (pideConfirmacion) {
+      t.leer('Leer la pregunta de confirmacion');
+      await t.captura('T6-confirmacion');
+      await t.clic(confirmacion, 'Confirmar la cancelacion', { pensar: false });
+    }
     await t.esperar(async () => {
       await pagina.getByRole('dialog').waitFor({ state: 'detached' });
       await pagina.getByRole('row').filter({ hasText: numeroPedido }).getByText('cancelado').waitFor();
     }, 'Esperar el estado cancelado');
     t.leer('Comprobar el nuevo estado en la tabla');
     await t.captura('T6-cancelado');
-    t.observaciones.push('Cancelar es una accion irreversible y se ejecuta con un solo clic, sin confirmacion; tampoco hay un mensaje que confirme que se cancelo.');
+    const avisoExito = await pagina.getByRole('status').filter({ hasText: 'fue cancelado' }).count();
+    t.observaciones.push(
+      pideConfirmacion
+        ? `La cancelacion pide confirmacion${avisoExito ? ' y termina con un aviso de exito' : ''}.`
+        : 'Cancelar es una accion irreversible y se ejecuta con un solo clic, sin confirmacion; tampoco hay un mensaje que confirme que se cancelo.'
+    );
   }));
 
   r.push(await ejecutarTarea(pagina, 'T7', 'Comprar con pago rechazado e interpretar el mensaje', 90, async (t) => {
@@ -401,7 +451,7 @@ const estados = async (navegador: Browser): Promise<Estado[]> => {
   };
   const foto = async (p: Page, nombre: string) => {
     await p.screenshot({ path: path.join(CAPTURAS, `${nombre}.png`), fullPage: true });
-    return `capturas/${nombre}.png`;
+    return `capturas${SUFIJO}/${nombre}.png`;
   };
   const registrar = (e: Estado) => {
     salida.push(e);
@@ -413,7 +463,8 @@ const estados = async (navegador: Browser): Promise<Estado[]> => {
     const p = await nueva();
     await p.goto(URL_WEB);
     await p.getByRole('button', { name: 'Iniciar sesion' }).click();
-    await p.locator('#login-correo').selectOption('bruno@correo.co');
+    if (await esDesplegable(p)) await p.locator('#login-correo').selectOption('bruno@correo.co');
+    else await p.locator('#login-correo').fill('bruno@correo.co');
     await p.locator('#login-password').fill('incorrecta');
     await p.getByRole('button', { name: 'Ingresar' }).click();
     const alerta = p.getByRole('alert');
@@ -440,10 +491,27 @@ const estados = async (navegador: Browser): Promise<Estado[]> => {
     const p = await nueva();
     await p.goto(URL_WEB);
     await sinCarga(p);
-    const visibles = await p.locator('article').count();
     const total = (await api('/catalogo/productos?limite=1')).datos.total;
-    const paginacion = await p.getByRole('button', { name: /siguiente|ver mas|cargar mas/i }).count();
-    registrar({ id: 'E3', estado: 'Alcance del catalogo', resultado: `Se muestran ${visibles} de ${total} productos activos y hay ${paginacion} controles de paginacion: ${total - visibles} productos solo se encuentran buscandolos por nombre.`, captura: await foto(p, 'E3-catalogo-completo') });
+    // SKU distintos que el visitante alcanza navegando, pasando por todas las
+    // paginas si hay paginacion.
+    const alcanzados = new Set<string>();
+    let paginas = 0;
+    for (;;) {
+      paginas++;
+      for (const sku of await p.locator('article p.text-xs.text-gray-500:not(.uppercase)').allTextContents()) alcanzados.add(sku.trim());
+      const siguiente = p.getByRole('button', { name: 'Siguiente' });
+      if (!(await siguiente.count()) || (await siguiente.isDisabled()) || paginas > 20) break;
+      await siguiente.click();
+      await sinCarga(p);
+    }
+    const resumen = (await p.getByText(/^Mostrando/).count()) ? await p.getByText(/^Mostrando/).textContent() : null;
+    const faltan = total - alcanzados.size;
+    registrar({
+      id: 'E3',
+      estado: 'Alcance del catalogo',
+      resultado: `Navegando se alcanzan ${alcanzados.size} de ${total} productos activos en ${paginas} pagina(s)${resumen ? `; la ultima pagina indica "${resumen.trim()}"` : ''}${faltan > 0 ? `: ${faltan} productos solo se encuentran buscandolos por nombre` : ''}.`,
+      captura: await foto(p, 'E3-catalogo-completo')
+    });
     await p.context().close();
   }
 
@@ -527,6 +595,8 @@ const estados = async (navegador: Browser): Promise<Estado[]> => {
       await api(`/pedidos/${pedido.id}/estado`, { metodo: 'PATCH', token: admin.token, cuerpo: { estado } });
     }
     await q.getByRole('button', { name: 'Cancelar pedido' }).click();
+    const confirmar = q.getByRole('button', { name: 'Si, cancelar pedido' });
+    if (await confirmar.count()) await confirmar.click();
     await q.getByRole('alert').waitFor({ state: 'attached' });
     await q.waitForTimeout(500);
     const visibilidad = await q.evaluate(() => {
@@ -534,10 +604,41 @@ const estados = async (navegador: Browser): Promise<Estado[]> => {
       if (!a) return 'sin mensaje';
       const r = a.getBoundingClientRect();
       const encima = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
-      return a.contains(encima) ? 'visible' : 'tapado por el velo del modal';
+      if (!a.contains(encima)) return 'tapado por el velo del modal';
+      // Visible, pero ¿completo? El dialogo tiene su propio desplazamiento.
+      const marco = (a.closest('[role="dialog"]') ?? document.documentElement).getBoundingClientRect();
+      const completo = r.top >= marco.top && r.bottom <= Math.min(marco.bottom, window.innerHeight);
+      return completo ? 'visible y completo' : 'visible pero cortado por el borde del dialogo';
     });
-    registrar({ id: 'E8', estado: 'Error al cancelar un pedido que ya fue despachado', resultado: `Mensaje "${(await q.getByRole('alert').textContent())?.trim()}": ${visibilidad}; el modal sigue abierto y el boton no cambia.`, captura: await foto(q, 'E8-error-tapado') });
+    const botonSigue = await q.getByRole('button', { name: 'Cancelar pedido' }).count();
+    const estadoActual = (await q.getByRole('dialog').textContent())?.includes('enviado');
+    registrar({
+      id: 'E8',
+      estado: 'Error al cancelar un pedido que ya fue despachado',
+      resultado: `Mensaje "${(await q.getByRole('alert').textContent())?.trim()}": ${visibilidad}; ${botonSigue ? 'el boton Cancelar pedido sigue disponible' : 'el boton Cancelar pedido desaparece'}${estadoActual ? ' y el detalle muestra el estado actual (enviado)' : ''}.`,
+      captura: await foto(q, 'E8-error-cancelacion')
+    });
     await q.context().close();
+  }
+
+  // E11. Una cuenta que no estaba en el desplegable original (Carla).
+  {
+    const c = await nueva();
+    await c.goto(URL_WEB);
+    await c.getByRole('button', { name: 'Iniciar sesion' }).click();
+    let resultado: string;
+    if (await esDesplegable(c)) {
+      const opciones = await c.locator('#login-correo option').allTextContents();
+      resultado = `Imposible: el desplegable solo ofrece ${opciones.length} cuentas y carla@correo.co no esta entre ellas.`;
+    } else {
+      await c.locator('#login-correo').fill('carla@correo.co');
+      await c.locator('#login-password').fill(CLAVE);
+      await c.getByRole('button', { name: 'Ingresar' }).click();
+      await c.getByRole('button', { name: 'Salir' }).waitFor();
+      resultado = `Carla entra escribiendo su correo y su contrasena${(await c.getByText('carla@correo.co').count()) ? '; su correo aparece en la cabecera' : ''}.`;
+    }
+    registrar({ id: 'E11', estado: 'Ingreso de una cuenta fuera de la lista de prueba (Carla)', resultado, captura: await foto(c, 'E11-ingreso-carla') });
+    await c.context().close();
   }
 
   // E9. Movil (390 x 844).
@@ -617,8 +718,8 @@ const principal = async (): Promise<void> => {
     tareas: resultados,
     estados: especiales
   };
-  writeFileSync(path.join(SALIDA, 'recorrido.json'), JSON.stringify(informe, null, 2));
-  writeFileSync(path.join(SALIDA, 'accesibilidad-axe.json'), JSON.stringify({ fecha: informe.fecha, estandar: 'WCAG 2.2 A y AA (axe-core 4.10)', pantallas: accesibilidad }, null, 2));
+  writeFileSync(path.join(SALIDA, `recorrido${SUFIJO}.json`), JSON.stringify(informe, null, 2));
+  writeFileSync(path.join(SALIDA, `accesibilidad-axe${SUFIJO}.json`), JSON.stringify({ fecha: informe.fecha, estandar: 'WCAG 2.2 A y AA (axe-core 4.10)', pantallas: accesibilidad }, null, 2));
 
   console.log('\nKLM por tarea (usuario experto + respuesta del sistema)');
   for (const t of resultados) {
