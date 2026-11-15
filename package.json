@@ -37,7 +37,10 @@
     "test:carga:checkout": "bash tests/rendimiento/ejecutar.sh checkout",
     "test:carga:flujo": "bash tests/rendimiento/ejecutar.sh flujo-completo",
     "test:carga:bateria": "bash tests/rendimiento/bateria.sh",
-    "graficas:rendimiento": "python scripts/graficas/rendimiento.py"
+    "graficas:rendimiento": "python scripts/graficas/rendimiento.py",
+    "test:seguridad": "tsx --env-file-if-exists=.env tests/seguridad/verificaciones.ts",
+    "test:zap:baseline": "bash tests/seguridad/zap-baseline.sh",
+    "test:zap:api": "bash tests/seguridad/zap-api.sh"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",
