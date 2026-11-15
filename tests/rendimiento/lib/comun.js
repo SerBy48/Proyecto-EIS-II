@@ -54,9 +54,32 @@ export const iniciarSesion = (correo, etiquetas = {}) => {
  * a los 12 para que una corrida larga no falle por expiracion.
  */
 let sesionVu = null;
+let carritoInicialVaciado = false;
+
+/**
+ * Vacia el carrito del VU. Los carritos viven en Redis y sobreviven entre
+ * corridas: un VU interrumpido al final de una corrida deja productos que la
+ * siguiente heredaria. Se etiqueta como preparacion para no mezclarlo con las
+ * metricas de los escenarios.
+ */
+export const vaciarCarrito = (sesion) =>
+  http.del(`${API}/carrito/${sesion.clienteId}`, null, {
+    ...conToken(sesion.token),
+    tags: { endpoint: 'carrito_vaciar', fase: 'preparacion' }
+  });
+
+/** Vacia el carrito la primera vez que el VU obtiene sesion en la corrida. */
+export const prepararCarrito = (sesion) => {
+  if (sesion && !carritoInicialVaciado) {
+    vaciarCarrito(sesion);
+    carritoInicialVaciado = true;
+  }
+};
+
 export const sesionDelVu = () => {
   if (!sesionVu || Date.now() - sesionVu.obtenido > 12 * 60_000) {
     sesionVu = iniciarSesion(correoCuenta(__VU - 1), { fase: 'preparacion' });
+    prepararCarrito(sesionVu);
   }
   return sesionVu;
 };
@@ -83,6 +106,11 @@ export const comprar = (sesion, etiquetas = {}) => {
     'checkout 201/200': (x) => x.status === 201 || x.status === 200 || negocio,
     'pedido queda pagado': (x) => negocio || ((x.status === 201 || x.status === 200) && x.json('pedido.estado') === 'pagado')
   });
+  // Tras un 402 o un 409 el carrito conserva sus productos (el cliente puede
+  // reintentar). En la prueba, la iteracion siguiente agregaria otra unidad y
+  // el total creceria hasta superar el tope de la pasarela: cada compra
+  // posterior de ese VU seria otro 402. Se vacia para cortar esa cascada.
+  if (negocio) vaciarCarrito(sesion);
   return { respuesta: r, negocio };
 };
 

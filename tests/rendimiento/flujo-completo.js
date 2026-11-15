@@ -12,7 +12,8 @@
 import http from 'k6/http';
 import { check, group, sleep } from 'k6';
 import {
-  API, CATEGORIAS, SKUS_CARGA, TERMINOS, agregarAlCarrito, azar, comprar, conToken, correoCuenta, iniciarSesion
+  API, CATEGORIAS, SKUS_CARGA, TERMINOS, agregarAlCarrito, azar, comprar, conToken, correoCuenta, iniciarSesion,
+  prepararCarrito
 } from './lib/comun.js';
 import { opciones } from './lib/perfiles.js';
 
@@ -32,6 +33,7 @@ export default function () {
     sleep(1);
     return;
   }
+  prepararCarrito(sesion);
   sleep(1);
 
   group('2 busqueda', () => {
