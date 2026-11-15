@@ -95,7 +95,11 @@ export const listarDirecciones = async (req: PeticionAutenticada, res: Response)
   exigirPropiedad(req, id);
 
   const { rows } = await pool.query(
-    `SELECT id, tipo, etiqueta, linea1, linea2, ciudad, departamento, pais, codigo_postal, predeterminada
+    // Columnas calificadas con "d.": clientes y direcciones tienen ambas "id" y,
+    // sin el alias, PostgreSQL rechaza la consulta ("column reference is
+    // ambiguous") y la ruta respondia siempre 500.
+    `SELECT d.id, d.tipo, d.etiqueta, d.linea1, d.linea2, d.ciudad, d.departamento, d.pais,
+            d.codigo_postal, d.predeterminada
        FROM clientes c JOIN direcciones d ON d.cliente_id = c.id
       WHERE c.id = $1
       ORDER BY d.predeterminada DESC, d.id`,

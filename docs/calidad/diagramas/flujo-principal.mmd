@@ -1,0 +1,21 @@
+flowchart TB
+    A([Cliente]) --> L["<b>1. Login</b><br/>POST /auth/login<br/><i>bcrypt</i>"]
+    L --> B["<b>2. Catálogo: búsqueda</b><br/>GET /catalogo/productos?q=<br/><i>Mongo $text + inventario</i>"]
+    B --> D["<b>3. Detalle</b><br/>GET /catalogo/productos/:sku"]
+    D --> C["<b>4. Carrito</b><br/>POST /carrito/:id/items<br/><i>Redis + precio del catálogo</i>"]
+    C --> K["<b>5. Checkout (saga)</b><br/>POST /pedidos/checkout"]
+    K --> P["<b>6. Pago</b><br/>pagos /cobros<br/><i>pasarela simulada</i>"]
+    P --> M["<b>7. Mis pedidos</b><br/>GET /pedidos"]
+
+    K -. orquesta .-> S1
+    subgraph SAGA ["Pasos síncronos de la saga (pedidos-service)"]
+      direction TB
+      S1[clientes /validar] --> S2[carrito /checkout]
+      S2 --> S3[catálogo /precio ×N]
+      S3 --> S4["inventario /reservas ×N<br/><i>pg_advisory_xact_lock</i>"]
+      S4 --> S5[pagos /cobros]
+      S5 --> S6[inventario /confirmar ×N]
+      S6 --> S7[carrito: vaciar]
+      S7 --> S8[(RabbitMQ<br/>pedido.confirmado)]
+    end
+    S8 -. evento .-> N[notificaciones<br/>clientes /historial]

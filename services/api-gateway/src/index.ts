@@ -330,6 +330,14 @@ app.get('/api/health', async (_req: Request, res: Response) => {
   });
 });
 
+// Liveness del propio gateway: lo consulta el HEALTHCHECK de la imagen
+// (infra/Dockerfile.servicio pide /health en todos los servicios). No consulta
+// a los demas servicios a proposito: si uno cae, el orquestador no debe
+// reiniciar el gateway, que sigue sano y responde 503 solo para esa ruta.
+app.get('/health', (_req: Request, res: Response) => {
+  res.status(200).json({ servicio: 'api-gateway', estado: 'ok' });
+});
+
 app.get('/', (_req: Request, res: Response) => {
   res.status(200).json({
     nombre: 'API Gateway - Plataforma de comercio electronico',

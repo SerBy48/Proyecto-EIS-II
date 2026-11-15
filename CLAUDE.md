@@ -176,10 +176,10 @@ Tokens de la pasarela simulada (resultado determinista):
 ## Estado y pendientes conocidos
 
 **Verificado y funcionando** (ver `docs/PRUEBAS.md` para el detalle y la
-evidencia, ejecución del 2026-10-01 con la infraestructura completa): 142 casos
-ejecutados, 142 pasan. Los nueve servicios compilan y arrancan sanos; la prueba
+evidencia; última ejecución el 2026-11-14 con los servicios en contenedores y la
+base poblada con `npm run sembrar:carga`): 147 casos ejecutados, 147 pasan. Los nueve servicios compilan y arrancan sanos; la prueba
 de concurrencia pasa sus 33 comprobaciones (20 compradores simultáneos por 5
-unidades → exactamente 5 ganan); `test:http` pasa sus 60 casos sobre
+unidades → exactamente 5 ganan); `test:http` pasa sus 65 casos sobre
 autenticación, RBAC, aislamiento entre clientes, idempotencia, los cuatro
 desenlaces de la pasarela, el ciclo de vida de los pedidos, rate limiting,
 PCI-DSS y aislamiento de las bases; `test:e2e` pasa sus 49 comprobaciones

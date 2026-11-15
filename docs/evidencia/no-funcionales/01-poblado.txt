@@ -1,0 +1,151 @@
+######## EJECUCION 1 (bases recien creadas: docker compose down -v + up) ########
+
+> ecommerce-distribuido@1.0.0 sembrar:carga
+> tsx --env-file-if-exists=.env scripts/sembrar-datos-carga.ts
+
+Poblado de carga contra http://localhost:8080
+
+1/4 Productos...
+2/4 Stock de los SKU de carga y de los productos nuevos...
+3/4 Clientes de carga con direccion...
+4/4 Pedidos historicos...
+
+{
+  "fecha": "2026-11-15T02:21:13.345Z",
+  "gateway": "http://localhost:8080",
+  "duracion_s": 63.4,
+  "resultado_de_esta_ejecucion": {
+    "productos": {
+      "creados": 60,
+      "ya_existian": 0
+    },
+    "stock": {
+      "completados_a_meta": 65,
+      "ya_en_meta": 0,
+      "meta_unidades": {
+        "skus_de_carga": 10000,
+        "productos_nuevos": 200
+      },
+      "sin_registro_de_inventario": 0
+    },
+    "clientes": {
+      "creados": 100,
+      "ya_existian": 0,
+      "direcciones_creadas": 100
+    },
+    "pedidos": {
+      "creados": 60,
+      "ya_existian": 0
+    },
+    "esperas_por_429": 1,
+    "errores": 0
+  },
+  "totales_en_el_sistema": {
+    "productos_activos": 70,
+    "categorias": [
+      {
+        "categoria": "deportes",
+        "productos": 22,
+        "precio_min": 40000
+      },
+      {
+        "categoria": "hogar",
+        "productos": 23,
+        "precio_min": 60000
+      },
+      {
+        "categoria": "tecnologia",
+        "productos": 25,
+        "precio_min": 120000
+      }
+    ],
+    "pedidos_visibles_admin": 60,
+    "disponibilidad_skus_carga": [
+      {
+        "sku": "SKU-TEC-001",
+        "disponible": 9940,
+        "reservado": 0,
+        "hay_stock": true,
+        "stock_minimo": 10
+      },
+      {
+        "sku": "SKU-HOG-001",
+        "disponible": 9940,
+        "reservado": 0,
+        "hay_stock": true,
+        "stock_minimo": 10
+      },
+      {
+        "sku": "SKU-DEP-001",
+        "disponible": 9940,
+        "reservado": 0,
+        "hay_stock": true,
+        "stock_minimo": 15
+      },
+      {
+        "sku": "SKU-TEC-002",
+        "disponible": 10000,
+        "reservado": 0,
+        "hay_stock": true,
+        "stock_minimo": 5
+      },
+      {
+        "sku": "SKU-DEP-002",
+        "disponible": 10000,
+        "reservado": 0,
+        "hay_stock": true,
+        "stock_minimo": 5
+      }
+    ]
+  },
+  "skus_sin_registro_de_inventario": [],
+  "detalle_errores": []
+}
+exit=0
+
+######## EJECUCION 2 (inmediata, demuestra idempotencia) ########
+  "resultado_de_esta_ejecucion": {
+    "productos": {
+      "creados": 0,
+      "ya_existian": 60
+    },
+    "stock": {
+      "completados_a_meta": 3,
+      "ya_en_meta": 62,
+      "meta_unidades": {
+        "skus_de_carga": 10000,
+        "productos_nuevos": 200
+      },
+      "sin_registro_de_inventario": 0
+    },
+    "clientes": {
+      "creados": 0,
+      "ya_existian": 100,
+      "direcciones_creadas": 0
+    },
+    "pedidos": {
+      "creados": 0,
+      "ya_existian": 60
+    },
+    "esperas_por_429": 0,
+    "errores": 0
+exit=0
+
+Nota: en la ejecucion 2 se completan 3 SKU porque los 60 pedidos de la ejecucion 1 los dejaron por debajo de la meta; el resto ya estaba en meta y no se toca.
+
+######## CONTEO POR ENTIDAD - consultas de SOLO LECTURA (2026-11-14T21:21:47-05:00) ########
+auth_db.usuarios ................ 105   (rol cliente: 103)
+clientes_db.clientes ............ 103
+clientes_db.direcciones ......... 104
+catalogo_db.productos ........... 70
+inventario_db.stock (filas) ..... 70
+inventario_db.movimientos ....... 318
+inventario_db.reservas .......... 120
+pedidos_db.pedidos .............. 60   (pagado=60)
+pedidos_db.pedido_items ......... 120
+pedidos_db.saga_pasos ........... 840
+pagos_db.transacciones .......... 60
+notificaciones_db.mensajes ...... 60
+stock SKUs de carga ............. SKU-DEP-001=10000, SKU-DEP-002=10000, SKU-HOG-001=10000, SKU-TEC-001=10000, SKU-TEC-002=10000
+stock productos nuevos (min-max)  200-200 en 60 SKU
+stock SKUs de prueba intactos ... SKU-HOG-002=3, SKU-TEC-004=1

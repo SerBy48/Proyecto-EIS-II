@@ -1,0 +1,356 @@
+######## npm run test:salud (2026-11-14T21:21:57-05:00) ########
+
+> ecommerce-distribuido@1.0.0 test:salud
+> tsx --env-file-if-exists=.env tests/salud.ts
+
+
+Salud del sistema  http://localhost:8080
+
+  OK   auth             ok
+         └─ postgres:auth_db     conectado
+  OK   clientes         ok
+         └─ postgres:clientes_db conectado
+         └─ rabbitmq             conectado
+  OK   catalogo         ok
+         └─ mongo:catalogo_db    conectado
+  OK   inventario       ok
+         └─ postgres:inventario_db conectado
+         └─ rabbitmq             conectado
+  OK   carrito          ok
+         └─ redis                conectado
+  OK   pedidos          ok
+         └─ postgres:pedidos_db  conectado
+         └─ rabbitmq             conectado
+  OK   pagos            ok
+         └─ postgres:pagos_db    conectado
+         └─ rabbitmq             conectado
+  OK   notificaciones   ok
+         └─ mongo:notificaciones_db conectado
+         └─ rabbitmq             conectado
+
+Los nueve servicios responden. El sistema esta listo.
+Siguiente paso: npm run test:e2e
+
+exit=0
+
+######## npm run test:http (2026-11-14T21:21:59-05:00) ########
+
+> ecommerce-distribuido@1.0.0 test:http
+> tsx --env-file-if-exists=.env tests/contrato-http.ts
+
+Arrancando un gateway temporal en el puerto 18080 (limitador limpio)...
+Gateway listo: 200
+Restableciendo el estado de las bases de datos...
+Estado restablecido.
+
+
+============================================================================
+ SUITE A · AUTENTICACION Y EMISION DE TOKENS
+============================================================================
+  A-01    PASA   Login con credenciales validas (cliente)             esperado 200, obtenido 200
+  A-02    PASA   Login con contrasena incorrecta                      esperado 401, obtenido 401
+  A-03    PASA   Login con usuario inexistente                        esperado 401, obtenido 401
+  A-04    PASA   Login sin campos obligatorios                        esperado 400, obtenido 400
+  A-05    PASA   Consulta del perfil con token valido                 esperado 200, obtenido 200
+  A-06    INFO   Token JWT emitido: 212 caracteres
+
+============================================================================
+ SUITE B · CONTROL DE ACCESO (RBAC Y PROPIEDAD DEL DATO)
+============================================================================
+  B-01    PASA   Ruta protegida sin token                             esperado 401, obtenido 401
+  B-02    PASA   Ruta protegida con token invalido                    esperado 401, obtenido 401
+  B-03    PASA   Ruta protegida con token valido                      esperado 200, obtenido 200
+  B-04    PASA   Cliente accediendo a ruta de personal interno        esperado 403, obtenido 403
+  B-05    PASA   Administrador en la misma ruta interna               esperado 200, obtenido 200
+  B-06    PASA   Vendedor en la misma ruta interna                    esperado 200, obtenido 200
+  B-07    PASA   Cliente intentando reservar stock por su cuenta      esperado 403, obtenido 403
+  B-08    PASA   Cliente intentando registrar entrada de mercancia    esperado 403, obtenido 403
+  B-09    PASA   Cliente consultando su propio perfil                 esperado 200, obtenido 200
+  B-10    PASA   Cliente consultando el perfil de otro cliente        esperado 403, obtenido 403
+  B-11    PASA   Cliente consultando el carrito de otro cliente       esperado 403, obtenido 403
+  B-12    PASA   Cliente consultando la bitacora de la saga           esperado 403, obtenido 403
+  B-13    PASA   Inyeccion de cabeceras de confianza falsas           esperado 403, obtenido 403
+  B-14    PASA   Ruta inexistente en el gateway                       esperado 404, obtenido 404
+  B-15    PASA   Cliente listando sus propias direcciones             esperado 200, obtenido 200
+  B-16    PASA   Cliente listando las direcciones de otro cliente     esperado 403, obtenido 403
+
+============================================================================
+ SUITE C · INVENTARIO: RESERVAS, IDEMPOTENCIA Y COMPENSACION
+============================================================================
+  C-01    PASA   Consulta de disponibilidad por SKU                   esperado 200, obtenido 200
+  C-02    PASA   Reserva SIN cabecera Idempotency-Key                 esperado 400, obtenido 400
+  C-03    PASA   Reserva valida de la ultima unidad                   esperado 201, obtenido 201
+  C-04    PASA   Reintento con la MISMA clave (idempotente)           esperado 200, obtenido 200
+  C-05    PASA   Segundo comprador: stock insuficiente                esperado 409, obtenido 409
+  C-06    PASA   Liberar la reserva (compensacion de la saga)         esperado 200, obtenido 200
+  C-07    PASA   Liberar de nuevo (idempotente)                       esperado 200, obtenido 200
+  C-08    INFO   Stock tras la compensacion: 1 unidad(es) — debe ser 1
+  C-09    PASA   Registrar entrada de mercancia                       esperado 200, obtenido 200
+  C-10    PASA   Primera entrada de un producto nuevo abre su inventario esperado 200, obtenido 200
+  C-11    PASA   Entrada de un SKU que no existe en el catalogo       esperado 404, obtenido 404
+  C-12    PASA   Entrada hacia una bodega inexistente                 esperado 400, obtenido 400
+  C-10    PASA   Entrada sobre un SKU inexistente                     esperado 404, obtenido 404
+
+============================================================================
+ SUITE D · PAGOS: LOS CUATRO DESENLACES DE LA PASARELA
+============================================================================
+  D-01    PASA   Pago aprobado (tok_ok)                               esperado 201, obtenido 201
+  D-02    PASA   Reintento con la MISMA clave (no cobra dos veces)    esperado 200, obtenido 200
+  D-03    PASA   Pago rechazado por fondos (tok_rechazo)              esperado 200, obtenido 200
+  D-04    PASA   Error tecnico de la pasarela (tok_error)             esperado 502, obtenido 502
+  D-05    PASA   Medio de pago no soportado                           esperado 400, obtenido 400
+  D-06    PASA   Monto invalido (cero)                                esperado 400, obtenido 400
+  D-07    PASA   Reembolso de una transaccion aprobada                esperado 200, obtenido 200
+  D-08    PASA   Reembolso repetido (idempotente)                     esperado 200, obtenido 200
+  D-09    PASA   Reembolso de una referencia inexistente              esperado 404, obtenido 404
+
+============================================================================
+ SUITE E · PEDIDOS: IDENTIFICADORES Y CICLO DE VIDA
+============================================================================
+  E-01    PASA   Pedido por numero inexistente (PED-...)              esperado 404, obtenido 404
+  E-02    PASA   Pedido por id numerico inexistente                   esperado 404, obtenido 404
+  E-03    PASA   Pedido con identificador no numerico ni PED-         esperado 404, obtenido 404
+  E-04    PASA   Bitacora de saga con identificador invalido          esperado 404, obtenido 404
+  E-05    PASA   Cancelacion con identificador invalido               esperado 404, obtenido 404
+  E-06    PASA   Cambio de estado con identificador invalido          esperado 404, obtenido 404
+  E-07    PASA   Pedido existente por NUMERO (PED-202611-001060)      esperado 200, obtenido 200
+  E-08    PASA   El mismo pedido por ID numerico                      esperado 200, obtenido 200
+  E-09    PASA   Bitacora de la saga (administrador)                  esperado 200, obtenido 200
+  E-10    PASA   Transicion valida: pagado -> en_preparacion          esperado 200, obtenido 200
+  E-11    PASA   Transicion invalida: en_preparacion -> pagado        esperado 400, obtenido 400
+  E-12    PASA   Estado inexistente                                   esperado 400, obtenido 400
+  E-13    PASA   Cancelacion de un pedido en preparacion              esperado 200, obtenido 200
+  E-14    PASA   Cancelacion repetida (idempotente)                   esperado 200, obtenido 200
+  E-15    PASA   El cliente cancela su propio pedido                  esperado 200, obtenido 200
+  E-16    PASA   El cliente repite la cancelacion (idempotente)       esperado 200, obtenido 200
+
+============================================================================
+ SUITE F · LIMITACION DE PETICIONES Y BLOQUEO DE CUENTA
+============================================================================
+  F-01    INFO   Codigos de 14 intentos de login fallidos: 401 401 401 401 401 429 429 429 429 429 429 429 429 429
+  F-02    INFO   Estado de la cuenta tras los intentos:
+           carla@correo.co | intentos=0 | bloqueada=true
+  F-03    INFO   Auditoria de accesos registrada:
+           login | exitoso=false | n=7
+           login | exitoso=true | n=4
+           login_bloqueado | exitoso=false | n=2
+
+============================================================================
+ SUITE G · CUMPLIMIENTO PCI-DSS (ESQUEMA DE PAGOS)
+============================================================================
+  G-01    INFO   Columnas de la tabla transacciones:
+           id, referencia, pedido_id, numero_pedido, cliente_id, monto, moneda, medio_pago, token_medio_pago, ultimos_cuatro, marca, estado, codigo_autorizacion, codigo_rechazo, mensaje_pasarela, clave_idempotencia, request_id, creado_en, resuelto_en
+  G-02    PASA   Columnas de tarjeta/CVV/vencimiento en el esquema    esperado 0, obtenido 0
+
+============================================================================
+ SUITE H · AISLAMIENTO DE LAS BASES DE DATOS (BASE POR SERVICIO)
+============================================================================
+  H-01    PASA   auth_user no debe poder entrar a pedidos_db          acceso denegado
+  H-02    PASA   auth_user no debe poder entrar a pagos_db            acceso denegado
+  H-03    PASA   clientes_user no debe poder entrar a inventario_db   acceso denegado
+  H-04    PASA   inventario_user no debe poder entrar a pagos_db      acceso denegado
+  H-05    PASA   pedidos_user no debe poder entrar a auth_db          acceso denegado
+  H-06    PASA   inventario_user SI debe entrar a su propia base      acceso concedido
+
+============================================================================
+ SUITE I · DEGRADACION Y SALUD DEL SISTEMA
+============================================================================
+  I-01    INFO   Estado de RabbitMQ en los servicios que publican eventos
+           (dependencia no critica: el servicio sigue sano aunque falte):
+           clientes-service         estado=ok        rabbitmq: conectado=false critica=false
+           inventario-service       estado=ok        rabbitmq: conectado=false critica=false
+           pedidos-service          estado=ok        rabbitmq: conectado=false critica=false
+           pagos-service            estado=ok        rabbitmq: conectado=false critica=false
+  I-02    INFO   Salud agregada del gateway:
+           servicios caidos: ninguno
+           auth             ok=true  estado=ok
+           clientes         ok=true  estado=ok
+           catalogo         ok=true  estado=ok
+           inventario       ok=true  estado=ok
+           carrito          ok=true  estado=ok
+           pedidos          ok=true  estado=ok
+           pagos            ok=true  estado=ok
+           notificaciones   ok=true  estado=ok
+
+============================================================================
+ RESULTADO: 65 casos PASA, 0 casos FALLA
+============================================================================
+exit=0
+
+######## npm run test:concurrencia (2026-11-14T21:22:06-05:00) ########
+
+> ecommerce-distribuido@1.0.0 test:concurrencia
+> tsx --env-file-if-exists=.env tests/concurrencia-stock.ts
+
+=======================================================
+ Prueba de concurrencia del servicio de inventario
+ Pregunta 5 del analisis: evitar la sobreventa
+=======================================================
+
+Escenario 1: dos compradores, una sola unidad
+---------------------------------------------
+  Stock inicial de SKU-TEC-004: 1 unidad
+  Ana y Bruno pulsan "Comprar" en el mismo instante...
+  Ana:   reservado
+  Bruno: sin_stock
+  PASA  Exactamente un comprador obtiene la unidad
+  PASA  El otro comprador recibe sin_stock
+  PASA  El stock disponible queda en 0, nunca negativo
+  PASA  Hay exactamente 1 unidad reservada
+  PASA  Se creo una sola reserva activa
+
+Escenario 2: veinte compradores, cinco unidades
+-----------------------------------------------
+  Stock inicial: 5 unidades. Compradores simultaneos: 20
+  Reservas concedidas: 5 | rechazadas: 15
+  PASA  Se conceden exactamente 5 reservas
+  PASA  El resto se rechaza por falta de stock
+  PASA  El stock disponible queda en 0
+  PASA  Quedan 5 unidades reservadas
+
+Escenario 3: idempotencia ante un reintento
+-------------------------------------------
+  Primera llamada: reservado (disponible: 7)
+  Reintento:       idempotente (disponible: 7)
+  PASA  La primera llamada reserva
+  PASA  El reintento se reconoce como idempotente
+  PASA  Devuelve la MISMA reserva, no una nueva
+  PASA  El stock se descuenta una sola vez (10 -> 7)
+  PASA  Existe una sola fila de reserva para esa clave
+
+Escenario 4: compensacion de la saga (pago rechazado)
+-----------------------------------------------------
+  Stock: 1 unidad. Ana reserva, pero su pago es rechazado.
+  PASA  Ana reserva la ultima unidad
+  PASA  Mientras paga, el producto figura agotado
+  PASA  Bruno no puede comprarla mientras esta reservada
+  Compensacion: liberada
+  PASA  La reserva se libera
+  PASA  La unidad vuelve a estar disponible
+  PASA  No queda nada reservado
+  PASA  Bruno ya puede comprar la unidad liberada
+  PASA  Liberar dos veces no devuelve stock de mas
+
+Escenario 5: confirmacion tras un pago aprobado
+-----------------------------------------------
+  PASA  Se reservan 2 de 4 unidades
+  PASA  Quedan 2 disponibles
+  PASA  Hay 2 reservadas
+  Confirmacion: confirmada
+  PASA  La reserva se confirma
+  PASA  El disponible NO cambia al confirmar (ya se habia descontado)
+  PASA  Las unidades salen de reservado: descuento definitivo
+  PASA  Se registro un movimiento de salida
+  PASA  Confirmar dos veces es idempotente
+
+Escenario 6: el stock nunca puede quedar negativo
+-------------------------------------------------
+  PASA  Una reserva mayor al stock se rechaza
+  PASA  El stock permanece intacto tras el rechazo
+  PASA  La restriccion CHECK de la base impide un stock negativo directo
+
+Todas las comprobaciones pasaron: la sobreventa es imposible.
+
+exit=0
+
+######## npm run test:e2e (2026-11-14T21:22:09-05:00) ########
+
+> ecommerce-distribuido@1.0.0 test:e2e
+> tsx --env-file-if-exists=.env tests/e2e-compra.ts
+
+==============================================================
+ Prueba de integracion extremo a extremo
+ Gateway: http://localhost:8080
+==============================================================
+Los nueve servicios responden correctamente.
+
+Escenario A: compra exitosa (los 15 pasos del flujo)
+====================================================
+  Pasos 1-4: el cliente inicia sesion y obtiene su token
+  PASA  El servicio de autenticacion emite un JWT
+  PASA  El token identifica el rol del usuario
+  Pasos 5-6: consulta del catalogo con disponibilidad real
+  PASA  El catalogo responde
+  PASA  Hay al menos un producto con existencias
+  PASA  La disponibilidad viene del servicio de inventario, no del catalogo
+  Paso 7: se agrega SKU-TEC-120 al carrito
+  PASA  El producto se agrega al carrito
+  PASA  El precio lo pone el catalogo, no el cliente
+  PASA  El carrito calcula los impuestos
+  Pasos 8-15: checkout completo (saga)
+  PASA  La compra se confirma
+  PASA  El pedido queda en estado pagado
+  PASA  Se genera un numero de pedido
+  PASA  Se registra la referencia del pago
+  PASA  El inventario se descuenta definitivamente (200 -> 199)
+  El carrito queda vacio tras la compra
+  PASA  El carrito se vacia
+  El pedido aparece en el historial del cliente
+  PASA  El pedido aparece en la lista del cliente
+  La bitacora de la saga registra todos los pasos
+  PASA  Registra la validacion del cliente
+  PASA  Registra la verificacion de precios
+  PASA  Registra la reserva de stock
+  PASA  Registra el cobro
+  PASA  Registra la confirmacion de la reserva
+  El evento asincrono genera la notificacion
+  PASA  El servicio de notificaciones reacciono al evento
+
+Escenario B: pago rechazado (compensacion de la saga)
+=====================================================
+  Stock de SKU-EV-INV-001 antes de intentar la compra: 3
+  Se paga con una tarjeta que la pasarela rechaza
+  PASA  La API responde 402 (pago requerido)
+  PASA  El codigo de error es explicito
+  PASA  El pedido existe y se puede consultar
+  PASA  COMPENSACION: el stock vuelve a su valor original (3 -> 3)
+  PASA  El pedido queda cancelado, no pagado
+  El carrito se conserva para que el cliente reintente
+  PASA  El carrito NO se vacia tras un pago rechazado
+  La bitacora muestra la compensacion
+  PASA  Hay pasos marcados como compensados
+
+Escenario C: dos clientes disputan la ultima unidad
+===================================================
+  PASA  SKU-TEC-004 tiene exactamente 1 unidad disponible
+  Ambos pulsan "Pagar" en el mismo instante
+  Ana:   HTTP 409
+  Bruno: HTTP 201
+  PASA  Exactamente UNA compra se completa
+  PASA  La otra recibe 409 por falta de stock
+  PASA  El motivo del rechazo es explicito
+  PASA  El stock queda en 0, nunca negativo (no hubo sobreventa)
+
+Escenario D: idempotencia del checkout (doble clic)
+===================================================
+  Se envia el mismo checkout dos veces con la MISMA clave de idempotencia
+  PASA  La primera compra se procesa
+  PASA  La segunda devuelve 200, no crea otro pedido
+  PASA  La respuesta se marca como idempotente
+  PASA  Ambas respuestas refieren al MISMO pedido
+  PASA  El stock se descuenta UNA sola vez (200 -> 199)
+
+Escenario E: cancelacion de un pedido pagado
+============================================
+  Pedido PED-202611-001066 creado. Stock: 2
+  PASA  El pedido se cancela
+  PASA  Se ejecuta el reembolso
+  PASA  Se devuelve el inventario
+  PASA  El stock vuelve a subir (2 -> 3)
+  Cancelar de nuevo es idempotente
+  PASA  La segunda cancelacion no repite las compensaciones
+
+Escenario F: controles de seguridad
+===================================
+  PASA  Sin token: 401
+  PASA  Token invalido: 401
+  PASA  Un cliente no accede a rutas de personal interno: 403
+  PASA  Un cliente no puede reservar stock por su cuenta: 403
+  PASA  Un cliente no ve el perfil de otro: 403
+  PASA  El catalogo es publico: 200 sin token
+
+--------------------------------------------------------------
+Las 49 comprobaciones pasaron.
+
+exit=0
+
