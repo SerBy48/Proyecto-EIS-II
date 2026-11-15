@@ -27,7 +27,15 @@ Detalles de configuración (en [`tests/seguridad/zap-comun.sh`](../../tests/segu
 | Web (SPA de React) | Spider clásico y **AJAX spider** (Firefox sin interfaz dentro del contenedor), 3 min (`zap-baseline.py -j -m 3`) | 14 URL: la página, los *assets*, `robots.txt`, `sitemap.xml` y las llamadas a `/api` que hace la SPA (catálogo, categorías, login) |
 | API | Importación de [`docs/openapi/openapi.yaml`](../openapi/openapi.yaml) (`zap-api-scan.py -f openapi`) | 58 URL importadas; 151 URL exploradas como cliente y 133 como administrador |
 
-El AJAX spider recorre la parte pública de la SPA. Para las vistas autenticadas (carrito, mis pedidos, panel de administración) la API ya queda cubierta por la importación de la OpenAPI. El recorrido de la interfaz autenticada **con Playwright a través del proxy de ZAP**, que propone el plan, se hará con los flujos del Módulo 2 (usabilidad), donde Playwright se instala y se automatizan esas tareas. Queda declarado como pendiente en la sección 7.
+El AJAX spider recorre la parte pública de la SPA. Para las vistas autenticadas (carrito, mis pedidos, panel de administración) la API ya queda cubierta por la importación de la OpenAPI. El recorrido de la interfaz autenticada **con Playwright a través del proxy de ZAP** se hizo en el Módulo 2 ([`tests/seguridad/zap-recorrido.sh`](../../tests/seguridad/zap-recorrido.sh)):
+
+- ZAP corre como proxy en modo *daemon* y un Chromium hace las 8 tareas de usabilidad a través de él: sesión de cliente en T1 a T7 y de administrador en T8.
+- ZAP registró **31 URL, incluidas las autenticadas**: carrito, cupón, checkout, cancelación, mis pedidos, entrada de inventario y cambio de estado.
+- El escaneo pasivo sobre ese tráfico no encontró nada nuevo: solo 3 alertas informativas (aplicación web moderna, solicitud de autenticación y respuesta de gestión de sesión). Fue después de las correcciones de la sección 9.
+- Reporte en [`recorrido-autenticado.html`](../evidencia/no-funcionales/seguridad/recorrido-autenticado.html).
+- Por el proxy, 7 de las 8 tareas terminaron. En T3, la petición que cambia la cantidad llegó y respondió 200, pero la verificación en pantalla superó su tiempo de espera por la latencia añadida.
+
+Alternativa manual: ZAP de escritorio en el 8090 y el navegador configurado con ese proxy (instrucciones en la cabecera del script).
 
 ```bash
 npm run build:web && (cd clients/web && npx vite preview --host 0.0.0.0 --port 4173)   # web
@@ -146,7 +154,7 @@ Las correcciones de la Fase 3 se confirmarán con el equipo antes de implementar
 
 ## 7. Limitaciones
 
-- **Recorrido autenticado de la interfaz con Playwright a través del proxy de ZAP**: pendiente para el Módulo 2, donde se automatizan esos flujos. La API autenticada sí está cubierta por la OpenAPI.
+- ~~Recorrido autenticado de la interfaz con Playwright a través del proxy de ZAP~~: **hecho en el Módulo 2** (sección 2).
 - **Sin `zap-full-scan.py`** sobre la web. La superficie de la SPA es estática; la lógica vive en la API, que sí recibió el escaneo activo completo con los dos roles.
 - **Escaneo activo con el perfil de carga.** Con los límites normales, el limitador habría ocultado la mayoría de las respuestas. Es una decisión de cobertura, no un cambio en el sistema evaluado.
 - **CVSS estimado** por el equipo con la calculadora de la especificación v3.1. S-02 y S-03 suponen el despliegue tal como está en el repositorio (secretos por defecto y puertos publicados).
