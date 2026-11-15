@@ -81,6 +81,8 @@ Tiempos estándar de los operadores:
 
 El desglose paso a paso está en [`recorrido.json`](../evidencia/no-funcionales/usabilidad/recorrido.json).
 
+> **Corrección de medición.** La R de T2 en esta tabla está subestimada en ~1 s: el recorrido daba por terminada la carga filtrada antes de que empezara (ver la sección 10.2). El tiempo del usuario (11,0 s) no se ve afectado.
+
 **Lectura:**
 
 - **El KLM es una cota inferior.** Supone un experto que no duda ni se equivoca. Los tiempos esperados son entre 2,5 y 10 veces mayores porque incluyen la búsqueda visual y los errores de un usuario nuevo; la diferencia real solo la daría la observación de personas (sección 8).
@@ -163,3 +165,58 @@ Candidatos a corrección en la Fase 3, que se confirmarán con el equipo antes d
 | 3 | U-02 | 3 | Paginación del catálogo con el total de resultados |
 
 Cada corrección se verificará volviendo a ejecutar el recorrido (`npm run usabilidad:recorrido`) y comparando el antes y el después de los estados E3 y E8, y del KLM de T1.
+
+## 10. Correcciones de la Fase 3: antes y después
+
+El equipo confirmó las tres correcciones propuestas en la sección 9 antes de implementarlas. Cada una se verificó **volviendo a ejecutar el mismo recorrido** (`ETIQUETA=despues npm run usabilidad:recorrido`) y comparando los estados y el KLM. La evidencia del antes se conserva:
+
+| | Antes | Después |
+|---|---|---|
+| Datos del recorrido | [`recorrido.json`](../evidencia/no-funcionales/usabilidad/recorrido.json) | [`recorrido-despues.json`](../evidencia/no-funcionales/usabilidad/recorrido-despues.json) |
+| Capturas | [`capturas/`](../evidencia/no-funcionales/usabilidad/capturas/) | [`capturas-despues/`](../evidencia/no-funcionales/usabilidad/capturas-despues/) |
+
+### 10.1 Qué se cambió
+
+| Hallazgo | Corrección | Archivo |
+|---|---|---|
+| **U-01** (sev. 4): acceso solo con 4 cuentas de demostración | Campo de correo (`type="email"`, `autocomplete="username"`) y contraseña vacía, ambos obligatorios. Las cuentas de prueba quedan como ayuda plegable ("Cuentas de prueba"), ahora con Carla incluida | `clients/web/src/App.jsx` |
+| **U-02** (sev. 3): 51 de 71 productos inalcanzables | Paginación de 20 productos con "Anterior", páginas numeradas (`aria-current`) y "Siguiente". Sobre la grilla, "Mostrando 1–20 de 71 productos". Un filtro nuevo vuelve a la página 1. Resuelve de paso **U-16** (la cantidad de resultados) | `clients/web/src/paginas/Catalogo.jsx` |
+| **U-03** (sev. 3): cancelar sin confirmación | Dos pasos: "Cancelar pedido" muestra "¿Cancelar el pedido PED-…? Esta acción no se puede deshacer" con "Sí, cancelar pedido" y "No, conservarlo". Al terminar, un aviso de éxito: "El pedido … fue cancelado. Si ya se había cobrado, el reembolso se procesa automáticamente" | `clients/web/src/paginas/MisPedidos.jsx` |
+| **U-04** (sev. 3): el error quedaba tapado | El error se muestra **dentro del diálogo**, recibe el foco y se lleva a la vista. El detalle se recarga para mostrar el estado real del pedido; si ya no se puede cancelar, el botón desaparece | `clients/web/src/paginas/MisPedidos.jsx` |
+
+### 10.2 Resultados
+
+| Verificación | Antes | Después |
+|---|---|---|
+| **E3**: productos alcanzables navegando | 20 de 71, sin paginación | **71 de 71 en 4 páginas**, con "Mostrando 61–71 de 71 productos" en la última |
+| **E8**: error al cancelar un pedido ya despachado | **Tapado por el velo del modal**; el modal sigue abierto con el mismo botón | **Visible y completo** dentro del diálogo; el botón desaparece y el detalle muestra el estado actual (enviado) |
+| **E11**: Carla inicia sesión (no estaba en la lista) | **Imposible**: el desplegable solo ofrecía 4 cuentas | **Entra** escribiendo su correo y su contraseña |
+| **T6**: cancelar un pedido | Un clic, sin confirmación ni aviso | Confirmación explícita y aviso de éxito |
+| axe (WCAG 2.2 AA) | 0 incumplimientos en 13 pantallas | **0** en 13 pantallas, incluidos el formulario nuevo, la paginación y el diálogo de confirmación |
+| Las 8 tareas | Se completan | Se completan |
+
+Durante la verificación apareció un detalle que la primera versión de la corrección no cubría. El error de U-04 se mostraba dentro del diálogo, pero **cortado por su borde inferior**: al recargar el detalle, el historial crecía y empujaba el aviso hacia abajo. Por eso el recorrido ahora comprueba que el aviso se vea *completo* y no solo que esté encima del velo, y el diálogo vuelve a llevar el aviso a la vista cada vez que cambia el detalle.
+
+**KLM, el costo de las correcciones:**
+
+| Tarea | Antes | Después | Por qué cambia |
+|---|---|---|---|
+| T1 Iniciar sesión | 6,9 s | **17,8 s** | Ahora se escriben el correo (13 K) y la contraseña (11 K). El antes era rápido porque **no** era un inicio de sesión real. Con Tab entre campos, en lugar de apuntar al segundo con el ratón, el KLM sería de unos 14 s |
+| T6 Revisar y cancelar | 12,1 s | **15,2 s** | Un paso más: leer la pregunta (M) y confirmar (P B B). Es el costo deliberado de prevenir un error irreversible (H5) |
+| T8 Administrador | 36,2 s | **44,6 s** | Su inicio de sesión también se escribe |
+| T2 Buscar y filtrar | 11,5 s | 12,4 s | Corrección de la medición, no de la web. El recorrido del antes daba por terminada la carga filtrada antes de que empezara (el *debounce* de 350 ms) y registraba una R de 0,03 s; ahora espera la respuesta real y mide 1,0 s. El tiempo del usuario es idéntico (11,0 s) |
+| T3, T4, T5, T7 | 4,4 a 22,3 s | Sin cambios (±0,7 s de respuesta del sistema) | — |
+
+Todas las tareas siguen muy por debajo de su tiempo esperado; la mayor es T8, con el 50 %. Las tres correcciones **aumentan** el KLM porque añaden pasos que faltaban: escribir credenciales reales y confirmar antes de destruir. El KLM mide la eficiencia de un experto. La prevención de errores y el acceso universal no aparecen en él, y por eso se evalúan con los estados E3, E8 y E11.
+
+### 10.3 Estado de los hallazgos
+
+| Estado | Hallazgos |
+|---|---|
+| ✅ Corregidos | U-01, U-02, U-03, U-04 y U-16 (resuelto por la paginación) |
+| Pendientes (sev. 2) | U-05 (cupón), U-06 (sesión vencida), U-07 (aviso con el SKU), U-08 (controles de prueba visibles), U-09 ("Seguir comprando"), U-10 (botones de cantidad), U-11 (detalle de producto), U-12 (panel de pedidos) |
+| Pendientes (sev. 1) | U-13 (tildes), U-14 (estados vacíos), U-15 (carga del carrito), U-17 (producto de prueba visible) |
+
+No queda ningún hallazgo de severidad 3 o 4.
+
+Regresión completa ([`07-regresion-fase3-usabilidad.txt`](../evidencia/no-funcionales/07-regresion-fase3-usabilidad.txt)): typecheck, salud, 73/73 casos HTTP, concurrencia, 49/49 comprobaciones e2e y build de la web.
