@@ -3,7 +3,7 @@
 # Escaneo ACTIVO y autenticado de la API con zap-api-scan.py, a partir de la
 # especificacion OpenAPI (docs/openapi/openapi.yaml).
 #
-#   tests/seguridad/zap-api.sh [cliente|administrador]
+#   tests/seguridad/zap-api.sh [cliente|administrador] [etiqueta]
 #
 # El token se obtiene justo antes del escaneo (vive 15 min) y ZAP lo inyecta
 # en todas las peticiones (ZAP_AUTH_HEADER_VALUE, ver zap-comun.sh).
@@ -19,6 +19,7 @@
 source "$(dirname "$0")/zap-comun.sh"
 
 ROL="${1:-cliente}"
+NOMBRE="api-$ROL${2:+-$2}"   # etiqueta opcional, p. ej. "despues"
 case "$ROL" in
   cliente) CUENTA="carla@correo.co" ;;      # cliente 3: no se usa en las demas pruebas
   administrador) CUENTA="admin@tienda.co" ;;
@@ -38,6 +39,6 @@ zap zap-api-scan.py \
   -t openapi.yaml -f openapi \
   -O "http://$HOST_EQUIPO:8080" \
   -c zap-reglas.tsv \
-  -r "api-$ROL.html" -J "api-$ROL.json" -w "api-$ROL.md" \
-  2>&1 | tee "$DESTINO/api-$ROL-consola.txt"
+  -r "$NOMBRE.html" -J "$NOMBRE.json" -w "$NOMBRE.md" \
+  2>&1 | tee "$DESTINO/$NOMBRE-consola.txt"
 echo "== codigo de salida de ZAP: ${PIPESTATUS[0]} (0 limpio, 1 FAIL, 2 solo WARN, 3 error)"
