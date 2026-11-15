@@ -1,0 +1,698 @@
+openapi: 3.0.3
+info:
+  title: API Gateway - Plataforma de comercio electronico
+  version: v1
+  description: |
+    Especificacion MINIMA de la API publica del gateway, extraida de las rutas
+    reales de los servicios (`router.<metodo>` en `services/*/src/index.ts`) y de
+    `RUTAS_PUBLICAS` del gateway. Se creo para que OWASP ZAP conozca todas las
+    rutas en el escaneo activo (`zap-api-scan.py -f openapi`). El Trabajo Final
+    la completa con esquemas de respuesta detallados.
+
+    Todas las rutas exigen `Authorization: Bearer <jwt>` salvo las marcadas con
+    `security: []`. El rol requerido se indica en la descripcion de cada una.
+servers:
+  - url: http://localhost:8080
+    description: Gateway en el entorno local
+security:
+  - bearer: []
+tags:
+  - name: salud
+  - name: auth
+  - name: clientes
+  - name: catalogo
+  - name: inventario
+  - name: carrito
+  - name: pedidos
+  - name: pagos
+  - name: notificaciones
+
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Obligatoria (invariante 4). Un reintento con la misma clave no repite el efecto.
+      schema: { type: string, example: zap-clave-0001 }
+    ClienteId:
+      name: clienteId
+      in: path
+      required: true
+      schema: { type: integer, example: 1 }
+    IdCliente:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer, example: 1 }
+    Sku:
+      name: sku
+      in: path
+      required: true
+      schema: { type: string, example: SKU-TEC-001 }
+    IdPedido:
+      name: id
+      in: path
+      required: true
+      description: Id numerico o numero de pedido (PED-...).
+      schema: { type: string, example: '1' }
+    Referencia:
+      name: referencia
+      in: path
+      required: true
+      schema: { type: string, example: TRX-000001 }
+  schemas:
+    Error:
+      type: object
+      properties:
+        mensaje: { type: string }
+        codigo: { type: string }
+    Credenciales:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email, example: ana@correo.co }
+        password: { type: string, example: Password123 }
+    Producto:
+      type: object
+      required: [sku, nombre, categoria, precio]
+      properties:
+        sku: { type: string, example: SKU-ZAP-001 }
+        nombre: { type: string, example: Producto de prueba ZAP }
+        descripcion: { type: string, example: Descripcion de prueba }
+        categoria: { type: string, example: tecnologia }
+        marca: { type: string, example: Andina }
+        precio: { type: number, example: 100000 }
+        descuento_porcentaje: { type: number, example: 0 }
+        imagenes: { type: array, items: { type: string } }
+        atributos: { type: object }
+    Direccion:
+      type: object
+      required: [tipo, linea1, ciudad]
+      properties:
+        tipo: { type: string, enum: [envio, facturacion], example: envio }
+        etiqueta: { type: string, example: Casa }
+        linea1: { type: string, example: 'Calle 10 # 5-20' }
+        ciudad: { type: string, example: Neiva }
+        departamento: { type: string, example: Huila }
+        codigo_postal: { type: string, example: '410001' }
+        predeterminada: { type: boolean, example: false }
+  responses:
+    Error:
+      description: Error con el formato uniforme del middleware central.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+
+paths:
+  # ------------------------------------------------------------------ salud
+  /api/health:
+    get:
+      tags: [salud]
+      summary: Salud agregada de los nueve servicios
+      security: []
+      responses:
+        '200': { description: Todos los servicios responden }
+        '503': { description: Algun servicio caido }
+
+  # ------------------------------------------------------------------- auth
+  /api/auth/login:
+    post:
+      tags: [auth]
+      summary: Iniciar sesion (publica)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Credenciales' }
+      responses:
+        '200': { description: Par de tokens }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/auth/registro:
+    post:
+      tags: [auth]
+      summary: Registrar un usuario cliente (publica)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, example: zap.registro@correo.co }
+                password: { type: string, example: Password123 }
+                cliente_id: { type: integer, example: 1 }
+      responses:
+        '201': { description: Usuario creado }
+        '409': { $ref: '#/components/responses/Error' }
+  /api/auth/renovar:
+    post:
+      tags: [auth]
+      summary: Renovar el token de acceso con el refresh token (publica)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token: { type: string, example: invalido.invalido }
+      responses:
+        '200': { description: Nuevo par de tokens }
+        '401': { $ref: '#/components/responses/Error' }
+  /api/auth/logout:
+    post:
+      tags: [auth]
+      summary: Cerrar sesion (cualquier rol)
+      responses:
+        '200': { description: Refresh tokens revocados }
+  /api/auth/perfil:
+    get:
+      tags: [auth]
+      summary: Perfil del usuario autenticado (cualquier rol)
+      responses:
+        '200': { description: Perfil }
+  /api/auth/verificar:
+    post:
+      tags: [auth]
+      summary: Verificar un token de forma remota (cualquier rol)
+      responses:
+        '200': { description: Token valido }
+  /api/auth/usuarios:
+    post:
+      tags: [auth]
+      summary: Crear usuario interno (administrador)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, rol]
+              properties:
+                email: { type: string, example: zap.interno@tienda.co }
+                password: { type: string, example: Password123 }
+                rol: { type: string, enum: [administrador, vendedor], example: vendedor }
+      responses:
+        '201': { description: Usuario creado }
+        '403': { $ref: '#/components/responses/Error' }
+
+  # --------------------------------------------------------------- clientes
+  /api/clientes:
+    post:
+      tags: [clientes]
+      summary: Registrar un cliente (publica)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nombre, apellido, email]
+              properties:
+                nombre: { type: string, example: Zap }
+                apellido: { type: string, example: Escaner }
+                email: { type: string, example: zap.cliente@correo.co }
+                telefono: { type: string, example: '3001234567' }
+                documento: { type: string, example: '1000000001' }
+      responses:
+        '201': { description: Cliente creado }
+        '409': { $ref: '#/components/responses/Error' }
+  /api/clientes/{id}:
+    parameters: [{ $ref: '#/components/parameters/IdCliente' }]
+    get:
+      tags: [clientes]
+      summary: Perfil del cliente (propietario o personal interno)
+      responses:
+        '200': { description: Cliente }
+        '403': { $ref: '#/components/responses/Error' }
+    patch:
+      tags: [clientes]
+      summary: Actualizar datos personales (propietario)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                telefono: { type: string, example: '3009998877' }
+      responses:
+        '200': { description: Cliente actualizado }
+  /api/clientes/{id}/direcciones:
+    parameters: [{ $ref: '#/components/parameters/IdCliente' }]
+    get:
+      tags: [clientes]
+      summary: Direcciones del cliente (propietario)
+      responses:
+        '200': { description: Lista }
+    post:
+      tags: [clientes]
+      summary: Agregar direccion (propietario)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Direccion' }
+      responses:
+        '201': { description: Direccion creada }
+  /api/clientes/{id}/historial:
+    parameters: [{ $ref: '#/components/parameters/IdCliente' }]
+    get:
+      tags: [clientes]
+      summary: Historial de compras (propietario)
+      responses:
+        '200': { description: Historial }
+  /api/clientes/{id}/validar:
+    parameters: [{ $ref: '#/components/parameters/IdCliente' }]
+    get:
+      tags: [clientes]
+      summary: Validar cliente para compra (administrador, vendedor; uso interno de la saga)
+      parameters:
+        - { name: direccion_id, in: query, schema: { type: integer, example: 1 } }
+      responses:
+        '200': { description: Cliente valido }
+
+  # --------------------------------------------------------------- catalogo
+  /api/catalogo/productos:
+    get:
+      tags: [catalogo]
+      summary: Listar y buscar productos (publica)
+      security: []
+      parameters:
+        - { name: q, in: query, schema: { type: string, example: portatil } }
+        - { name: categoria, in: query, schema: { type: string, example: tecnologia } }
+        - { name: marca, in: query, schema: { type: string, example: Andina } }
+        - { name: precio_min, in: query, schema: { type: number, example: 10000 } }
+        - { name: precio_max, in: query, schema: { type: number, example: 5000000 } }
+        - { name: orden, in: query, schema: { type: string, enum: [precio_asc, precio_desc, nombre], example: precio_asc } }
+        - { name: pagina, in: query, schema: { type: integer, example: 1 } }
+        - { name: limite, in: query, schema: { type: integer, example: 20 } }
+      responses:
+        '200': { description: Pagina de productos con disponibilidad }
+    post:
+      tags: [catalogo]
+      summary: Crear producto (administrador, vendedor)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Producto' }
+      responses:
+        '201': { description: Producto creado }
+        '409': { $ref: '#/components/responses/Error' }
+  /api/catalogo/productos/{sku}:
+    parameters: [{ $ref: '#/components/parameters/Sku' }]
+    get:
+      tags: [catalogo]
+      summary: Detalle de producto (publica)
+      security: []
+      responses:
+        '200': { description: Producto }
+        '404': { $ref: '#/components/responses/Error' }
+    patch:
+      tags: [catalogo]
+      summary: Actualizar producto (administrador, vendedor)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                descuento_porcentaje: { type: number, example: 10 }
+      responses:
+        '200': { description: Producto actualizado }
+  /api/catalogo/productos/{sku}/precio:
+    parameters: [{ $ref: '#/components/parameters/Sku' }]
+    get:
+      tags: [catalogo]
+      summary: Precio vigente (uso interno del carrito y la saga; cualquier rol)
+      responses:
+        '200': { description: Precio }
+  /api/catalogo/categorias:
+    get:
+      tags: [catalogo]
+      summary: Categorias con conteo (publica)
+      security: []
+      responses:
+        '200': { description: Lista }
+  /api/catalogo/promociones/{codigo}:
+    get:
+      tags: [catalogo]
+      summary: Validar cupon (cualquier rol)
+      parameters:
+        - { name: codigo, in: path, required: true, schema: { type: string, example: BIENVENIDA10 } }
+      responses:
+        '200': { description: Cupon vigente }
+        '400': { $ref: '#/components/responses/Error' }
+
+  # ------------------------------------------------------------- inventario
+  /api/inventario/disponibilidad:
+    get:
+      tags: [inventario]
+      summary: Disponibilidad de varios SKU (cualquier rol)
+      parameters:
+        - { name: skus, in: query, required: true, schema: { type: string, example: 'SKU-TEC-001,SKU-HOG-001' } }
+      responses:
+        '200': { description: Disponibilidad por SKU }
+  /api/inventario/stock/{sku}:
+    parameters: [{ $ref: '#/components/parameters/Sku' }]
+    get:
+      tags: [inventario]
+      summary: Stock por bodega (cualquier rol)
+      responses:
+        '200': { description: Filas de stock }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/inventario/stock/{sku}/entrada:
+    parameters: [{ $ref: '#/components/parameters/Sku' }]
+    post:
+      tags: [inventario]
+      summary: Registrar entrada de mercancia (administrador, vendedor)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [cantidad]
+              properties:
+                cantidad: { type: integer, example: 1 }
+                bodega_id: { type: integer, example: 1 }
+      responses:
+        '200': { description: Entrada registrada }
+  /api/inventario/movimientos/{sku}:
+    parameters: [{ $ref: '#/components/parameters/Sku' }]
+    get:
+      tags: [inventario]
+      summary: Libro de movimientos (administrador, vendedor)
+      responses:
+        '200': { description: Movimientos }
+  /api/inventario/alertas:
+    get:
+      tags: [inventario]
+      summary: Alertas de reposicion (administrador, vendedor)
+      responses:
+        '200': { description: SKU bajo el minimo }
+  /api/inventario/reservas:
+    post:
+      tags: [inventario]
+      summary: Reservar stock (administrador, vendedor; uso interno de la saga)
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sku, cantidad]
+              properties:
+                sku: { type: string, example: SKU-TEC-001 }
+                cantidad: { type: integer, example: 1 }
+                pedido_id: { type: string, example: zap }
+      responses:
+        '201': { description: Reserva creada }
+        '409': { description: Stock insuficiente (respuesta de negocio) }
+  /api/inventario/reservas/{id}:
+    get:
+      tags: [inventario]
+      summary: Consultar reserva (administrador, vendedor)
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, example: '1' } }
+      responses:
+        '200': { description: Reserva }
+  /api/inventario/reservas/{id}/confirmar:
+    post:
+      tags: [inventario]
+      summary: Confirmar reserva (administrador, vendedor)
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, example: '1' } }
+      responses:
+        '200': { description: Reserva confirmada }
+  /api/inventario/reservas/{id}/liberar:
+    post:
+      tags: [inventario]
+      summary: Liberar reserva (administrador, vendedor)
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, example: '1' } }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                motivo: { type: string, example: zap }
+      responses:
+        '200': { description: Reserva liberada }
+
+  # ---------------------------------------------------------------- carrito
+  /api/carrito/{clienteId}:
+    parameters: [{ $ref: '#/components/parameters/ClienteId' }]
+    get:
+      tags: [carrito]
+      summary: Ver carrito (propietario)
+      responses:
+        '200': { description: Carrito con totales }
+        '403': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [carrito]
+      summary: Vaciar carrito (propietario)
+      responses:
+        '200': { description: Carrito vacio }
+  /api/carrito/{clienteId}/items:
+    parameters: [{ $ref: '#/components/parameters/ClienteId' }]
+    post:
+      tags: [carrito]
+      summary: Agregar item; el precio lo pone el catalogo (propietario)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sku, cantidad]
+              properties:
+                sku: { type: string, example: SKU-TEC-001 }
+                cantidad: { type: integer, example: 1 }
+      responses:
+        '200': { description: Carrito actualizado }
+  /api/carrito/{clienteId}/items/{sku}:
+    parameters:
+      - { $ref: '#/components/parameters/ClienteId' }
+      - { $ref: '#/components/parameters/Sku' }
+    patch:
+      tags: [carrito]
+      summary: Cambiar cantidad (propietario)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [cantidad]
+              properties:
+                cantidad: { type: integer, example: 2 }
+      responses:
+        '200': { description: Carrito actualizado }
+    delete:
+      tags: [carrito]
+      summary: Quitar item (propietario)
+      responses:
+        '200': { description: Carrito actualizado }
+  /api/carrito/{clienteId}/cupon:
+    parameters: [{ $ref: '#/components/parameters/ClienteId' }]
+    post:
+      tags: [carrito]
+      summary: Aplicar cupon (propietario)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [codigo]
+              properties:
+                codigo: { type: string, example: BIENVENIDA10 }
+      responses:
+        '200': { description: Cupon aplicado }
+    delete:
+      tags: [carrito]
+      summary: Quitar cupon (propietario)
+      responses:
+        '200': { description: Cupon retirado }
+  /api/carrito/{clienteId}/checkout:
+    parameters: [{ $ref: '#/components/parameters/ClienteId' }]
+    get:
+      tags: [carrito]
+      summary: Datos del carrito para la saga (administrador, vendedor)
+      responses:
+        '200': { description: Items con precio vigente }
+
+  # ---------------------------------------------------------------- pedidos
+  /api/pedidos/checkout:
+    post:
+      tags: [pedidos]
+      summary: Checkout - saga de compra (cliente, administrador, vendedor)
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [medio_pago, token_medio_pago]
+              properties:
+                medio_pago: { type: string, example: tarjeta_credito }
+                token_medio_pago: { type: string, example: tok_ok_4242 }
+                direccion_id: { type: integer, example: 1 }
+                cliente_id: { type: integer, description: Solo personal interno (venta telefonica) }
+      responses:
+        '201': { description: Compra confirmada }
+        '200': { description: Replica idempotente }
+        '402': { description: Pago rechazado }
+        '409': { description: Stock insuficiente }
+  /api/pedidos:
+    get:
+      tags: [pedidos]
+      summary: Listar pedidos (los propios; personal interno ve todos)
+      parameters:
+        - { name: estado, in: query, schema: { type: string, example: pagado } }
+      responses:
+        '200': { description: Lista (LIMIT 100) }
+  /api/pedidos/{id}:
+    parameters: [{ $ref: '#/components/parameters/IdPedido' }]
+    get:
+      tags: [pedidos]
+      summary: Detalle de pedido (propietario o personal interno)
+      responses:
+        '200': { description: Pedido con items e historial }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/pedidos/{id}/saga:
+    parameters: [{ $ref: '#/components/parameters/IdPedido' }]
+    get:
+      tags: [pedidos]
+      summary: Bitacora de la saga (administrador)
+      responses:
+        '200': { description: Pasos de la saga }
+  /api/pedidos/{id}/cancelar:
+    parameters: [{ $ref: '#/components/parameters/IdPedido' }]
+    post:
+      tags: [pedidos]
+      summary: Cancelar pedido (propietario o personal interno)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                motivo: { type: string, example: Prueba }
+      responses:
+        '200': { description: Pedido cancelado }
+  /api/pedidos/{id}/estado:
+    parameters: [{ $ref: '#/components/parameters/IdPedido' }]
+    patch:
+      tags: [pedidos]
+      summary: Cambiar estado (administrador, vendedor)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [estado]
+              properties:
+                estado: { type: string, example: en_preparacion }
+      responses:
+        '200': { description: Estado cambiado }
+        '400': { $ref: '#/components/responses/Error' }
+
+  # ------------------------------------------------------------------ pagos
+  /api/pagos/cobros:
+    post:
+      tags: [pagos]
+      summary: Cobro directo (administrador, vendedor; uso interno de la saga)
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [pedido_id, cliente_id, monto, medio_pago, token_medio_pago]
+              properties:
+                pedido_id: { type: integer, example: 999 }
+                numero_pedido: { type: string, example: PED-ZAP-999 }
+                cliente_id: { type: integer, example: 1 }
+                monto: { type: number, example: 1000 }
+                medio_pago: { type: string, example: pse }
+                token_medio_pago: { type: string, example: tok_ok_5555 }
+      responses:
+        '201': { description: Transaccion registrada }
+  /api/pagos/transacciones:
+    get:
+      tags: [pagos]
+      summary: Transacciones (las propias; personal interno ve todas)
+      responses:
+        '200': { description: Lista }
+  /api/pagos/transacciones/{referencia}:
+    parameters: [{ $ref: '#/components/parameters/Referencia' }]
+    get:
+      tags: [pagos]
+      summary: Detalle de transaccion (propietario o personal interno)
+      responses:
+        '200': { description: Transaccion }
+  /api/pagos/transacciones/{referencia}/reembolsar:
+    parameters: [{ $ref: '#/components/parameters/Referencia' }]
+    post:
+      tags: [pagos]
+      summary: Reembolsar (administrador, vendedor)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                motivo: { type: string, example: Prueba }
+      responses:
+        '200': { description: Reembolso registrado }
+
+  # --------------------------------------------------------- notificaciones
+  /api/notificaciones/mensajes:
+    get:
+      tags: [notificaciones]
+      summary: Mensajes enviados (los propios; administrador ve todos)
+      parameters:
+        - { name: evento, in: query, schema: { type: string, example: pedido.confirmado } }
+      responses:
+        '200': { description: Lista }
+  /api/notificaciones/plantillas:
+    get:
+      tags: [notificaciones]
+      summary: Plantillas (administrador)
+      responses:
+        '200': { description: Lista }
+  /api/notificaciones/plantillas/{clave}:
+    patch:
+      tags: [notificaciones]
+      summary: Editar plantilla (administrador)
+      parameters:
+        - { name: clave, in: path, required: true, schema: { type: string, example: pedido.confirmado } }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                asunto: { type: string, example: Asunto de prueba }
+      responses:
+        '200': { description: Plantilla actualizada }
