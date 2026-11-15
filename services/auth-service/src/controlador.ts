@@ -1,5 +1,4 @@
 import { createHash, randomBytes } from 'node:crypto';
-import bcrypt from 'bcryptjs';
 import { Response } from 'express';
 import {
   ErrorApp,
@@ -14,10 +13,36 @@ import {
   verificarRenovacion
 } from '@ecommerce/shared';
 import { pool } from './db';
+import { compararHash, generarHash } from './pool-hash';
 
 const RONDAS_BCRYPT = 10;
 const MAX_INTENTOS = 5;
 const MINUTOS_BLOQUEO = 15;
+
+/**
+ * Senal que se activa si el cliente cierra la conexion antes de recibir la
+ * respuesta: el pool de hash descarta entonces la tarea sin calcularla.
+ */
+const senalDeCancelacion = (res: Response): AbortSignal => {
+  const control = new AbortController();
+  res.on('close', () => {
+    if (!res.writableEnded) control.abort();
+  });
+  return control.signal;
+};
+
+/**
+ * Ejecuta una operacion del pool de hash. Si el pool esta saturado, anade
+ * Retry-After al 503 para que el cliente sepa cuando reintentar.
+ */
+const conPoolHash = async <T>(res: Response, operacion: (senal: AbortSignal) => Promise<T>): Promise<T> => {
+  try {
+    return await operacion(senalDeCancelacion(res));
+  } catch (error) {
+    if (error instanceof ErrorApp && error.codigo === 'SERVICIO_SATURADO') res.setHeader('Retry-After', '2');
+    throw error;
+  }
+};
 
 interface FilaUsuario {
   id: number;
@@ -78,7 +103,7 @@ export const registro = async (req: PeticionAutenticada, res: Response): Promise
     throw errorSolicitud('La contrasena debe tener al menos 8 caracteres.');
   }
 
-  const hash = await bcrypt.hash(String(password), RONDAS_BCRYPT);
+  const hash = await conPoolHash(res, (senal) => generarHash(String(password), RONDAS_BCRYPT, senal));
 
   try {
     const { rows } = await pool.query<FilaUsuario>(
@@ -140,7 +165,7 @@ export const login = async (req: PeticionAutenticada, res: Response): Promise<vo
     throw errorNoAutenticado('La cuenta se encuentra inactiva.');
   }
 
-  const valida = await bcrypt.compare(String(password), usuario.password_hash);
+  const valida = await conPoolHash(res, (senal) => compararHash(String(password), usuario.password_hash, senal));
 
   if (!valida) {
     // Proteccion contra fuerza bruta: bloqueo temporal tras N intentos.
@@ -297,7 +322,7 @@ export const crearUsuarioInterno = async (req: PeticionAutenticada, res: Respons
     throw errorSolicitud("El rol debe ser 'cliente', 'vendedor' o 'administrador'.");
   }
 
-  const hash = await bcrypt.hash(String(password), RONDAS_BCRYPT);
+  const hash = await conPoolHash(res, (senal) => generarHash(String(password), RONDAS_BCRYPT, senal));
 
   try {
     const { rows } = await pool.query(

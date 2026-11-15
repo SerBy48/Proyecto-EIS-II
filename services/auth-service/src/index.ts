@@ -11,6 +11,7 @@ import {
   renovar,
   verificarTokenRemoto
 } from './controlador';
+import { metricasHash } from './pool-hash';
 
 /**
  * Servicio de autenticacion (seccion 5.3 del documento).
@@ -40,6 +41,7 @@ void crearServicio({
   puerto: Number(process.env.PORT || 3001),
   rutas,
   dependencias: [{ nombre: 'postgres:auth_db', verificar: verificarPostgres(pool) }],
+  metricas: metricasHash,
   alDetener: async () => {
     await pool.end();
   }
