@@ -1,7 +1,7 @@
 /**
  * Suite de pruebas del contrato HTTP a traves del API Gateway.
  *
- * 70 casos sobre nueve areas: autenticacion, control de acceso, inventario,
+ * 73 casos sobre nueve areas: autenticacion, control de acceso, inventario,
  * pagos, pedidos, limitacion de peticiones, cumplimiento PCI-DSS, aislamiento de
  * las bases de datos y degradacion del sistema.
  *
@@ -218,6 +218,13 @@ const ejecutar = async (): Promise<void> => {
     ...ana, metodo: 'POST', cuerpo: { sku: 'SKU-TEC-001', cantidad: 1 }
   });
   await pedir('/api/carrito/1', { ...ana, metodo: 'DELETE' });
+  // Hallazgos S-05, S-06 y S-07: entradas mal formadas y origenes rechazados
+  // respondian 200 con el operador interpretado, o 500.
+  await caso('B-18', 400, 'Operador NoSQL en un filtro del catalogo', '/api/catalogo/productos?categoria[$ne]=tecnologia');
+  await caso('B-19', 400, 'Id de pedido fuera del rango de un entero', '/api/pedidos/99999999999', ana);
+  await caso('B-20', 403, 'Peticion desde un origen no permitido por CORS', '/api/catalogo/productos', {
+    cabeceras: { Origin: 'http://sitio-malicioso.example' }
+  });
 
   seccion('SUITE C · INVENTARIO: RESERVAS, IDEMPOTENCIA Y COMPENSACION');
   // Se deja SKU-TEC-004 con una sola unidad.

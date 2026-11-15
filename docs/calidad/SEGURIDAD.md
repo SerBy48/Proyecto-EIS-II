@@ -200,6 +200,8 @@ JWT_REFRESH_SECRET tiene menos de 32 caracteres; INTERNAL_TOKEN no esta definido
 
 ### 8.3 Lo que sigue pendiente
 
+> **Superada por la sección 9:** S-05, S-06, S-07, S-08 y S-11 se corrigieron en una segunda tanda, y S-09 quedó aceptado formalmente.
+
 S-05 (NoSQL), S-06 y S-07 (errores 500 ante entradas inválidas y en el rechazo de CORS), S-08 (cabeceras de la web), S-09 (tokens en `localStorage`) y S-11 (XSS latente) quedan como **riesgo aceptado y documentado**. Ninguno permite acceder a datos de otro usuario ni suplantar a nadie con la configuración actual.
 
 S-05, S-06 y S-07 comparten una solución, una capa de validación por esquema en la entrada, que es la siguiente mejora natural.
@@ -208,3 +210,92 @@ También quedan riesgos residuales de las correcciones:
 
 - **S-01.** Quien conozca el correo de un cliente que todavía no tiene cuenta (por ejemplo, uno creado por un vendedor en una venta telefónica) podría reclamarlo. Cerrarlo del todo exige verificar el correo con un enlace de confirmación.
 - **Postgres** sigue con la contraseña `postgres` y RabbitMQ con `ecommerce`. Ahora solo se alcanzan desde el propio equipo, pero en un despliegue real también deben venir de secretos.
+
+## 9. Segunda tanda de correcciones: S-05, S-06, S-07, S-08 y S-11
+
+De los seis hallazgos que quedaron en la sección 8.3, el equipo decidió corregir cinco y **aceptar formalmente S-09** (sección 9.4). La sección 8.3 queda superada por esta.
+
+### 9.1 Qué se cambió
+
+| Hallazgo | Corrección | Archivos |
+|---|---|---|
+| **S-05**: inyección NoSQL | `textoDeConsulta()` rechaza con 400 cualquier parámetro de la query que no sea una cadena. Todos los parámetros del listado del catálogo pasan por él | `shared/src/utilidades.ts`, `catalogo-service/src/controlador.ts` |
+| **S-06**: entradas inválidas que daban 500 | El manejador de errores compartido traduce a 400 lo que solo puede provocar una entrada mal formada: el JSON inválido o demasiado grande (body-parser) y los rechazos de PostgreSQL por longitud (22001), formato (22P02), rango (22003), byte nulo (22021), fecha, `NOT NULL` y `CHECK`. La respuesta no revela la columna ni la consulta. Cada rechazo queda registrado como advertencia con el código original de Postgres, para distinguir un abuso de un defecto real | `shared/src/errores.ts` (`traducirErrorDeEntrada`), `shared/src/servicio.ts` |
+| **S-07**: CORS respondía 500 | El origen rechazado se responde con **403** `ORIGEN_NO_PERMITIDO`; el manejador de errores del gateway respeta el código de un `ErrorApp` | `api-gateway/src/index.ts` |
+| **S-08**: la web sin cabeceras | El build de producción se sirve con CSP estricta (`default-src 'self'`, `frame-ancestors 'none'`, `object-src 'none'`…), `X-Frame-Options`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`, COOP, CORP y COEP. En desarrollo van las mismas cabeceras salvo la CSP, porque la recarga en caliente usa scripts en línea. El módulo sirve de referencia para el servidor de producción | `clients/web/cabeceras-seguridad.js`, `clients/web/vite.config.js` |
+| **S-11**: XSS latente | Los valores que se interpolan en las plantillas de **correo** se escapan como HTML; push y SMS siguen en texto plano | `notificaciones-service/src/plantillas.ts` y `controlador.ts` |
+
+**Defecto encontrado al verificar S-08.** La prueba de humo con Playwright mostró que el build de producción servido en el 4173 **no podía iniciar sesión**. `CORS_ORIGENES` solo admitía el 5173 de desarrollo, y el rechazo se respondía como 500 (S-07). Era el mismo 500 que ZAP marcó en `POST /api/auth/login` desde la web (sección 3). El origen se agregó en `docker-compose.yml`, `.env.example` y el valor por defecto del gateway.
+
+**La CSP no rompe la web.** Con la política activa, Playwright cargó la tienda (32 precios visibles), aplicó los estilos e inició sesión desde el formulario, sin violaciones de CSP ni errores en la consola.
+
+### 9.2 Resultados
+
+**Verificaciones manuales** ([después de la segunda tanda](../evidencia/no-funcionales/seguridad/verificaciones-manuales-despues2-consola.txt)):
+
+| ID | Después de la sección 8 | Después de la sección 9 |
+|---|---|---|
+| V-02 (S-05) | ❌ `?categoria[$ne]=tecnologia` → 45 productos de otras categorías | ✅ **400** |
+| V-03 (S-06) | ❌ `?q[$gt]=` → 500 | ✅ **400** |
+| V-05 (S-11) | ℹ️ El correo interpolaba el HTML sin escapar | ✅ El correo muestra `&lt;img src=x onerror=…&gt;` |
+| V-07 (S-06) | ❌ JSON mal formado → 500 | ✅ **400** `JSON_INVALIDO` |
+| V-11 (S-07) | ❌ Origen no permitido → 500 | ✅ **403** sin `Access-Control-Allow-Origin` |
+| V-12 (S-08) | ❌ Faltaban CSP, X-Frame-Options, nosniff y Referrer-Policy | ✅ Presentes |
+| **Total** | 6 hallazgos | **1 hallazgo** (V-13 = S-09, aceptado), 15 seguras |
+
+**ZAP, repetido en las mismas condiciones:**
+
+| Escaneo | Antes de cualquier corrección | Después de la sección 9 |
+|---|---|---|
+| Baseline de la web | 8 WARN (CSP, clickjacking, nosniff, Permissions-Policy, COEP/COOP/CORP, error 500) | **2 WARN, ambos informativos** (*Storable Content*, *Modern Web Application*); 66 reglas pasan ([`baseline-web-despues.html`](../evidencia/no-funcionales/seguridad/baseline-web-despues.html)) |
+| API como cliente | 3 WARN | **1 WARN**: FP-2, el falso positivo de *timestamps*; 119 pasan |
+| API como administrador | 4 WARN | **1 WARN**: FP-2; 119 pasan |
+| Respuestas **500** del gateway durante los dos escaneos activos | **781** | **0** |
+| Errores no controlados en los 8 servicios | ~750 | **0**: las mismas cargas ahora reciben 400 (481 por longitud, 251 por formato, 29 por `CHECK`, 11 por byte nulo, 1 por rango) |
+| Respuestas 503 (S-04, sección 8) | 1 030 | 0 |
+
+Evidencia: [`zap-api-estados-despues2.txt`](../evidencia/no-funcionales/seguridad/zap-api-estados-despues2.txt) y los reportes `api-*-despues2.*`.
+
+Regresión completa ([`06-regresion-fase3-seguridad-2.txt`](../evidencia/no-funcionales/06-regresion-fase3-seguridad-2.txt)): typecheck, salud, **73/73 casos HTTP** (B-18 a B-20 nuevos), concurrencia, 49/49 e2e y build de la web.
+
+### 9.3 Estado final de los hallazgos
+
+| ID | Severidad inicial | Estado |
+|---|---|---|
+| S-01, S-02, S-03, S-04, S-10 | 8.2, 9.8, 8.3, 6.5 y Bajo | ✅ Corregidos (sección 8) |
+| S-05, S-06, S-07, S-08, S-11 | 5.3, 4.3, Bajo, 4.3 e Informativo | ✅ Corregidos (sección 9) |
+| **S-09** | 6.9 | ⚠️ **Riesgo aceptado** (sección 9.4) |
+| FP-1, FP-2 | — | Falsos positivos justificados |
+
+### 9.4 S-09: por qué se acepta el riesgo
+
+**El hallazgo.** La web guarda el token de acceso (15 min) y el refresh token (7 días) en `localStorage`. Si un atacante lograra ejecutar JavaScript en la página (XSS), podría leerlos y suplantar la sesión hasta que expirara el refresh token.
+
+**Por qué no se corrige ahora:**
+
+1. **El riesgo depende de otro fallo que hoy no existe.** S-09 solo es explotable si antes hay un XSS, y las pruebas no encontraron ninguno:
+   - React escapa todo lo que muestra y el código no usa `dangerouslySetInnerHTML` ni `innerHTML` (V-05).
+   - ZAP no detectó XSS reflejado ni almacenado en 119 reglas activas.
+   - Desde la sección 9, la **CSP estricta** (`script-src 'self'`, sin `unsafe-inline` ni `unsafe-eval`) impide ejecutar scripts inyectados o de otro dominio, aunque apareciera un fallo de escapado.
+
+   Con estas tres capas, la probabilidad de explotación es baja. El CVSS de 6.9 ya incluye `AC:H` y `UI:R`.
+2. **La corrección cambia el modelo de sesión de todo el sistema.** Pasar el refresh token a una cookie `HttpOnly; Secure; SameSite=Strict` obliga a:
+   - modificar auth para emitir y rotar la cookie;
+   - modificar el gateway para CORS con credenciales;
+   - reescribir el manejo de sesión de la web;
+   - y, sobre todo, la **app móvil Flutter**, que no tiene el almacén de cookies del navegador y necesitaría otro mecanismo (almacenamiento seguro del sistema operativo).
+
+   Son cuatro componentes y dos clientes, en la parte más sensible del sistema: el login.
+3. **Las cookies traen su propio riesgo.** Al usarlas, la protección contra CSRF se vuelve obligatoria. Un cambio a medias quitaría una vulnerabilidad para abrir otra.
+4. **Costo frente a beneficio y plazo.** Con la entrega el 19/11/2026, un cambio de este alcance arriesga romper el login justo antes de entregar, que es la función de la que dependen todas las demás pruebas, incluidas las de usabilidad del Módulo 2. El beneficio es reducir un riesgo que ya está mitigado.
+
+**Controles compensatorios vigentes:**
+- CSP estricta.
+- Escapado de React y de los correos.
+- Token de acceso de solo 15 minutos.
+- **Rotación del refresh token con detección de reutilización**: un token robado y ya usado por el dueño legítimo se rechaza (V-09).
+- Revocación en el logout.
+
+**Plan de tratamiento.** Queda en la lista de pendientes del proyecto (`CLAUDE.md`) como la siguiente mejora de seguridad: refresh token en cookie `HttpOnly` para la web, almacenamiento seguro del sistema operativo en la app móvil, y protección CSRF con `SameSite=Strict` y un token de doble envío. Se revisará si cambia alguna de estas condiciones, por ejemplo si se agrega contenido de terceros a la web o si se relaja la CSP.
+
+**Referencia para producción.** El servidor que publique la web debe enviar las cabeceras de [`clients/web/cabeceras-seguridad.js`](../../clients/web/cabeceras-seguridad.js), por ejemplo en nginx con `add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'" always;` y una directiva `add_header` por cada una de las demás.

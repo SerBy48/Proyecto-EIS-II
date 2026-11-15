@@ -223,13 +223,27 @@ const ejecutar = async (): Promise<void> => {
     };
     recorrer(path.join(RAIZ, 'clients', 'web', 'src'));
 
+    // El otro consumidor de texto del usuario: las plantillas de correo de
+    // notificaciones (hallazgo S-11). Se renderiza una plantilla real con la
+    // carga como nombre del cliente.
+    let correoEscapado: boolean | null = null;
+    let muestraCorreo = '';
+    try {
+      const { renderizar, canalConHtml } = await import('../../services/notificaciones-service/src/plantillas');
+      muestraCorreo = renderizar('Hola {{nombre}}, recibimos tu pedido.', { nombre: carga }, canalConHtml('email'));
+      correoEscapado = !muestraCorreo.includes('<img');
+    } catch {
+      correoEscapado = false; // sin modulo de plantillas: el correo interpola sin escapar
+    }
+
+    const inseguro = usos.length > 0 || correoEscapado === false;
     registrar({
       id: 'V-05',
       area: 'Validación de entradas',
-      titulo: 'XSS almacenado en el nombre y la descripción de un producto',
-      resultado: usos.length ? 'HALLAZGO' : 'INFO',
-      detalle: `Producto creado (${creado.estado}); la API ${almacenadoTalCual ? 'guarda y devuelve el HTML tal cual' : 'transforma la entrada'}. ${usos.length ? `Se inserta como HTML en: ${usos.join(', ')}.` : 'La web no usa dangerouslySetInnerHTML ni innerHTML: React lo muestra como texto y no se ejecuta.'} Riesgo latente para cualquier otro consumidor (correo, app móvil, reportes) que no escape la salida.`,
-      evidencia: { creado: creado.estado, nombre_devuelto: leido.cuerpo?.nombre, usos_html_inseguro: usos }
+      titulo: 'XSS almacenado: texto del usuario en la web y en los correos',
+      resultado: inseguro ? 'HALLAZGO' : 'SEGURO',
+      detalle: `Producto creado (${creado.estado}); la API ${almacenadoTalCual ? 'guarda y devuelve el HTML tal cual' : 'transforma la entrada'}. Web: ${usos.length ? `se inserta como HTML en ${usos.join(', ')}` : 'no usa dangerouslySetInnerHTML ni innerHTML, React lo muestra como texto'}. Correo: ${correoEscapado ? `los datos se escapan ("${muestraCorreo}")` : 'interpola el texto sin escapar: un nombre de cliente con HTML se renderizaría en el correo'}.`,
+      evidencia: { creado: creado.estado, nombre_devuelto: leido.cuerpo?.nombre, usos_html_inseguro: usos, correo_escapado: correoEscapado, muestra_correo: muestraCorreo }
     });
     await pedir(`/catalogo/productos/${sku}`, { method: 'PATCH', token: admin.token, body: JSON.stringify({ activo: false }) });
   }

@@ -1,0 +1,347 @@
+{
+  "fecha": "2026-11-15T20:47:35.703Z",
+  "gateway": "http://localhost:8080",
+  "web": "http://localhost:4173",
+  "resultados": [
+    {
+      "id": "V-01",
+      "area": "Control de acceso",
+      "titulo": "Registro público vinculado al cliente_id de otra persona",
+      "resultado": "SEGURO",
+      "detalle": "El registro con cliente_id=1 y otro correo respondió 403 (El cliente indicado no corresponde a este correo.); no se creó ninguna cuenta vinculada a Ana.",
+      "evidencia": {
+        "registro": {
+          "estado": 403,
+          "cuerpo": {
+            "mensaje": "El cliente indicado no corresponde a este correo.",
+            "codigo": "PROHIBIDO"
+          }
+        },
+        "perfil_ajeno": null,
+        "direcciones_ajenas": null
+      }
+    },
+    {
+      "id": "V-02",
+      "area": "Validación de entradas",
+      "titulo": "Inyección de operadores NoSQL en categoria y marca",
+      "resultado": "SEGURO",
+      "detalle": "Los operadores no se interpretan (estados 400 y 400).",
+      "evidencia": {
+        "categoria_tecnologia": {
+          "estado": 200,
+          "total": 25
+        },
+        "categoria_ne": {
+          "estado": 400,
+          "categorias": []
+        },
+        "marca_regex": {
+          "estado": 400
+        }
+      }
+    },
+    {
+      "id": "V-03",
+      "area": "Errores",
+      "titulo": "Búsqueda con q como objeto (q[$gt]=)",
+      "resultado": "SEGURO",
+      "detalle": "Respondió 400. ",
+      "evidencia": {
+        "estado": 400,
+        "cuerpo": {
+          "mensaje": "El parametro q debe ser un texto simple.",
+          "codigo": "SOLICITUD_INVALIDA"
+        }
+      }
+    },
+    {
+      "id": "V-04",
+      "area": "Validación de entradas",
+      "titulo": "Inyección SQL en /pedidos/:id",
+      "resultado": "SEGURO",
+      "detalle": "Estados: 404 (30 ms), 404 (11 ms), 404 (13 ms). Las consultas son parametrizadas (invariante 8) y pg_sleep no se ejecuta.",
+      "evidencia": {
+        "cargas": [
+          {
+            "carga": "1'OR'1'='1",
+            "estado": 404,
+            "ms": 30,
+            "cuerpo": {
+              "mensaje": "Pedido no encontrado.",
+              "codigo": "NO_ENCONTRADO"
+            }
+          },
+          {
+            "carga": "1 OR 1=1",
+            "estado": 404,
+            "ms": 11,
+            "cuerpo": {
+              "mensaje": "Pedido no encontrado.",
+              "codigo": "NO_ENCONTRADO"
+            }
+          },
+          {
+            "carga": "1;SELECT pg_sleep(3)--",
+            "estado": 404,
+            "ms": 13,
+            "cuerpo": {
+              "mensaje": "Pedido no encontrado.",
+              "codigo": "NO_ENCONTRADO"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "V-05",
+      "area": "Validación de entradas",
+      "titulo": "XSS almacenado: texto del usuario en la web y en los correos",
+      "resultado": "SEGURO",
+      "detalle": "Producto creado (201); la API guarda y devuelve el HTML tal cual. Web: no usa dangerouslySetInnerHTML ni innerHTML, React lo muestra como texto. Correo: los datos se escapan (\"Hola &lt;img src=x onerror=&quot;alert(document.cookie)&quot;&gt;, recibimos tu pedido.\").",
+      "evidencia": {
+        "creado": 201,
+        "nombre_devuelto": "<img src=x onerror=\"alert(document.cookie)\">",
+        "usos_html_inseguro": [],
+        "correo_escapado": true,
+        "muestra_correo": "Hola &lt;img src=x onerror=&quot;alert(document.cookie)&quot;&gt;, recibimos tu pedido."
+      }
+    },
+    {
+      "id": "V-06",
+      "area": "Contraseñas",
+      "titulo": "Contraseñas con bcrypt y el hash nunca expuesto",
+      "resultado": "SEGURO",
+      "detalle": "305 de 305 usuarios con hash bcrypt de 10 rondas. El hash no aparece en la respuesta del login ni en /auth/perfil, y aparece 0 veces en los logs de auth.",
+      "evidencia": {
+        "usuarios": {
+          "total": 305,
+          "bcrypt": 305
+        },
+        "hash_en_respuestas": false,
+        "hash_en_logs": 0
+      }
+    },
+    {
+      "id": "V-07",
+      "area": "Errores",
+      "titulo": "Errores sin stack traces ni detalles internos",
+      "resultado": "SEGURO",
+      "detalle": "JSON mal formado → 400; ruta inexistente → 401; sin stack, rutas ni versiones, y sin x-powered-by.",
+      "evidencia": {
+        "json_mal_formado": {
+          "estado": 400,
+          "cuerpo": "{\"mensaje\":\"El cuerpo de la peticion no es un JSON valido.\",\"codigo\":\"JSON_INVALIDO\"}"
+        },
+        "ruta_inexistente": {
+          "estado": 401,
+          "cuerpo": {
+            "mensaje": "Acceso denegado. Token no provisto.",
+            "codigo": "NO_AUTENTICADO"
+          }
+        },
+        "cabeceras_gateway": {
+          "access-control-allow-credentials": "true",
+          "access-control-expose-headers": "x-request-id",
+          "connection": "keep-alive",
+          "content-length": "7596",
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "cross-origin",
+          "date": "Sun, 15 Nov 2026 20:47:34 GMT",
+          "etag": "W/\"1dac-rEolqrDRirBr+FKu2loTH8bBXQM\"",
+          "origin-agent-cluster": "?1",
+          "ratelimit": "limit=300, remaining=285, reset=52",
+          "ratelimit-policy": "300;w=60",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-request-id": "f766d367-3b52-4cf8-8936-723eaa2d0f14",
+          "x-xss-protection": "0"
+        }
+      }
+    },
+    {
+      "id": "V-08",
+      "area": "Control de acceso",
+      "titulo": "IDOR entre clientes y cabeceras de confianza inyectadas",
+      "resultado": "SEGURO",
+      "detalle": "pedido de otro cliente → sin datos; carrito de otro cliente → 403; perfil de otro cliente → 403; ruta de administrador con x-usuario-rol: administrador inyectada → sin datos; carrito ajeno con x-cliente-id: 2 inyectada → 403",
+      "evidencia": {
+        "casos": [
+          {
+            "caso": "pedido de otro cliente"
+          },
+          {
+            "caso": "carrito de otro cliente",
+            "estado": 403
+          },
+          {
+            "caso": "perfil de otro cliente",
+            "estado": 403
+          },
+          {
+            "caso": "ruta de administrador con x-usuario-rol: administrador inyectada"
+          },
+          {
+            "caso": "carrito ajeno con x-cliente-id: 2 inyectada",
+            "estado": 403
+          }
+        ]
+      }
+    },
+    {
+      "id": "V-09",
+      "area": "Sesión",
+      "titulo": "Tokens manipulados y refresh token reutilizado tras la rotación",
+      "resultado": "SEGURO",
+      "detalle": "alg:none → 401; rol cambiado sin refirmar → 401; firma alterada → 401; primera renovación → 200; reutilizar el refresh token ya rotado → 401.",
+      "evidencia": {
+        "alg_none": 401,
+        "rol_elevado": 401,
+        "firma_alterada": 401,
+        "renovacion": 200,
+        "refresh_reutilizado": 401
+      }
+    },
+    {
+      "id": "V-10",
+      "area": "Configuración",
+      "titulo": "Token de administrador forjado con el secreto JWT por defecto",
+      "resultado": "SEGURO",
+      "detalle": "El token forjado fue rechazado (401 / 401): el entorno no usa el secreto por defecto.",
+      "evidencia": {
+        "saga_admin": 401,
+        "listado_pedidos": 401,
+        "pedidos_visibles": null,
+        "token_expirado": 401
+      }
+    },
+    {
+      "id": "V-11",
+      "area": "Configuración",
+      "titulo": "CORS con un origen no permitido",
+      "resultado": "SEGURO",
+      "detalle": "Origen malicioso → 403, Access-Control-Allow-Origin: (ausente); origen permitido → 200, http://localhost:5173. ",
+      "evidencia": {
+        "malicioso": {
+          "estado": 403,
+          "cuerpo": {
+            "mensaje": "Origen no permitido por la politica de CORS.",
+            "codigo": "ORIGEN_NO_PERMITIDO"
+          }
+        },
+        "permitido": {
+          "estado": 200,
+          "acao": "http://localhost:5173"
+        }
+      }
+    },
+    {
+      "id": "V-12",
+      "area": "Configuración",
+      "titulo": "Cabeceras de seguridad en la web",
+      "resultado": "SEGURO",
+      "detalle": "Presentes todas.",
+      "evidencia": {
+        "url": "http://localhost:4173",
+        "cabeceras": {
+          "cache-control": "no-cache",
+          "connection": "keep-alive",
+          "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'",
+          "content-type": "text/html",
+          "cross-origin-embedder-policy": "require-corp",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "date": "Sun, 15 Nov 2026 20:47:35 GMT",
+          "etag": "W/\"1b5-RaoaFeSTgw1lenASJBLZREHkGTI\"",
+          "keep-alive": "timeout=5",
+          "permissions-policy": "camera=(), microphone=(), geolocation=(), payment=()",
+          "referrer-policy": "strict-origin-when-cross-origin",
+          "transfer-encoding": "chunked",
+          "vary": "Origin",
+          "x-content-type-options": "nosniff",
+          "x-frame-options": "DENY"
+        },
+        "faltan": []
+      }
+    },
+    {
+      "id": "V-13",
+      "area": "Almacenamiento en el cliente",
+      "titulo": "JWT y refresh token en localStorage",
+      "resultado": "HALLAZGO",
+      "detalle": "api.js guarda token, refresh_token, usuario en localStorage. Cualquier XSS lee el refresh token (vigencia de 7 días) y suplanta la sesión.",
+      "evidencia": {
+        "usos": [
+          "localStorage.setItem('token'",
+          "localStorage.setItem('refresh_token'",
+          "localStorage.setItem('usuario'"
+        ]
+      }
+    },
+    {
+      "id": "V-14",
+      "area": "Disponibilidad",
+      "titulo": "Los 404 de un usuario abren el circuit breaker de todos",
+      "resultado": "SEGURO",
+      "detalle": "Tras 6 SKU inexistentes de Ana (404, 404, 404, 404, 404, 404), Bruno sigue agregando productos (200).",
+      "evidencia": {
+        "victima_antes": 200,
+        "ataque": [
+          404,
+          404,
+          404,
+          404,
+          404,
+          404
+        ],
+        "victima_despues": 200,
+        "carrito_health": {
+          "circuito_catalogo": {
+            "nombre": "catalogo",
+            "estado": "cerrado",
+            "fallos_consecutivos": 0,
+            "reabre_en_ms": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "V-15",
+      "area": "Validación de entradas",
+      "titulo": "El registro acepta un correo sin formato de correo",
+      "resultado": "SEGURO",
+      "detalle": "POST /auth/registro con email \"no-es-un-correo-1794775655647\" → 400. El escaneo activo creó además 115 usuarios administradores con \"correos\" como http://www.google.com/ o plantillas de inyección por POST /auth/usuarios.",
+      "evidencia": {
+        "estado": 400,
+        "cuerpo": {
+          "mensaje": "El correo no tiene un formato valido.",
+          "codigo": "SOLICITUD_INVALIDA"
+        }
+      }
+    },
+    {
+      "id": "V-16",
+      "area": "Configuración",
+      "titulo": "Servicio interno alcanzable sin el gateway con el token interno por defecto",
+      "resultado": "SEGURO",
+      "detalle": "Directo a http://localhost:3004 con el token interno publicado → 401: el servicio ya no acepta ese secreto. Los puertos de los servicios quedan ligados a 127.0.0.1 en docker-compose.yml.",
+      "evidencia": {
+        "gateway_sin_token": 401,
+        "reserva_directa": {
+          "estado": 401,
+          "cuerpo": {
+            "mensaje": "Acceso denegado. Token no provisto.",
+            "codigo": "NO_AUTENTICADO"
+          }
+        }
+      }
+    }
+  ]
+}

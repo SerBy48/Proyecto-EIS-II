@@ -6,7 +6,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { createProxyMiddleware, Options } from 'http-proxy-middleware';
-import { crearLogger, leerSecreto, PeticionAutenticada, verificarAcceso, verificarSecretos } from '@ecommerce/shared';
+import { crearLogger, ErrorApp, leerSecreto, PeticionAutenticada, verificarAcceso, verificarSecretos } from '@ecommerce/shared';
 
 /**
  * API GATEWAY - punto unico de entrada del sistema (seccion 5.2 del documento).
@@ -89,7 +89,7 @@ app.use(
   })
 );
 
-const origenesPermitidos = (process.env.CORS_ORIGENES || 'http://localhost:5173')
+const origenesPermitidos = (process.env.CORS_ORIGENES || 'http://localhost:5173,http://localhost:4173')
   .split(',')
   .map((o) => o.trim());
 
@@ -100,7 +100,9 @@ app.use(
       if (!origen || origenesPermitidos.includes('*') || origenesPermitidos.includes(origen)) {
         return callback(null, true);
       }
-      callback(new Error('Origen no permitido por la politica de CORS.'));
+      // 403 explicito: antes era un Error generico que el manejador final
+      // respondia como 500 (hallazgo S-07 de docs/calidad/SEGURIDAD.md).
+      callback(new ErrorApp(403, 'Origen no permitido por la politica de CORS.', 'ORIGEN_NO_PERMITIDO'));
     },
     credentials: true,
     exposedHeaders: ['x-request-id']
@@ -393,6 +395,13 @@ app.use((_req: Request, res: Response) => {
 });
 
 app.use((error: unknown, req: PeticionAutenticada, res: Response, _next: NextFunction) => {
+  // Errores esperados del propio gateway (p. ej. un origen rechazado por CORS):
+  // se responden con su codigo, no como un fallo del servidor.
+  if (error instanceof ErrorApp && error.estado < 500) {
+    log.con({ request_id: req.requestId }).warn(error.message, { codigo: error.codigo, origen: req.headers.origin });
+    if (!res.headersSent) res.status(error.estado).json({ mensaje: error.message, codigo: error.codigo });
+    return;
+  }
   log.con({ request_id: req.requestId }).error('Error en el gateway', {
     error: error instanceof Error ? error.message : String(error)
   });

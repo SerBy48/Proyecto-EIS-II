@@ -1,6 +1,6 @@
 import express, { Application, NextFunction, Request, Response } from 'express';
 import { randomUUID } from 'node:crypto';
-import { ErrorApp } from './errores';
+import { ErrorApp, traducirErrorDeEntrada } from './errores';
 import { crearLogger, Logger } from './logger';
 import { detectarLlamadaInterna, verificarSecretos } from './autenticacion';
 import { PeticionAutenticada } from './tipos';
@@ -126,6 +126,19 @@ export const crearServicio = async (opciones: OpcionesServicio): Promise<void> =
         codigo: error.codigo,
         ...(error.detalle ? { detalle: error.detalle } : {})
       });
+      return;
+    }
+
+    // Entrada mal formada que rechazo body-parser o PostgreSQL: es un error del
+    // cliente (400), no del servidor. Se registra como advertencia con el
+    // codigo original, para poder distinguir un abuso de un defecto real.
+    const deEntrada = traducirErrorDeEntrada(error);
+    if (deEntrada) {
+      contexto.warn('Entrada rechazada', {
+        codigo_origen: (error as { code?: string; type?: string }).code ?? (error as { type?: string }).type,
+        error: error instanceof Error ? error.message : String(error)
+      });
+      res.status(deEntrada.estado).json({ mensaje: deEntrada.message, codigo: deEntrada.codigo });
       return;
     }
 
