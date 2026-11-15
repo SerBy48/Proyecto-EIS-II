@@ -1,0 +1,4 @@
+# Copias de trabajo que zap-comun.sh deja para el contenedor de ZAP;
+# los originales viven en tests/seguridad/ y docs/openapi/.
+openapi.yaml
+zap-reglas.tsv

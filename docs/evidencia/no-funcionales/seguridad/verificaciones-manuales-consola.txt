@@ -1,0 +1,37 @@
+Verificaciones manuales de seguridad contra http://localhost:8080
+
+  V-01   HALLAZGO Registro público vinculado al cliente_id de otra persona
+         POST /auth/registro aceptó cliente_id=1 (Ana) en el cuerpo: la cuenta nueva lee su perfil (ana@correo.co) y sus 2 direcciones.
+  V-02   HALLAZGO Inyección de operadores NoSQL en categoria y marca
+         ?categoria[$ne]=tecnologia devolvió 45 productos de las categorías deportes, hogar: MongoDB interpretó el operador. ?marca[$regex]=.* devolvió 70.
+  V-03   HALLAZGO Búsqueda con q como objeto (q[$gt]=)
+         Respondió 500. Una entrada mal formada debería dar 400, no un error del servidor.
+  V-04   SEGURO   Inyección SQL en /pedidos/:id
+         Estados: 404 (11 ms), 404 (7 ms), 404 (9 ms). Las consultas son parametrizadas (invariante 8) y pg_sleep no se ejecuta.
+  V-05   INFO     XSS almacenado en el nombre y la descripción de un producto
+         Producto creado (201); la API guarda y devuelve el HTML tal cual. La web no usa dangerouslySetInnerHTML ni innerHTML: React lo muestra como texto y no se ejecuta. Riesgo latente para cualquier otro consumidor (correo, app móvil, reportes) que no escape la salida.
+  V-06   SEGURO   Contraseñas con bcrypt y el hash nunca expuesto
+         305 de 305 usuarios con hash bcrypt de 10 rondas. El hash no aparece en la respuesta del login ni en /auth/perfil, y aparece 0 veces en los logs de auth.
+  V-07   HALLAZGO Errores sin stack traces ni detalles internos
+         JSON mal formado → 500; ruta inexistente → 401; sin stack, rutas ni versiones, y sin x-powered-by.
+  V-08   SEGURO   IDOR entre clientes y cabeceras de confianza inyectadas
+         pedido de otro cliente → 404; carrito de otro cliente → 403; perfil de otro cliente → 403; ruta de administrador con x-usuario-rol: administrador inyectada → 403; carrito ajeno con x-cliente-id: 2 inyectada → 403
+  V-09   SEGURO   Tokens manipulados y refresh token reutilizado tras la rotación
+         alg:none → 401; rol cambiado sin refirmar → 401; firma alterada → 401; primera renovación → 200; reutilizar el refresh token ya rotado → 401.
+  V-10   HALLAZGO Token de administrador forjado con el secreto JWT por defecto
+         Un token firmado con "FirmaSecretaEcommerceDesarrollo" (publicado en docker-compose.yml) y un usuario inexistente fue aceptado como administrador: bitácora de la saga → 200, listado de todos los pedidos → 200 (60 pedidos). Un token expirado firmado igual → 401.
+  V-11   HALLAZGO CORS con un origen no permitido
+         Origen malicioso → 500, Access-Control-Allow-Origin: (ausente); origen permitido → 200, http://localhost:5173. El rechazo de CORS se responde como un error interno (500): debería ser 403 y sin pasar por el manejador de errores.
+  V-12   HALLAZGO Cabeceras de seguridad en la web
+         Faltan: content-security-policy, x-frame-options, x-content-type-options, referrer-policy. El gateway no pone CSP a propósito ("la sirve el frontend"), pero el frontend tampoco la sirve.
+  V-13   HALLAZGO JWT y refresh token en localStorage
+         api.js guarda token, refresh_token, usuario en localStorage. Cualquier XSS lee el refresh token (vigencia de 7 días) y suplanta la sesión.
+  V-14   HALLAZGO Los 404 de un usuario abren el circuit breaker de todos
+         Bruno agrega un producto → 200. Ana agrega 6 SKU inexistentes → 404, 503, 503, 503, 503, 503. Bruno lo intenta de nuevo → 503 (SERVICIO_NO_DISPONIBLE). El circuito de carrito hacia catálogo cuenta los 404 de negocio como fallos del servicio: cualquier cliente deja a todos sin carrito durante 15 s, repetible.
+  V-15   HALLAZGO El registro acepta un correo sin formato de correo
+         POST /auth/registro con email "no-es-un-correo-1794772525071" → 201. El escaneo activo creó además 115 usuarios administradores con "correos" como http://www.google.com/ o plantillas de inyección por POST /auth/usuarios.
+  V-16   HALLAZGO Servicio interno alcanzable sin el gateway con el token interno por defecto
+         Por el gateway y sin JWT, la ruta de stock responde 401. Directo a http://localhost:3004, solo con x-internal-token: secreto-interno-desarrollo y x-llamada-interna, se reservó la última unidad de SKU-TEC-004 (201, disponible restante 0) sin ningún JWT, y luego se liberó (200). docker-compose.yml publica los puertos 3001-3008 en todas las interfaces.
+
+16 verificaciones: 11 hallazgos, 4 seguras, 1 informativas.
+Evidencia: docs\evidencia\no-funcionales\seguridad\verificaciones-manuales.json
