@@ -56,6 +56,7 @@ npm run infra:reset         # borra volúmenes y recrea desde cero
 npm run test:seguridad      # 16 verificaciones de seguridad (ver docs/calidad/SEGURIDAD.md)
 npm run usabilidad:recorrido # 8 tareas en Chromium: KLM, capturas y axe (requiere vite preview en 4173)
 npm run usabilidad:sus      # puntaje SUS; falla si no hay respuestas reales
+npm run informe:estrategias # informe .docx (libreria docx) y su indice actualizado con Word
 ```
 
 ---

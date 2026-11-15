@@ -43,12 +43,14 @@
     "test:zap:api": "bash tests/seguridad/zap-api.sh",
     "test:zap:recorrido": "bash tests/seguridad/zap-recorrido.sh",
     "usabilidad:sus": "tsx tests/usabilidad/calcular-sus.ts",
-    "usabilidad:recorrido": "tsx --env-file-if-exists=.env tests/usabilidad/recorrido.ts"
+    "usabilidad:recorrido": "tsx --env-file-if-exists=.env tests/usabilidad/recorrido.ts",
+    "informe:estrategias": "tsx scripts/informes/generar-estrategias.ts && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/informes/actualizar-indice.ps1 -Docx docs/informes/Informe_Estrategias_Validacion_Pruebas.docx"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.10.0",
     "@types/node": "^22.7.5",
     "concurrently": "^8.2.2",
+    "docx": "^9.5.0",
     "playwright": "1.48.2",
     "playwright-core": "1.48.2",
     "tsx": "^4.19.2",
