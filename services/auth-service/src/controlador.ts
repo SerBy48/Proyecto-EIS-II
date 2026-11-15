@@ -1,11 +1,13 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { Response } from 'express';
 import {
+  ClienteServicio,
   ErrorApp,
   PeticionAutenticada,
   Rol,
   errorConflicto,
   errorNoAutenticado,
+  errorProhibido,
   errorSolicitud,
   exigirCampos,
   firmarAcceso,
@@ -18,6 +20,60 @@ import { compararHash, generarHash } from './pool-hash';
 const RONDAS_BCRYPT = 10;
 const MAX_INTENTOS = 5;
 const MINUTOS_BLOQUEO = 15;
+
+/** Servicio de clientes: confirma que un cliente_id pertenece a quien se registra. */
+const clientes = new ClienteServicio({
+  nombre: 'clientes',
+  urlBase: process.env.URL_CLIENTES || 'http://localhost:3002',
+  timeoutMs: Number(process.env.HTTP_TIMEOUT_MS || 3000)
+});
+
+/** Coincide con la columna usuarios.email (VARCHAR(150)). */
+const LONGITUD_MAXIMA_CORREO = 150;
+const FORMATO_CORREO = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+/**
+ * Normaliza y valida un correo. Antes se aceptaba cualquier texto: el escaneo
+ * activo de ZAP creo usuarios con "correos" como http://www.google.com/
+ * (docs/calidad/SEGURIDAD.md, hallazgo S-10).
+ */
+const validarCorreo = (email: unknown): string => {
+  const correo = String(email ?? '').trim().toLowerCase();
+  if (correo.length > LONGITUD_MAXIMA_CORREO || !FORMATO_CORREO.test(correo)) {
+    throw errorSolicitud('El correo no tiene un formato valido.');
+  }
+  return correo;
+};
+
+/**
+ * Comprueba que el cliente_id del registro le pertenece a quien se registra.
+ *
+ * El registro publico recibia cliente_id en el cuerpo y lo guardaba sin mas:
+ * cualquiera podia registrarse con el id de otra persona y, como el JWT lleva
+ * ese cliente_id, leer su perfil, direcciones e historial (hallazgo S-01; rompe
+ * el invariante 1). Ahora el cliente debe existir, su correo debe ser el mismo
+ * de la cuenta y no puede tener ya otra cuenta.
+ */
+const verificarClienteDelRegistro = async (clienteId: unknown, correo: string, requestId?: string): Promise<number> => {
+  const id = Number(clienteId);
+  if (!Number.isInteger(id) || id <= 0) throw errorSolicitud('cliente_id debe ser un entero positivo.');
+
+  let cliente: { id: number; email: string };
+  try {
+    cliente = await clientes.pedir<{ id: number; email: string }>({ ruta: `/${id}`, requestId });
+  } catch (error) {
+    if (error instanceof ErrorApp && error.estado === 404) throw errorSolicitud('El cliente indicado no existe.');
+    throw error;
+  }
+
+  if (String(cliente.email).trim().toLowerCase() !== correo) {
+    throw errorProhibido('El cliente indicado no corresponde a este correo.');
+  }
+
+  const { rows } = await pool.query(`SELECT 1 FROM usuarios WHERE cliente_id = $1`, [id]);
+  if (rows.length) throw errorConflicto('Ese cliente ya tiene una cuenta.');
+  return id;
+};
 
 /**
  * Senal que se activa si el cliente cierra la conexion antes de recibir la
@@ -99,9 +155,15 @@ export const registro = async (req: PeticionAutenticada, res: Response): Promise
     cliente_id?: number;
   };
 
+  const correo = validarCorreo(email);
   if (String(password).length < 8) {
     throw errorSolicitud('La contrasena debe tener al menos 8 caracteres.');
   }
+
+  const clienteId =
+    cliente_id === undefined || cliente_id === null
+      ? null
+      : await verificarClienteDelRegistro(cliente_id, correo, req.requestId);
 
   const hash = await conPoolHash(res, (senal) => generarHash(String(password), RONDAS_BCRYPT, senal));
 
@@ -110,14 +172,18 @@ export const registro = async (req: PeticionAutenticada, res: Response): Promise
       `INSERT INTO usuarios (email, password_hash, rol, cliente_id)
        VALUES ($1, $2, 'cliente', $3)
        RETURNING id, email, rol, cliente_id, activo`,
-      [String(email).toLowerCase(), hash, cliente_id ?? null]
+      [correo, hash, clienteId]
     );
 
     await auditar({ usuario_id: rows[0].id, email, accion: 'registro', exitoso: true, request_id: req.requestId });
     res.status(201).json({ mensaje: 'Usuario registrado.', usuario: rows[0] });
   } catch (error) {
-    if ((error as { code?: string }).code === '23505') {
-      throw errorConflicto('El correo ya se encuentra registrado.');
+    if ((error as { code?: string; constraint?: string }).code === '23505') {
+      throw errorConflicto(
+        (error as { constraint?: string }).constraint === 'uq_usuarios_cliente'
+          ? 'Ese cliente ya tiene una cuenta.'
+          : 'El correo ya se encuentra registrado.'
+      );
     }
     throw error;
   }
@@ -318,6 +384,10 @@ export const crearUsuarioInterno = async (req: PeticionAutenticada, res: Respons
   if (faltantes.length) throw errorSolicitud(`Campos obligatorios: ${faltantes.join(', ')}`);
 
   const { email, password, rol } = req.body as { email: string; password: string; rol: Rol };
+  const correo = validarCorreo(email);
+  if (String(password).length < 8) {
+    throw errorSolicitud('La contrasena debe tener al menos 8 caracteres.');
+  }
   if (!['cliente', 'vendedor', 'administrador'].includes(rol)) {
     throw errorSolicitud("El rol debe ser 'cliente', 'vendedor' o 'administrador'.");
   }
@@ -328,7 +398,7 @@ export const crearUsuarioInterno = async (req: PeticionAutenticada, res: Respons
     const { rows } = await pool.query(
       `INSERT INTO usuarios (email, password_hash, rol)
        VALUES ($1, $2, $3) RETURNING id, email, rol, activo`,
-      [String(email).toLowerCase(), hash, rol]
+      [correo, hash, rol]
     );
     res.status(201).json({ mensaje: 'Usuario creado.', usuario: rows[0] });
   } catch (error) {
