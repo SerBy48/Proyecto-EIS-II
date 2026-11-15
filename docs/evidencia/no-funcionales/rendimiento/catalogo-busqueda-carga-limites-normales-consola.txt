@@ -1,0 +1,45 @@
+
+
+  █ THRESHOLDS 
+
+    checks
+    ✗ 'rate>0.99' rate=13.42%
+
+    http_req_duration{endpoint:catalogo_busqueda}
+    ✓ 'p(95)<500' p(95)=25.47ms
+
+    http_req_failed
+    ✗ 'rate<0.01' rate=86.57%
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 22338  82.69121/s
+    checks_succeeded...: 13.42% 2998 out of 22338
+    checks_failed......: 86.57% 19340 out of 22338
+
+    ✗ catalogo 200
+      ↳  13% — ✓ 1499 / ✗ 9670
+    ✗ disponibilidad presente
+      ↳  13% — ✓ 1499 / ✗ 9670
+
+    HTTP
+    http_req_duration..................: avg=7ms     min=452.7µs med=2.74ms  p(90)=14.93ms p(95)=25.47ms  p(99)=81.54ms  max=394.31ms
+      { endpoint:catalogo_busqueda }...: avg=7ms     min=452.7µs med=2.74ms  p(90)=14.93ms p(95)=25.47ms  p(99)=81.54ms  max=394.31ms
+      { expected_response:true }.......: avg=30.71ms min=6.48ms  med=19.16ms p(90)=63.53ms p(95)=108.05ms p(99)=152.57ms max=394.31ms
+    http_req_failed....................: 86.57% 9670 out of 11169
+    http_reqs..........................: 11169  41.345605/s
+
+    EXECUTION
+    iteration_duration.................: avg=1s      min=1s      med=1s      p(90)=1.01s   p(95)=1.02s    p(99)=1.08s    max=1.4s    
+    iterations.........................: 11169  41.345605/s
+    vus................................: 1      min=0             max=50
+    vus_max............................: 50     min=50            max=50
+
+    NETWORK
+    data_received......................: 13 MB  47 kB/s
+    data_sent..........................: 1.2 MB 4.5 kB/s
+
+
+
+time="2026-11-14T23:31:31-05:00" level=error msg="thresholds on metrics 'checks, http_req_failed' have been crossed"

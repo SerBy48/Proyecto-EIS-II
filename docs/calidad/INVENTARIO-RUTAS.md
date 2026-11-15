@@ -140,9 +140,9 @@ Los candidatos salieron del análisis del código y se **confirmaron con una med
 | Endpoint | Por qué es crítico | Decisión |
 |---|---|---|
 | `GET /api/catalogo/productos?q=` | Es la ruta pública de mayor tráfico (sin token, también para bots). Hace búsqueda `$text` y `countDocuments` en MongoDB, más una llamada síncrona a inventario `/disponibilidad`, protegida con circuit breaker. Es la única ruta pública que toca dos servicios. | **Se somete a carga** |
-| `POST /api/auth/login` | bcrypt es costoso en CPU a propósito, y Node lo ejecuta en el *threadpool* de libuv (4 hilos por defecto). Bajo concurrencia, el login se encola. | **Se somete a carga** |
+| `POST /api/auth/login` | bcrypt es costoso en CPU a propósito (10 rondas). Además, auth usa **`bcryptjs`, que es JavaScript puro**: no corre en el *threadpool* de libuv como el `bcrypt` nativo, sino en el **hilo principal** de Node, así que todos los logins concurrentes compiten por un solo núcleo. | **Se somete a carga** |
 | `POST /api/pedidos/checkout` | **Es el más pesado.** Una saga de 8+ llamadas síncronas a 5 servicios, que toca 4 bases (clientes, Redis, Mongo, inventario con `pg_advisory_xact_lock`, pagos) y publica en RabbitMQ. Incluye la latencia simulada de la pasarela (150 ms). | **Se somete a carga** |
-| `GET /api/pedidos` | Listado con `JOIN` y `LIMIT 100` por cliente. Crece con el historial. | **Descartado como escenario aislado** (10,9 ms sin carga; ver la sección 5). Se mide dentro del flujo completo |
+| `GET /api/pedidos` | Listado con `JOIN` y `LIMIT 100` por cliente. Crece con el historial. | **Descartado como escenario aislado** (p50 de 16 ms sin carga; ver la sección 5). Se mide dentro del flujo completo |
 | Flujo completo (login → búsqueda → carrito → checkout → mis pedidos) | Es la carga mixta más realista: reparte la presión entre todos los servicios. | **Se somete a carga** |
 
 ### Qué no se somete a carga y por qué
@@ -162,29 +162,31 @@ Los candidatos salieron del análisis del código y se **confirmaron con una med
 - Script: [`scripts/medicion-exploratoria.ts`](../../scripts/medicion-exploratoria.ts).
 - Salida literal: [`02-medicion-exploratoria.txt`](../evidencia/no-funcionales/02-medicion-exploratoria.txt).
 - 30 peticiones secuenciales por endpoint, con 1 de calentamiento previo, todas a través del gateway.
-- Servicios en contenedores, con la base poblada.
+- Los 13 contenedores corren con el sistema poblado, y en el puerto 8080 solo escucha el gateway del contenedor.
+
+> **Corrección del 14/11/2026, 21:55.** La primera medición de este paso (login de 125 ms y checkout de 308 ms) quedó **contaminada** y se descartó. En el equipo seguía abierto un `npm run dev` anterior, con el gateway y los 8 servicios nativos en `tsx watch` escuchando en los mismos puertos que los contenedores (8080 y 3001-3008). Parte del tráfico lo atendían los procesos nativos, con Node 25 directamente en Windows. Se detuvo ese proceso, se cerraron las aplicaciones que cargaban la CPU (ver [`rendimiento/00-condicion-equipo.txt`](../evidencia/no-funcionales/rendimiento/00-condicion-equipo.txt)) y se repitió la medición. Las cifras de abajo son las de la repetición. Lo funcional (poblado y regresión) no se ve afectado: los dos caminos escribían en las mismas bases y ejecutaban el mismo código.
 
 | Endpoint | Promedio | p50 | p95 | Máx. | Estados |
 |---|---:|---:|---:|---:|---|
-| `POST /pedidos/checkout` (saga, `tok_ok`) | **307,6 ms** | 308,5 | 353,4 | 367,3 | 201 ×30 |
-| `POST /auth/login` (bcrypt) | **128,0 ms** | 124,8 | 181,7 | 193,5 | 200 ×30 |
-| `GET /catalogo/productos` (sin filtro) | 20,1 ms | 18,6 | 28,0 | 29,2 | 200 ×30 |
-| `POST /carrito/:id/items` | 16,8 ms | 15,2 | 23,7 | 25,2 | 200 ×30 |
-| `GET /carrito/:id` | 16,1 ms | 14,4 | 31,6 | 38,5 | 200 ×30 |
-| `GET /catalogo/productos?q=` | 15,0 ms | 14,4 | 19,7 | 21,9 | 200 ×30 |
-| `GET /catalogo/categorias` | 13,2 ms | 12,9 | 16,3 | 16,7 | 200 ×30 |
-| `GET /catalogo/productos/:sku` | 13,0 ms | 12,9 | 14,0 | 15,1 | 200 ×30 |
-| `GET /pedidos` (cliente) | 10,9 ms | 10,5 | 13,0 | 13,4 | 200 ×30 |
+| `POST /pedidos/checkout` (saga, `tok_ok`) | **389,0 ms** | 369,6 | 475,7 | 529,0 | 201 ×30 |
+| `POST /auth/login` (bcrypt) | **274,5 ms** | 264,4 | 391,9 | 425,8 | 200 ×30 |
+| `GET /catalogo/productos` (sin filtro) | 35,1 ms | 27,6 | 69,5 | 69,5 | 200 ×30 |
+| `POST /carrito/:id/items` | 25,9 ms | 24,9 | 35,3 | 38,1 | 200 ×30 |
+| `GET /catalogo/productos/:sku` | 24,7 ms | 22,8 | 40,8 | 47,8 | 200 ×30 |
+| `GET /catalogo/categorias` | 22,2 ms | 22,0 | 31,2 | 34,2 | 200 ×30 |
+| `GET /pedidos` (cliente) | 21,7 ms | 16,4 | 40,2 | 41,1 | 200 ×30 |
+| `GET /catalogo/productos?q=` | 20,6 ms | 20,5 | 24,4 | 25,1 | 200 ×30 |
+| `GET /carrito/:id` | 17,7 ms | 17,1 | 22,7 | 25,9 | 200 ×30 |
 
 **Lectura.** Sin concurrencia, dos endpoints se separan con claridad del resto:
 
-- **Checkout:** unos 15 veces más lento que cualquier lectura. Unos 150 ms de sus ~308 son la latencia simulada de la pasarela (`PASARELA_LATENCIA_MS=150`). El resto son las 8 o más llamadas síncronas de la saga.
-- **Login:** unos 6 veces más lento. Es el costo de bcrypt, intencional.
+- **Checkout:** entre 10 y 20 veces más lento que cualquier lectura. Unos 150 ms de sus ~370 son la latencia simulada de la pasarela (`PASARELA_LATENCIA_MS=150`). El resto son las 8 o más llamadas síncronas de la saga.
+- **Login:** unas 10 veces más lento. Es el costo de bcrypt, intencional, que en el contenedor (`bcryptjs` en Node 22 sobre WSL2) duplica el que tuvo en el host.
 
 Esto **confirma** que checkout y login son críticos.
 
-El catálogo es rápido en aislamiento (p95 < 30 ms). Sigue siendo crítico por **volumen**, no por costo unitario: es la ruta pública de mayor tráfico, y cada página dispara además una consulta a inventario. Bajo concurrencia, la pregunta es si se sostiene el throughput y si el circuit breaker se mantiene cerrado. Eso lo responde el Módulo 1.
+El catálogo es rápido en aislamiento (p95 < 70 ms). Sigue siendo crítico por **volumen**, no por costo unitario: es la ruta pública de mayor tráfico, y cada página dispara además una consulta a inventario. Bajo concurrencia, la pregunta es si se sostiene el throughput y si el circuit breaker se mantiene cerrado. Eso lo responde el Módulo 1.
 
-`GET /pedidos` es barato hoy porque cada cliente de carga tiene 1 o 2 pedidos. **Se descarta como escenario aislado** y se mide dentro del flujo completo, donde el historial crece con cada compra.
+`GET /pedidos` es barato hoy (p50 de 16 ms) porque cada cliente de carga tiene 1 o 2 pedidos. **Se descarta como escenario aislado** y se mide dentro del flujo completo, donde el historial crece con cada compra.
 
 > **Limitación del entorno.** El generador de carga (k6) y los 13 contenedores comparten la misma máquina (4 núcleos y 8 hilos; 7,7 GB asignados a Docker, ver [`00-entorno.txt`](../evidencia/no-funcionales/00-entorno.txt)). Por eso las cifras absolutas son **cotas inferiores** del sistema real. Son válidas para comparar escenarios y para medir el *antes y después* de las correcciones, que es lo que pide la Fase 3.
