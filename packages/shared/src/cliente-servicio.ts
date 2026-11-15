@@ -1,6 +1,7 @@
 import { CABECERA_LLAMADA_INTERNA } from './autenticacion';
 import { CircuitBreaker, OpcionesCircuito } from './circuit-breaker';
-import { ErrorApp } from './errores';
+import { ErrorApp, esFalloDelServicio } from './errores';
+import { leerSecreto } from './autenticacion';
 import { crearLogger } from './logger';
 import { ClaimsToken } from './tipos';
 
@@ -77,9 +78,7 @@ export class ClienteServicio {
         ultimoError = error;
 
         // Los errores de negocio (4xx) no se reintentan.
-        const esReintentable =
-          !(error instanceof ErrorApp) || error.estado >= 500 || error.codigo === 'TIMEOUT';
-        if (!esReintentable || intento === this.reintentos) break;
+        if (!esFalloDelServicio(error) || intento === this.reintentos) break;
 
         // Espera exponencial con jitter para no sincronizar los reintentos
         // de todas las instancias durante un incidente.
@@ -109,7 +108,7 @@ export class ClienteServicio {
     // pasa por interno ni se salta el control de rol.
     const cabeceras: Record<string, string> = {
       'content-type': 'application/json',
-      'x-internal-token': process.env.INTERNAL_TOKEN || 'secreto-interno-desarrollo',
+      'x-internal-token': leerSecreto('INTERNAL_TOKEN'),
       [CABECERA_LLAMADA_INTERNA]: '1'
     };
     if (requestId) cabeceras['x-request-id'] = requestId;

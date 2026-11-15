@@ -1,5 +1,5 @@
 import { crearLogger } from './logger';
-import { errorServicioNoDisponible } from './errores';
+import { errorServicioNoDisponible, esFalloDelServicio } from './errores';
 
 /**
  * Circuit breaker (Actividad 6, punto f del documento).
@@ -77,6 +77,12 @@ export class CircuitBreaker {
       this.registrarExito();
       return resultado;
     } catch (error) {
+      // Un 4xx es una respuesta valida del servicio: prueba que esta en pie, asi
+      // que cuenta como exito para el circuito aunque el error se propague.
+      if (!esFalloDelServicio(error)) {
+        this.registrarExito();
+        throw error;
+      }
       // registrarFallo informa si este fallo fue el que abrio el circuito, para
       // ofrecer la alternativa de inmediato en lugar de propagar el error.
       const seAbrio = this.registrarFallo();

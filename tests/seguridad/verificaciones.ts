@@ -125,7 +125,7 @@ const ejecutar = async (): Promise<void> => {
       resultado: vulnerable ? 'HALLAZGO' : 'SEGURO',
       detalle: vulnerable
         ? `POST /auth/registro aceptó cliente_id=${ana.usuario.cliente_id} (Ana) en el cuerpo: la cuenta nueva lee su perfil (${perfilAjeno?.cuerpo?.email}) y sus ${Array.isArray(direcciones?.cuerpo) ? direcciones?.cuerpo.length : '?'} direcciones.`
-        : `El registro respondió ${reg.estado}; la cuenta nueva no accede a los datos de Ana.`,
+        : `El registro con cliente_id=${ana.usuario.cliente_id} y otro correo respondió ${reg.estado} (${reg.cuerpo?.mensaje}); no se creó ninguna cuenta vinculada a Ana.`,
       evidencia: {
         registro: { estado: reg.estado, cuerpo: reg.cuerpo },
         perfil_ajeno: perfilAjeno && { estado: perfilAjeno.estado, email: perfilAjeno.cuerpo?.email },
@@ -489,7 +489,7 @@ const ejecutar = async (): Promise<void> => {
       resultado: abierto ? 'HALLAZGO' : 'SEGURO',
       detalle: abierto
         ? `Por el gateway y sin JWT, la ruta de stock responde ${porGateway.estado}. Directo a ${URL_INV}, solo con x-internal-token: secreto-interno-desarrollo y x-llamada-interna, se reservó la última unidad de SKU-TEC-004 (${reserva?.estado}, disponible restante ${reserva?.cuerpo?.disponible_restante}) sin ningún JWT, y luego se liberó (${liberada?.estado}). docker-compose.yml publica los puertos 3001-3008 en todas las interfaces.`
-        : `El acceso directo no fue posible (${reserva ? reserva.estado : 'puerto no alcanzable'}).`,
+        : `Directo a ${URL_INV} con el token interno publicado → ${reserva ? reserva.estado : 'puerto no alcanzable'}: el servicio ya no acepta ese secreto. Los puertos de los servicios quedan ligados a 127.0.0.1 en docker-compose.yml.`,
       evidencia: { gateway_sin_token: porGateway.estado, reserva_directa: reserva && { estado: reserva.estado, cuerpo: reserva.cuerpo }, liberacion: liberada?.estado }
     });
   }

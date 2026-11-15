@@ -6,9 +6,9 @@ electrónico.
 
 | | |
 |---|---|
-| **Última ejecución** | 14 de noviembre de 2026 (servicios en contenedores y base poblada con `npm run sembrar:carga`) |
-| **Casos ejecutados** | 147 (33 de concurrencia + 65 por HTTP + 49 extremo a extremo) |
-| **Resultado** | 147 pasan, 0 fallan |
+| **Última ejecución** | 15 de noviembre de 2026 (servicios en contenedores, base poblada con `npm run sembrar:carga` y secretos propios en `.env`) |
+| **Casos ejecutados** | 152 (33 de concurrencia + 70 por HTTP + 49 extremo a extremo) |
+| **Resultado** | 152 pasan, 0 fallan |
 | **Entorno** | Windows 11, Node 25, Docker: PostgreSQL 16 (puerto 5434 del host), MongoDB 7, Redis 7, RabbitMQ 3. Infraestructura completa |
 | **Evidencia** | [`evidencia/`](evidencia/) — salida literal de cada suite |
 
@@ -117,14 +117,14 @@ Escenario 2: veinte compradores, cinco unidades
 
 ### Nivel 4 — Contrato HTTP
 
-`npm run test:http` → **65 casos, 65 pasan**
+`npm run test:http` → **70 casos, 70 pasan**
 ([`evidencia/02-contrato-http.txt`](evidencia/02-contrato-http.txt)).
 
 | Suite | Área | Casos |
 |---|---|---|
-| A | Autenticación y emisión de tokens | 5 |
-| B | Control de acceso: RBAC y propiedad del dato | 14 |
-| C | Inventario: reservas, idempotencia, compensación | 9 |
+| A | Autenticación, emisión de tokens y registro | 9 |
+| B | Control de acceso: RBAC, propiedad del dato y circuit breaker | 17 |
+| C | Inventario: reservas, idempotencia, compensación | 12 |
 | D | Pagos: los cuatro desenlaces de la pasarela | 9 |
 | E | Pedidos: identificadores y ciclo de vida | 16 |
 | F | Limitación de peticiones y bloqueo de cuenta | informativa |
@@ -346,9 +346,10 @@ notificaciones   ok=False  estado=inalcanzable
 
 ## 4. Defectos encontrados y corregidos
 
-Las pruebas encontraron doce defectos reales, y los doce están corregidos:
+Las pruebas encontraron dieciséis defectos reales, y los dieciséis están corregidos:
 - Los nueve primeros salieron de las pruebas funcionales y tienen un caso que impide que vuelvan.
-- Los tres últimos (4.10 a 4.12) solo aparecen bajo carga. Su verificación es la medición de antes y después de [`calidad/RENDIMIENTO.md`](calidad/RENDIMIENTO.md), que se repite con `npm run test:carga:bateria`.
+- Del 4.10 al 4.12 solo aparecen bajo carga. Su verificación es la medición de antes y después de [`calidad/RENDIMIENTO.md`](calidad/RENDIMIENTO.md), que se repite con `npm run test:carga:bateria`.
+- Del 4.13 al 4.16 son de seguridad. Tienen casos en `test:http` y en `npm run test:seguridad`, documentados en [`calidad/SEGURIDAD.md`](calidad/SEGURIDAD.md).
 
 ### 4.1 Escalada de privilegios por el token interno — **grave**
 
@@ -589,6 +590,56 @@ Encontrado con las pruebas de carga del Módulo 1 (hallazgos R1 y R2 de
 **Corrección.** Solo se usa `proxyTimeout`, que es la espera por el servicio. Si vence, el cliente recibe `504 TIEMPO_AGOTADO` con un mensaje en español; los demás errores de conexión siguen respondiendo `503 SERVICIO_NO_DISPONIBLE`.
 
 **Verificación.** Con auth congelado (`docker pause`), el login responde 504 con el mensaje a los 15,07 s. En la batería del después no hubo ni un solo estado 0 (EOF).
+
+### 4.13 Secretos por defecto: tokens de administrador forjables — **crítico**
+
+Encontrado con las verificaciones de seguridad (S-02 y S-03 de [`calidad/SEGURIDAD.md`](calidad/SEGURIDAD.md)).
+
+**Síntoma.**
+- Un JWT de administrador firmado con `FirmaSecretaEcommerceDesarrollo`, para un usuario inexistente, leía todos los pedidos.
+- Directo al puerto 3004, con `x-internal-token: secreto-interno-desarrollo` y sin ningún JWT, se reservaba stock.
+
+**Causa.**
+- Los tres secretos tenían un valor de respaldo publicado en el código, en `docker-compose.yml` y en `.env.example`, y ese valor era el que corría.
+- Los puertos de los servicios estaban publicados en todas las interfaces.
+
+**Corrección.**
+- Sin valores por defecto. `verificarSecretos()` (`shared/src/autenticacion.ts`) detiene cada servicio y el gateway si un secreto falta, si tiene menos de 32 caracteres o si es uno de los valores publicados.
+- `docker compose` exige las variables (`${VAR:?…}`).
+- `.env.example` las deja vacías, con la instrucción `openssl rand -hex 32`.
+- Los servicios y los motores de datos se publican solo en `127.0.0.1`.
+
+**Caso que lo cubre.** V-10 y V-16 de `test:seguridad`. Además, un servicio arrancado con el secreto publicado termina con código 1 y enumera los problemas.
+
+### 4.14 Registro con el cliente_id de otra persona — **grave**
+
+**Síntoma.** `POST /auth/registro` con `cliente_id: 1` y cualquier correo creaba una cuenta vinculada a Ana, y esa cuenta leía su perfil y sus direcciones. Rompía el invariante 1.
+
+**Causa.** El `cliente_id` del cuerpo se guardaba sin comprobar a quién pertenecía.
+
+**Corrección.**
+- Auth consulta a clientes-service y exige que el correo del cliente sea el de la cuenta (si no, 403) y que el cliente no tenga ya una cuenta (si la tiene, 409).
+- Un índice único parcial (`uq_usuarios_cliente`) cierra la carrera entre dos registros simultáneos.
+
+**Casos que lo cubren.** A-07, A-08 y A-09 de `test:http`, y V-01.
+
+### 4.15 Seis 404 de un cliente dejaban a todos sin carrito
+
+**Síntoma.** Seis peticiones de Ana con SKU inexistentes hacían que, durante 15 s, el carrito de cualquier cliente respondiera 503. Durante el escaneo activo de ZAP, el gateway devolvió 1 030 respuestas 503 por este motivo.
+
+**Causa.** `CircuitBreaker.ejecutar()` contaba como fallo cualquier error, incluidos los 4xx de negocio.
+
+**Corrección.** `esFalloDelServicio()` (`shared/src/errores.ts`) solo considera fallos los errores de red, los 5xx y los timeouts. Es el mismo criterio que ya decidía los reintentos (invariante 7). Un 4xx cuenta como éxito para el circuito.
+
+**Caso que lo cubre.** B-17 de `test:http` y V-14. En el escaneo de ZAP repetido hubo 0 respuestas 503 y ningún circuito se abrió.
+
+### 4.16 El correo no se validaba
+
+**Síntoma.** El registro aceptaba `no-es-un-correo`, y el escaneo activo creó 115 administradores con "correos" como `http://www.google.com/`.
+
+**Corrección.** Formato y longitud máxima (150) en `/auth/registro` y `/auth/usuarios`, que también exige una contraseña de 8 caracteres como mínimo.
+
+**Caso que lo cubre.** A-10 de `test:http` y V-15.
 
 ---
 

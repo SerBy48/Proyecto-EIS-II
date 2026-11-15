@@ -24,6 +24,12 @@ CREATE TABLE usuarios (
 CREATE INDEX idx_usuarios_email ON usuarios(email);
 CREATE INDEX idx_usuarios_rol   ON usuarios(rol);
 
+-- Un cliente tiene como maximo una cuenta. Sin esta restriccion, cualquiera
+-- podia registrarse con el cliente_id de otra persona y leer sus datos
+-- (docs/calidad/SEGURIDAD.md, hallazgo S-01). El controlador lo valida antes;
+-- el indice cierra la carrera entre dos registros simultaneos.
+CREATE UNIQUE INDEX uq_usuarios_cliente ON usuarios(cliente_id) WHERE cliente_id IS NOT NULL;
+
 -- Tokens de renovacion. Se almacena el hash, no el token, para que un volcado
 -- de esta tabla no permita suplantar sesiones. La revocacion es explicita.
 CREATE TABLE tokens_renovacion (

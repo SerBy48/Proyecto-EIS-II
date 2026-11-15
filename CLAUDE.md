@@ -133,6 +133,17 @@ petición queda colgada. Para los errores se usan los constructores de
 12. **Publicar un evento nunca debe tumbar la operación principal.**
     `bus.publicar()` registra el fallo y devuelve `false`.
 
+13. **Los secretos no tienen valor por defecto.** `JWT_SECRET`,
+    `JWT_REFRESH_SECRET` e `INTERNAL_TOKEN` se definen en `.env` (generados con
+    `openssl rand -hex 32`). Sin ellos, o con menos de 32 caracteres, o con un
+    valor que estuvo publicado, ningún servicio arranca (`verificarSecretos()`).
+    Antes había un valor de respaldo publicado, y con él se podía forjar un
+    token de administrador.
+
+14. **Un circuit breaker cuenta solo errores de red, 5xx y timeouts**
+    (`esFalloDelServicio()`). Si contara los 4xx, un cliente con seis SKU
+    inexistentes abriría el circuito para todos.
+
 ---
 
 ## Dónde está cada cosa
@@ -176,10 +187,10 @@ Tokens de la pasarela simulada (resultado determinista):
 ## Estado y pendientes conocidos
 
 **Verificado y funcionando** (ver `docs/PRUEBAS.md` para el detalle y la
-evidencia; última ejecución el 2026-11-14 con los servicios en contenedores y la
-base poblada con `npm run sembrar:carga`): 147 casos ejecutados, 147 pasan. Los nueve servicios compilan y arrancan sanos; la prueba
+evidencia; última ejecución el 2026-11-15 con los servicios en contenedores y la
+base poblada con `npm run sembrar:carga`): 152 casos ejecutados, 152 pasan. Los nueve servicios compilan y arrancan sanos; la prueba
 de concurrencia pasa sus 33 comprobaciones (20 compradores simultáneos por 5
-unidades → exactamente 5 ganan); `test:http` pasa sus 65 casos sobre
+unidades → exactamente 5 ganan); `test:http` pasa sus 70 casos sobre
 autenticación, RBAC, aislamiento entre clientes, idempotencia, los cuatro
 desenlaces de la pasarela, el ciclo de vida de los pedidos, rate limiting,
 PCI-DSS y aislamiento de las bases; `test:e2e` pasa sus 49 comprobaciones
@@ -203,7 +214,9 @@ consultar un pedido por su número, código 201 en una réplica idempotente, la
 suite que no era re-ejecutable, y la cancelación repetida por el cliente que
 devolvía 403. Bajo carga (4.10 a 4.12): bcrypt en el hilo principal de auth
 (ahora un pool de hilos con cola acotada, `pool-hash.ts`), el gateway sin
-keep-alive y el gateway que cortaba con EOF en lugar de responder 504.
+keep-alive y el gateway que cortaba con EOF en lugar de responder 504. De
+seguridad (4.13 a 4.16): secretos por defecto, registro con el `cliente_id` de
+otra persona, circuit breaker abierto por 404 y correo sin validar.
 
 **Pruebas de carga:** `tests/rendimiento/` (k6). Corren con `npm run infra:carga`
 (límites altos del gateway) y `CLIENTES_CARGA=300 npm run sembrar:carga`. Ojo:
