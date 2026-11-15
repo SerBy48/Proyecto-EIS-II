@@ -7,6 +7,7 @@ import {
   errorNoEncontrado
 } from '@ecommerce/shared';
 import { coleccionMensajes, coleccionPlantillas } from './db';
+import { canalConHtml, renderizar } from './plantillas';
 
 const log = crearLogger('notificaciones-service');
 
@@ -20,12 +21,6 @@ const log = crearLogger('notificaciones-service');
  * vuelve a estar disponible.
  */
 
-/** Sustituye los marcadores {{campo}} de la plantilla. */
-const renderizar = (plantilla: string, datos: Record<string, unknown>): string =>
-  plantilla.replace(/\{\{(\w+)\}\}/g, (_coincidencia, campo: string) => {
-    const valor = datos[campo];
-    return valor === undefined || valor === null ? '' : String(valor);
-  });
 
 const formatearMoneda = (valor: unknown): string => {
   const numero = Number(valor);
@@ -86,8 +81,10 @@ export const procesarEvento = async (evento: EventoDominio): Promise<void> => {
     items: Array.isArray(datos.items) ? datos.items.length : datos.items
   };
 
+  // En el correo, los datos del usuario se escapan como HTML (hallazgo S-11).
+  const escapar = canalConHtml(String(plantilla.canal));
   const asunto = renderizar(String(plantilla.asunto), variables);
-  const cuerpo = renderizar(String(plantilla.cuerpo), variables);
+  const cuerpo = renderizar(String(plantilla.cuerpo), variables, escapar);
 
   // La clave de deduplicacion combina el evento con el identificador del
   // agregado afectado: el mismo evento sobre el mismo pedido se envia una vez.
