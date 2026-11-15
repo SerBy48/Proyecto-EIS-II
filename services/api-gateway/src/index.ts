@@ -6,7 +6,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { createProxyMiddleware, Options } from 'http-proxy-middleware';
-import { crearLogger, PeticionAutenticada, verificarAcceso } from '@ecommerce/shared';
+import { crearLogger, leerSecreto, PeticionAutenticada, verificarAcceso, verificarSecretos } from '@ecommerce/shared';
 
 /**
  * API GATEWAY - punto unico de entrada del sistema (seccion 5.2 del documento).
@@ -26,6 +26,15 @@ import { crearLogger, PeticionAutenticada, verificarAcceso } from '@ecommerce/sh
  */
 
 const log = crearLogger('api-gateway');
+
+// Sin secretos propios el gateway no arranca (hallazgos S-02 y S-03 de
+// docs/calidad/SEGURIDAD.md): no hay valores por defecto.
+try {
+  verificarSecretos();
+} catch (error) {
+  log.error((error as Error).message);
+  process.exit(1);
+}
 const app = express();
 const PUERTO = Number(process.env.PORT || 8080);
 
@@ -282,7 +291,7 @@ const opcionesComunes = (destino: Destino): Options => ({
       // no por un atajo a la red privada. Deliberadamente NO se envia
       // x-llamada-interna: esto es trafico de un usuario final, y el control de
       // rol de cada servicio debe seguir aplicandose.
-      proxyReq.setHeader('x-internal-token', process.env.INTERNAL_TOKEN || 'secreto-interno-desarrollo');
+      proxyReq.setHeader('x-internal-token', leerSecreto('INTERNAL_TOKEN'));
 
       if (peticion.usuario) {
         proxyReq.setHeader('x-usuario-id', String(peticion.usuario.sub));

@@ -2,7 +2,7 @@ import express, { Application, NextFunction, Request, Response } from 'express';
 import { randomUUID } from 'node:crypto';
 import { ErrorApp } from './errores';
 import { crearLogger, Logger } from './logger';
-import { detectarLlamadaInterna } from './autenticacion';
+import { detectarLlamadaInterna, verificarSecretos } from './autenticacion';
 import { PeticionAutenticada } from './tipos';
 
 /**
@@ -64,6 +64,16 @@ const registrarPeticiones = (log: Logger) => {
 
 export const crearServicio = async (opciones: OpcionesServicio): Promise<void> => {
   const log = crearLogger(opciones.nombre);
+
+  // Sin secretos propios el servicio no arranca: es preferible un error claro
+  // al iniciar que un despliegue que acepta tokens forjados.
+  try {
+    verificarSecretos();
+  } catch (error) {
+    log.error((error as Error).message);
+    process.exit(1);
+  }
+
   const app = express();
 
   app.disable('x-powered-by');
