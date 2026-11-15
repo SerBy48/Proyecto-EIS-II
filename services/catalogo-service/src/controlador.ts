@@ -6,7 +6,8 @@ import {
   errorConflicto,
   errorNoEncontrado,
   errorSolicitud,
-  exigirCampos
+  exigirCampos,
+  textoDeConsulta
 } from '@ecommerce/shared';
 import { coleccionProductos, coleccionPromociones } from './db';
 
@@ -89,16 +90,17 @@ const proyectar = (producto: Record<string, unknown>, disp: Disponibilidad | nul
  * Busqueda y filtrado por categoria, marca, precio y texto (seccion 5.5).
  */
 export const listarProductos = async (req: PeticionAutenticada, res: Response): Promise<void> => {
-  const {
-    q,
-    categoria,
-    marca,
-    precio_min,
-    precio_max,
-    orden,
-    pagina = '1',
-    limite = '20'
-  } = req.query as Record<string, string>;
+  // Solo texto: un objeto como ?categoria[$ne]=x llegaria al filtro de
+  // MongoDB como operador (inyeccion NoSQL, hallazgo S-05).
+  const parametro = (nombre: string) => textoDeConsulta(req.query[nombre], nombre);
+  const q = parametro('q');
+  const categoria = parametro('categoria');
+  const marca = parametro('marca');
+  const precio_min = parametro('precio_min');
+  const precio_max = parametro('precio_max');
+  const orden = parametro('orden');
+  const pagina = parametro('pagina') ?? '1';
+  const limite = parametro('limite') ?? '20';
 
   const porPagina = Math.min(Number(limite) || 20, 100);
   const saltar = (Math.max(Number(pagina) || 1, 1) - 1) * porPagina;
