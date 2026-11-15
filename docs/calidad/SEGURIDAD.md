@@ -151,3 +151,60 @@ Las correcciones de la Fase 3 se confirmarán con el equipo antes de implementar
 - **Escaneo activo con el perfil de carga.** Con los límites normales, el limitador habría ocultado la mayoría de las respuestas. Es una decisión de cobertura, no un cambio en el sistema evaluado.
 - **CVSS estimado** por el equipo con la calculadora de la especificación v3.1. S-02 y S-03 suponen el despliegue tal como está en el repositorio (secretos por defecto y puertos publicados).
 - **Entorno local sin TLS**: no se evaluaron HSTS ni cookies `Secure`.
+
+## 8. Correcciones de la Fase 3: antes y después
+
+Se corrigieron los cuatro hallazgos priorizados, más S-10, que cae en el mismo endpoint que S-01. El equipo los confirmó antes de implementarlos. Cada corrección se verificó volviendo a ejecutar **la misma prueba que la detectó**: las verificaciones manuales y el escaneo activo de ZAP.
+
+### 8.1 Qué se cambió
+
+| Hallazgo | Corrección | Archivos |
+|---|---|---|
+| **S-02 y S-03**: secretos por defecto | Los tres secretos son obligatorios y ya no tienen valor de respaldo. `verificarSecretos()` detiene cada servicio y el gateway si un secreto falta, si tiene menos de 32 caracteres o si es uno de los valores que estuvieron publicados. `docker compose` exige las variables (`${VAR:?…}`) y `.env.example` las deja vacías, con `openssl rand -hex 32`. Los 8 servicios y los 4 motores de datos se publican solo en `127.0.0.1`; el gateway es el único puerto abierto a la red | `shared/src/autenticacion.ts` y `servicio.ts`, `api-gateway/src/index.ts`, `docker-compose.yml`, `.env.example` |
+| **S-01**: registro con `cliente_id` ajeno | Si el registro trae `cliente_id`, auth consulta a clientes-service y exige que el correo del cliente sea el de la cuenta (403) y que no tenga ya una cuenta (409). Un índice único parcial cierra la carrera entre dos registros simultáneos | `auth-service/src/controlador.ts`, `infra/postgres/01-auth.sql`, `docker-compose.yml` (`URL_CLIENTES`) |
+| **S-04**: circuit breaker | `esFalloDelServicio()` define una sola vez qué es un fallo del servicio (red, 5xx, timeout). Lo usan el circuit breaker y los reintentos. Un 4xx cuenta como éxito para el circuito | `shared/src/errores.ts`, `circuit-breaker.ts` y `cliente-servicio.ts` |
+| **S-10**: correo sin validar | Formato y longitud máxima en `/auth/registro` y `/auth/usuarios`; este último también exige una contraseña de 8 caracteres o más | `auth-service/src/controlador.ts` |
+
+Regresión completa ([`05-regresion-fase3-seguridad.txt`](../evidencia/no-funcionales/05-regresion-fase3-seguridad.txt)): typecheck, salud, **70/70 casos HTTP** (cinco nuevos: A-07 a A-10 y B-17), concurrencia sin sobreventa, 49/49 comprobaciones e2e y build de la web. Los defectos quedan registrados como 4.13 a 4.16 en [`PRUEBAS.md`](../PRUEBAS.md).
+
+### 8.2 Resultados
+
+**Verificaciones manuales** ([antes](../evidencia/no-funcionales/seguridad/verificaciones-manuales-consola.txt) y [después](../evidencia/no-funcionales/seguridad/verificaciones-manuales-despues-consola.txt)):
+
+| ID | Antes | Después |
+|---|---|---|
+| V-01 (S-01) | ❌ La cuenta nueva con `cliente_id=1` lee el perfil y las 2 direcciones de Ana | ✅ **403** "El cliente indicado no corresponde a este correo"; no se crea la cuenta |
+| V-10 (S-02) | ❌ El token forjado lee la bitácora de la saga y los 60 pedidos | ✅ **401** y **401** |
+| V-14 (S-04) | ❌ Tras 6 SKU inexistentes de Ana, Bruno recibe **503** | ✅ Los 6 dan 404 y Bruno sigue agregando productos (**200**) |
+| V-15 (S-10) | ❌ `no-es-un-correo-…` → 201 | ✅ **400** |
+| V-16 (S-03) | ❌ Reserva directa de la última unidad sin JWT → 201 | ✅ **401**: el servicio ya no acepta el token publicado, y el puerto solo escucha en `127.0.0.1` |
+| **Total** | **11 hallazgos**, 4 seguras, 1 informativa | **6 hallazgos**, 9 seguras, 1 informativa |
+
+Además, un servicio arrancado con `JWT_SECRET=FirmaSecretaEcommerceDesarrollo` termina con código 1 y este mensaje:
+
+```
+ERROR [auth-service] Configuracion insegura: JWT_SECRET usa un valor publicado en el repositorio;
+JWT_REFRESH_SECRET tiene menos de 32 caracteres; INTERNAL_TOKEN no esta definido. ...
+```
+
+`docker compose` también se niega a arrancar sin los secretos: `required variable JWT_SECRET is missing a value: Defina JWT_SECRET en .env (openssl rand -hex 32)`.
+
+**Escaneo activo de ZAP, repetido en las mismas condiciones** (los dos roles y el perfil de carga; [`zap-api-estados-despues.txt`](../evidencia/no-funcionales/seguridad/zap-api-estados-despues.txt), reportes `api-*-despues.*`):
+
+| Durante los dos escaneos | Antes | Después |
+|---|---|---|
+| Respuestas **503** del gateway (circuitos abiertos) | **1 030** | **0** |
+| Circuitos abiertos en carrito y pedidos | 2 servicios, varias veces | **0** |
+| Respuestas 500 | 781 | 780 (S-06, todavía pendiente) |
+| Alerta 100000 *Server Error* (cliente / administrador) | 6 / 20 instancias | 4 / 16 instancias |
+
+### 8.3 Lo que sigue pendiente
+
+S-05 (NoSQL), S-06 y S-07 (errores 500 ante entradas inválidas y en el rechazo de CORS), S-08 (cabeceras de la web), S-09 (tokens en `localStorage`) y S-11 (XSS latente) quedan como **riesgo aceptado y documentado**. Ninguno permite acceder a datos de otro usuario ni suplantar a nadie con la configuración actual.
+
+S-05, S-06 y S-07 comparten una solución, una capa de validación por esquema en la entrada, que es la siguiente mejora natural.
+
+También quedan riesgos residuales de las correcciones:
+
+- **S-01.** Quien conozca el correo de un cliente que todavía no tiene cuenta (por ejemplo, uno creado por un vendedor en una venta telefónica) podría reclamarlo. Cerrarlo del todo exige verificar el correo con un enlace de confirmación.
+- **Postgres** sigue con la contraseña `postgres` y RabbitMQ con `ecommerce`. Ahora solo se alcanzan desde el propio equipo, pero en un despliegue real también deben venir de secretos.
