@@ -40,13 +40,19 @@
     "graficas:rendimiento": "python scripts/graficas/rendimiento.py",
     "test:seguridad": "tsx --env-file-if-exists=.env tests/seguridad/verificaciones.ts",
     "test:zap:baseline": "bash tests/seguridad/zap-baseline.sh",
-    "test:zap:api": "bash tests/seguridad/zap-api.sh"
+    "test:zap:api": "bash tests/seguridad/zap-api.sh",
+    "test:zap:recorrido": "bash tests/seguridad/zap-recorrido.sh",
+    "usabilidad:sus": "tsx tests/usabilidad/calcular-sus.ts",
+    "usabilidad:recorrido": "tsx --env-file-if-exists=.env tests/usabilidad/recorrido.ts"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.10.0",
+    "@types/node": "^22.7.5",
     "concurrently": "^8.2.2",
+    "playwright": "1.48.2",
+    "playwright-core": "1.48.2",
     "tsx": "^4.19.2",
-    "typescript": "^5.6.3",
-    "@types/node": "^22.7.5"
+    "typescript": "^5.6.3"
   },
   "engines": {
     "node": ">=22.9"
