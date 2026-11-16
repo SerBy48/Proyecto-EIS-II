@@ -81,6 +81,40 @@ describe('CircuitBreaker: transiciones de estado', () => {
     expect(cb.metricas.reabre_en_ms).toBe(10_000);
   });
 
+  it('R7: en semiabierto pasa UNA llamada de prueba; las concurrentes reciben la alternativa al instante', async () => {
+    const cb = nuevo();
+    for (let i = 0; i < 3; i++) await cb.ejecutar(falla).catch(() => undefined);
+    vi.advanceTimersByTime(10_001);
+
+    let liberar!: (v: string) => void;
+    const prueba = vi.fn(() => new Promise<string>((r) => (liberar = r)));
+    const otra = vi.fn(funciona);
+
+    const enVuelo = cb.ejecutar(prueba, () => 'alternativa');
+    const concurrentes = await Promise.all([1, 2, 3].map(() => cb.ejecutar(otra, () => 'alternativa')));
+
+    expect(prueba).toHaveBeenCalledTimes(1);
+    expect(otra).not.toHaveBeenCalled(); // no esperaron a la dependencia
+    expect(concurrentes).toEqual(['alternativa', 'alternativa', 'alternativa']);
+    expect(cb.estadoActual).toBe('semiabierto');
+
+    liberar('ok');
+    await expect(enVuelo).resolves.toBe('ok');
+    // Terminada la prueba, la siguiente llamada vuelve a probar y cierra el circuito.
+    await expect(cb.ejecutar(funciona)).resolves.toBe('ok');
+    expect(cb.estadoActual).toBe('cerrado');
+  });
+
+  it('R7: sin alternativa, las concurrentes en semiabierto fallan rapido con 503', async () => {
+    const cb = nuevo();
+    for (let i = 0; i < 3; i++) await cb.ejecutar(falla).catch(() => undefined);
+    vi.advanceTimersByTime(10_001);
+    const enVuelo = cb.ejecutar(() => new Promise<string>(() => undefined));
+    const error = await cb.ejecutar(funciona).catch((e) => e);
+    expect(error.codigo).toBe('SERVICIO_NO_DISPONIBLE');
+    void enVuelo;
+  });
+
   it('invariante 14: los 4xx no cuentan como fallo del servicio', async () => {
     const cb = nuevo();
     for (let i = 0; i < 10; i++) {
