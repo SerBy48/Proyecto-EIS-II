@@ -57,6 +57,7 @@ npm run test:seguridad      # 16 verificaciones de seguridad (ver docs/calidad/S
 npm run usabilidad:recorrido # 8 tareas en Chromium: KLM, capturas y axe (requiere vite preview en 4173)
 npm run usabilidad:sus      # puntaje SUS; falla si no hay respuestas reales
 npm run informe:estrategias # informe .docx (libreria docx) y su indice actualizado con Word
+npm run docs:c4             # renderiza docs/c4/*.puml a PNG (Docker plantuml/plantuml)
 ```
 
 ---
@@ -164,6 +165,7 @@ petición queda colgada. Para los errores se usan los constructores de
 | Enrutamiento, rate limiting y saneamiento | `services/api-gateway/src/index.ts` |
 | Pasarela de pagos simulada | `services/pagos-service/src/pasarela.ts` |
 | Timeouts por dependencia | `services/pedidos-service/src/dependencias.ts` |
+| Especificación, C4 y ADR del Trabajo Final | `docs/especificacion/`, `docs/c4/`, `docs/adr/` |
 
 ---
 

@@ -1,0 +1,39 @@
+@startuml 03-componentes-asistente
+!include lib/C4_Component.puml
+!include estilo.puml
+title N3 - Componentes de asistente-service (diseno de la Fase 3)
+
+Container(gateway, "API Gateway", "Express", "Rate limit propio /api/asistente")
+ContainerDb(mongo, "asistente_db", "MongoDB", "conversaciones, faq, tickets, intenciones")
+ContainerQueue(rabbit, "RabbitMQ", "ecommerce.eventos")
+Container(catalogo, "catalogo-service", "REST")
+Container(inventario, "inventario-service", "REST")
+Container(pedidos, "pedidos-service", "REST")
+System_Ext(ia, "Proveedor de IA", "Opcional, apagado por defecto", $tags="planificado")
+
+Container_Boundary(asis, "asistente-service :3009", $tags="planificado") {
+  Component(router, "Router", "index.ts", "POST /mensajes (autenticacionOpcional), GET /conversaciones/:id, GET /tickets", $tags="planificado")
+  Component(ctrl, "Controlador de conversacion", "controlador.ts", "Valida texto (<= 500), contexto de varios turnos", $tags="planificado")
+  Component(motor, "Motor de intenciones", "motor.ts", "Normaliza, puntua palabras clave y sinonimos, extrae SKU y numero de pedido", $tags="planificado")
+  Component(dialogo, "Arbol de dialogo", "dialogo.ts", "Respuestas por intencion: texto, productos, pedido, opciones", $tags="planificado")
+  Component(adapt, "Adaptadores de dominio", "ClienteServicio + circuit breaker", "Catalogo e inventario; pedidos reenviando el Authorization del usuario (nunca llamada interna)", $tags="planificado")
+  Component(repo, "Repositorio", "repositorio.ts", "Conversaciones (sin datos sensibles), FAQ, tickets, intenciones", $tags="planificado")
+  Component(iaad, "Adaptador IA", "ASISTENTE_IA=desactivada|anthropic", "Solo si ninguna intencion supera el umbral; sin datos personales ni herramientas", $tags="planificado")
+}
+
+Rel(gateway, router, "/api/asistente/*", "REST", $tags="planificado")
+Rel(router, ctrl, "", $tags="planificado")
+Rel(ctrl, motor, "texto normalizado", $tags="planificado")
+Rel(ctrl, dialogo, "intencion + entidades", $tags="planificado")
+Rel(dialogo, adapt, "consultas", $tags="planificado")
+Rel(dialogo, repo, "FAQ, tickets", $tags="planificado")
+Rel(ctrl, repo, "historial", $tags="planificado")
+Rel(ctrl, iaad, "fallback", $tags="planificado")
+Rel(repo, mongo, "driver nativo", $tags="planificado")
+Rel(adapt, catalogo, "GET /productos?q=", $tags="planificado")
+Rel(adapt, inventario, "GET /disponibilidad", $tags="planificado")
+Rel(adapt, pedidos, "GET /pedidos con el JWT del usuario", $tags="planificado")
+Rel(dialogo, rabbit, "asistente.escalamiento", "AMQP", $tags="planificado")
+Rel(iaad, ia, "HTTPS", $tags="planificado")
+SHOW_LEGEND()
+@enduml

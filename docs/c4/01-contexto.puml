@@ -1,0 +1,24 @@
+@startuml 01-contexto
+!include lib/C4_Context.puml
+!include estilo.puml
+title N1 - Contexto: Plataforma de comercio electronico
+
+Person(cliente, "Cliente", "Busca productos, compra, consulta y cancela sus pedidos")
+Person(vendedor, "Vendedor", "Gestiona stock, productos y estados de pedidos")
+Person(admin, "Administrador", "Gestiona usuarios, plantillas, bitacora de la saga y tickets del asistente")
+
+System(plataforma, "Plataforma e-commerce", "Microservicios con API Gateway: catalogo, carrito, checkout con saga, pagos, notificaciones y asistente virtual")
+
+System_Ext(pasarela, "Pasarela de pagos", "Simulada en pagos-service (pasarela.ts) con tokens deterministas; adaptador reemplazable por Wompi o Stripe")
+System_Ext(correo, "Servidor de correo (SMTP)", "Mailpit en el laboratorio", $tags="planificado")
+System_Ext(ia, "Proveedor de IA (opcional)", "Respaldo del asistente para preguntas generales; apagado por defecto", $tags="planificado")
+
+Rel(cliente, plataforma, "Compra y consulta", "HTTPS, web React / app Flutter")
+Rel(vendedor, plataforma, "Administra inventario", "HTTPS, panel web")
+Rel(admin, plataforma, "Administra la plataforma", "HTTPS, panel web")
+Rel(plataforma, pasarela, "Cobra con token de tarjeta", "REST/JSON sincrono")
+Rel(plataforma, correo, "Envia confirmaciones y avisos", "SMTP", $tags="planificado")
+Rel(plataforma, ia, "Pregunta general sin datos personales", "HTTPS", $tags="planificado")
+
+SHOW_LEGEND()
+@enduml
