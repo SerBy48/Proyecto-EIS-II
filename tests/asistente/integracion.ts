@@ -104,7 +104,7 @@ const principal = async (): Promise<void> => {
   const sinSesion = await decir('cual es el estado de mis pedidos');
   afirmar(sinSesion.datos.intencion === 'estado_pedido', 'Sin sesion, la intencion de pedidos se reconoce');
   afirmar(
-    /inicies sesion/.test(textos(sinSesion)) && deTipo(sinSesion, 'opciones')?.opciones?.[0]?.accion === 'iniciar_sesion',
+    /inicies sesión/.test(textos(sinSesion)) && deTipo(sinSesion, 'opciones')?.opciones?.[0]?.accion === 'iniciar_sesion',
     'Sin sesion pide iniciar sesion y no muestra ningun pedido',
     sinSesion.datos.respuestas
   );
@@ -145,10 +145,10 @@ const principal = async (): Promise<void> => {
   // ------------------------------------------------------------------
   titulo('3. Aislamiento entre clientes (invariantes 1 y 11)');
   const ajenoPorNumero = await decir(`estado del pedido ${objetivo.numero}`, { token: bruno });
-  afirmar(!deTipo(ajenoPorNumero, 'pedido') && /No encontre/.test(textos(ajenoPorNumero)), 'Bruno NO ve el pedido de Ana por su numero', ajenoPorNumero.datos);
+  afirmar(!deTipo(ajenoPorNumero, 'pedido') && /No encontré/.test(textos(ajenoPorNumero)), 'Bruno NO ve el pedido de Ana por su numero', ajenoPorNumero.datos);
 
   const ajenoPorId = await decir(`pedido ${objetivo.id}`, { token: bruno });
-  afirmar(!deTipo(ajenoPorId, 'pedido') && /No encontre/.test(textos(ajenoPorId)), 'Bruno NO ve el pedido de Ana por su id', ajenoPorId.datos);
+  afirmar(!deTipo(ajenoPorId, 'pedido') && /No encontré/.test(textos(ajenoPorId)), 'Bruno NO ve el pedido de Ana por su id', ajenoPorId.datos);
 
   const cancelarAjeno = await decir(`quiero cancelar el pedido ${objetivo.numero}`, { token: bruno });
   afirmar(!deTipo(cancelarAjeno, 'pedido'), 'Tampoco por la guia de cancelacion', cancelarAjeno.datos);

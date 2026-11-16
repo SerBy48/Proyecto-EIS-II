@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { api, moneda, nuevaClaveIdempotencia } from '../servicios/api';
 
+/** Controles para ensayar la pasarela simulada: solo en desarrollo y en builds de prueba (U-08). */
+const MODO_PRUEBAS = import.meta.env.DEV || import.meta.env.VITE_MODO_PRUEBAS === 'true';
+
 /**
  * Carrito y checkout.
  *
@@ -111,8 +114,8 @@ export default function Carrito({ usuario, carrito, recargarCarrito }) {
             <strong>{moneda(p.total)}</strong>.
           </p>
           <p className="text-sm text-green-700 mt-3">
-            Recibiras la confirmacion por correo. El envio de esa notificacion es asincrono,
-            asi que puede tardar unos segundos en llegar.
+            Recibirás la confirmación por correo. El envío de esa notificación es asincrono,
+            así que puede tardar unos segundos en llegar.
           </p>
           <button
             onClick={() => setResultado(null)}
@@ -135,13 +138,13 @@ export default function Carrito({ usuario, carrito, recargarCarrito }) {
           </h1>
           <p className="text-amber-800 text-center">{resultado.mensaje}</p>
           <div className="mt-5 bg-white border border-amber-200 rounded-lg p-4 text-sm text-gray-700">
-            <p className="font-semibold mb-2">Que ocurrio con tu compra:</p>
+            <p className="font-semibold mb-2">Qué ocurrió con tu compra:</p>
             <ul className="space-y-1 list-disc list-inside">
               <li>
                 El pedido <strong>{resultado.detalle?.numero}</strong> quedo registrado como
                 cancelado.
               </li>
-              <li>No se realizo ningun cobro a tu medio de pago.</li>
+              <li>No se realizó ningún cobro a tu medio de pago.</li>
               <li>Los productos volvieron a estar disponibles para otros clientes.</li>
               <li>Tu carrito se conserva: puedes intentar con otro medio de pago.</li>
             </ul>
@@ -170,7 +173,7 @@ export default function Carrito({ usuario, carrito, recargarCarrito }) {
 
         {items.length === 0 ? (
           <div className="bg-white border border-gray-200 rounded-xl p-10 text-center text-gray-500">
-            Tu carrito esta vacio.
+            Tu carrito está vacío.
           </div>
         ) : (
           <ul className="bg-white border border-gray-200 rounded-xl divide-y">
@@ -245,7 +248,7 @@ export default function Carrito({ usuario, carrito, recargarCarrito }) {
             <dd>{moneda(totales.impuestos)}</dd>
           </div>
           <div className="flex justify-between">
-            <dt className="text-gray-600">Envio</dt>
+            <dt className="text-gray-600">Envío</dt>
             <dd>{totales.envio === 0 ? 'Gratis' : moneda(totales.envio)}</dd>
           </div>
           <div className="flex justify-between pt-3 border-t font-bold text-base">
@@ -256,7 +259,7 @@ export default function Carrito({ usuario, carrito, recargarCarrito }) {
 
         <div className="mt-5">
           <label htmlFor="cupon" className="block text-xs font-semibold text-gray-700 mb-1">
-            Cupon
+            Cupón
           </label>
           <div className="flex gap-2">
             <input
@@ -286,28 +289,35 @@ export default function Carrito({ usuario, carrito, recargarCarrito }) {
             onChange={(e) => setMedioPago(e.target.value)}
             className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm mb-2"
           >
-            <option value="tarjeta_credito">Tarjeta de credito</option>
-            <option value="tarjeta_debito">Tarjeta debito</option>
+            <option value="tarjeta_credito">Tarjeta de crédito</option>
+            <option value="tarjeta_debito">Tarjeta débito</option>
             <option value="pse">PSE</option>
             <option value="efecty">Efecty</option>
           </select>
 
-          {/* En produccion este token lo genera la pasarela; aqui se expone
-              para poder probar los distintos desenlaces del pago. */}
-          <label htmlFor="token-pasarela" className="block text-xs font-semibold text-gray-700 mb-1">
-            Token de la pasarela (pruebas)
-          </label>
-          <select
-            id="token-pasarela"
-            value={tokenTarjeta}
-            onChange={(e) => setTokenTarjeta(e.target.value)}
-            className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm"
-          >
-            <option value="tok_ok_4242">tok_ok_4242 (aprueba)</option>
-            <option value="tok_rechazo_1111">tok_rechazo_1111 (rechaza)</option>
-            <option value="tok_error_9999">tok_error_9999 (falla la pasarela)</option>
-            <option value="tok_lento_7777">tok_lento_7777 (provoca timeout)</option>
-          </select>
+          {/* U-08: en produccion el token lo genera la pasarela y el cliente
+              nunca ve este control. Solo aparece en desarrollo y en las
+              compilaciones de prueba (VITE_MODO_PRUEBAS=true, npm run
+              build:web:pruebas), para ensayar los desenlaces del pago. */}
+          {MODO_PRUEBAS && (
+            <fieldset className="mt-1 border border-dashed border-amber-400 bg-amber-50 rounded-lg p-2">
+              <legend className="px-1 text-xs font-semibold text-amber-800">Modo de pruebas</legend>
+              <label htmlFor="token-pasarela" className="block text-xs text-amber-900 mb-1">
+                Respuesta simulada de la pasarela
+              </label>
+              <select
+                id="token-pasarela"
+                value={tokenTarjeta}
+                onChange={(e) => setTokenTarjeta(e.target.value)}
+                className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm bg-white"
+              >
+                <option value="tok_ok_4242">Pago aprobado</option>
+                <option value="tok_rechazo_1111">Pago rechazado (fondos insuficientes)</option>
+                <option value="tok_error_9999">Error de la pasarela</option>
+                <option value="tok_lento_7777">Pasarela lenta</option>
+              </select>
+            </fieldset>
+          )}
         </div>
 
         <button
@@ -319,8 +329,8 @@ export default function Carrito({ usuario, carrito, recargarCarrito }) {
         </button>
 
         <p className="text-xs text-gray-500 mt-3 leading-relaxed">
-          Al confirmar se reserva el stock, se cobra y solo entonces se descuenta el inventario.
-          Si el pago falla, la reserva se libera automaticamente.
+          Apartamos tus productos mientras se procesa el pago. Si el pago no se aprueba, no se
+          te cobra nada y los productos siguen en tu carrito.
         </p>
       </aside>
     </div>

@@ -229,7 +229,7 @@ const escribirCredenciales = async (t: Tarea, correo: string) => {
 };
 
 const iniciarSesionUI = async (t: Tarea, correo: string) => {
-  await t.clic(t.pagina.getByRole('button', { name: 'Iniciar sesion' }), 'Abrir el formulario de inicio de sesion');
+  await t.clic(t.pagina.getByRole('button', { name: 'Iniciar sesión' }), 'Abrir el formulario de inicio de sesion');
   await escribirCredenciales(t, correo);
   await t.clic(t.pagina.getByRole('button', { name: 'Ingresar' }), 'Pulsar Ingresar', { pensar: false });
   await t.esperar(() => t.pagina.getByRole('button', { name: 'Salir' }).waitFor(), 'Esperar la sesion iniciada');
@@ -265,7 +265,7 @@ const tareas = async (pagina: Page): Promise<ResultadoTarea[]> => {
   await analizar(pagina, 'Catalogo (visitante)');
 
   r.push(await ejecutarTarea(pagina, 'T1', 'Iniciar sesion como cliente', 30, async (t) => {
-    await t.clic(pagina.getByRole('button', { name: 'Iniciar sesion' }), 'Abrir el formulario de inicio de sesion');
+    await t.clic(pagina.getByRole('button', { name: 'Iniciar sesión' }), 'Abrir el formulario de inicio de sesion');
     await analizar(pagina, 'Inicio de sesion');
     await t.captura('T1-formulario');
     const desplegable = await esDesplegable(pagina);
@@ -320,7 +320,11 @@ const tareas = async (pagina: Page): Promise<ResultadoTarea[]> => {
     }
     await t.captura('T3-aviso-agregado');
     const aviso = (await pagina.getByRole('status').filter({ hasText: 'agregado al carrito' }).first().textContent()) ?? '';
-    t.observaciones.push(`El aviso de confirmacion dice "${aviso.trim()}": muestra el SKU, no el nombre del producto.`);
+    t.observaciones.push(
+      /SKU-[A-Z]{3}-\d{3}/.test(aviso)
+        ? `El aviso de confirmacion dice "${aviso.trim()}": muestra el SKU, no el nombre del producto.`
+        : `El aviso de confirmacion dice "${aviso.trim()}": nombra el producto y flota bajo la cabecera (U-07 corregido).`
+    );
     await t.clic(nav(pagina, /^Carrito/), 'Ir al carrito');
     await t.esperar(() => pagina.getByRole('heading', { name: 'Tu carrito' }).waitFor(), 'Esperar el carrito');
     await t.clic(pagina.getByRole('button', { name: /^Aumentar cantidad/ }).first(), 'Aumentar la cantidad del primer producto');
@@ -382,7 +386,7 @@ const tareas = async (pagina: Page): Promise<ResultadoTarea[]> => {
   }));
 
   r.push(await ejecutarTarea(pagina, 'T7', 'Comprar con pago rechazado e interpretar el mensaje', 90, async (t) => {
-    await t.clic(nav(pagina, /^Catalogo/), 'Volver al catalogo');
+    await t.clic(nav(pagina, /^Catálogo/), 'Volver al catalogo');
     await t.esperar(() => sinCarga(pagina), 'Esperar el catalogo');
     await t.clic(pagina.getByRole('button', { name: /^Agregar al carrito/ }).first(), 'Agregar un producto');
     await t.esperar(() => pagina.getByRole('status').filter({ hasText: 'agregado al carrito' }).first().waitFor(), 'Esperar el aviso');
@@ -397,7 +401,7 @@ const tareas = async (pagina: Page): Promise<ResultadoTarea[]> => {
     await t.captura('T7-pago-rechazado');
     const texto = (await pagina.getByRole('alert').textContent()) ?? '';
     t.observaciones.push(
-      /ningun cobro/i.test(texto) && /cancelado/i.test(texto)
+      /ningún cobro/i.test(texto) && /cancelado/i.test(texto)
         ? 'La pantalla explica que el pedido quedo cancelado, que no hubo cobro y que el carrito se conserva.'
         : 'La pantalla de rechazo no explica con claridad que paso con el cobro.'
     );
@@ -407,7 +411,7 @@ const tareas = async (pagina: Page): Promise<ResultadoTarea[]> => {
   r.push(await ejecutarTarea(pagina, 'T8', 'Registrar stock y avanzar un pedido como administrador', 90, async (t) => {
     await t.clic(pagina.getByRole('button', { name: 'Salir' }), 'Cerrar la sesion de cliente');
     await iniciarSesionUI(t, 'admin@tienda.co');
-    await t.esperar(() => pagina.getByRole('navigation', { name: 'Secciones de administracion' }).waitFor(), 'Esperar el panel');
+    await t.esperar(() => pagina.getByRole('navigation', { name: 'Secciones de administración' }).waitFor(), 'Esperar el panel');
     await analizar(pagina, 'Administracion: salud');
     await t.captura('T8-salud');
     await t.clic(pagina.getByRole('button', { name: 'Inventario', exact: true }), 'Abrir Inventario');
@@ -428,6 +432,34 @@ const tareas = async (pagina: Page): Promise<ResultadoTarea[]> => {
     await analizar(pagina, 'Administracion: pedidos');
     await t.captura('T8-pedido-en-preparacion');
     t.observaciones.push('La tabla de pedidos muestra el id numerico del cliente, no su nombre; los cambios de estado no piden confirmacion.');
+  }));
+
+  // T9 (Trabajo Final): el asistente. Una pregunta con opcion rapida y otra
+  // escrita, para comparar el costo KLM de las dos formas de interaccion.
+  r.push(await ejecutarTarea(pagina, 'T9', 'Preguntar al asistente el costo del envio y el estado del ultimo pedido', 60, async (t) => {
+    await t.clic(pagina.getByRole('button', { name: 'Salir' }), 'Cerrar la sesion de administrador');
+    await iniciarSesionUI(t, 'ana@correo.co');
+    await t.clic(pagina.getByRole('button', { name: '¿Necesitas ayuda?' }), 'Abrir el asistente');
+    const panel = pagina.getByRole('dialog', { name: 'Asistente virtual' });
+    await t.esperar(() => panel.waitFor(), 'Esperar el panel');
+    t.leer('Leer el saludo y las opciones rapidas');
+    await t.clic(panel.getByRole('button', { name: 'Costo de envío' }), 'Elegir la opcion "Costo de envio"');
+    await t.esperar(() => panel.getByText(/El envío cuesta/).waitFor(), 'Esperar la respuesta del envio');
+    t.leer('Leer el costo y el umbral de envio gratis');
+    await t.escribir(panel.getByLabel('Escribe tu pregunta'), 'estado de mi ultimo pedido', 'Escribir la pregunta del pedido');
+    await t.clic(panel.getByRole('button', { name: 'Enviar' }), 'Pulsar Enviar', { pensar: false });
+    await t.esperar(() => panel.getByText(/Tu último pedido/).waitFor(), 'Esperar la respuesta del pedido');
+    t.leer('Leer el estado del ultimo pedido');
+    await analizar(pagina, 'Asistente virtual');
+    await t.captura('T9-asistente');
+    const respuesta = (await panel.getByText(/Tu último pedido/).textContent()) ?? '';
+    t.observaciones.push(
+      /Tu último pedido, PED-\d{6}-\d{6}, está /.test(respuesta)
+        ? `El asistente responde con el numero y el estado del ultimo pedido ("${respuesta.slice(0, 70)}...") y lista los mas recientes.`
+        : 'La respuesta del pedido no trae el numero y el estado.'
+    );
+    t.observaciones.push(/[áéíóú]/.test(respuesta) ? 'Los textos del asistente llevan tildes (U-13 corregido).' : 'Los textos del asistente no llevan tildes (hallazgo U-13).');
+    await pagina.keyboard.press('Escape');
   }));
 
   return r;
@@ -462,7 +494,7 @@ const estados = async (navegador: Browser): Promise<Estado[]> => {
   {
     const p = await nueva();
     await p.goto(URL_WEB);
-    await p.getByRole('button', { name: 'Iniciar sesion' }).click();
+    await p.getByRole('button', { name: 'Iniciar sesión' }).click();
     if (await esDesplegable(p)) await p.locator('#login-correo').selectOption('bruno@correo.co');
     else await p.locator('#login-correo').fill('bruno@correo.co');
     await p.locator('#login-password').fill('incorrecta');
@@ -529,11 +561,11 @@ const estados = async (navegador: Browser): Promise<Estado[]> => {
 
   // E4. Carrito vacio.
   await nav(p, /^Carrito/).click();
-  await p.getByText('Tu carrito esta vacio').waitFor();
-  registrar({ id: 'E4', estado: 'Carrito vacio', resultado: 'Mensaje "Tu carrito esta vacio." sin enlace para volver al catalogo; el boton Pagar queda deshabilitado mostrando $0.', captura: await foto(p, 'E4-carrito-vacio') });
+  await p.getByText('Tu carrito está vacío').waitFor();
+  registrar({ id: 'E4', estado: 'Carrito vacio', resultado: 'Mensaje "Tu carrito está vacío." sin enlace para volver al catalogo; el boton Pagar queda deshabilitado mostrando $0.', captura: await foto(p, 'E4-carrito-vacio') });
 
   // E5. Cupon invalido: ¿donde aparece el error?
-  await nav(p, /^Catalogo/).click();
+  await nav(p, /^Catálogo/).click();
   await sinCarga(p);
   await p.getByRole('button', { name: /^Agregar al carrito/ }).first().click();
   await p.getByRole('status').filter({ hasText: 'agregado' }).first().waitFor();
@@ -563,7 +595,7 @@ const estados = async (navegador: Browser): Promise<Estado[]> => {
       localStorage.setItem('token', t);
       localStorage.setItem('refresh_token', 'invalido.invalido');
     }, expirado);
-    await nav(p, /^Catalogo/).click();
+    await nav(p, /^Catálogo/).click();
     await nav(p, /^Mis pedidos/).click();
     await p.getByRole('alert').waitFor();
     const sigueLogueado = await p.getByRole('button', { name: 'Salir' }).count();
@@ -625,7 +657,7 @@ const estados = async (navegador: Browser): Promise<Estado[]> => {
   {
     const c = await nueva();
     await c.goto(URL_WEB);
-    await c.getByRole('button', { name: 'Iniciar sesion' }).click();
+    await c.getByRole('button', { name: 'Iniciar sesión' }).click();
     let resultado: string;
     if (await esDesplegable(c)) {
       const opciones = await c.locator('#login-correo option').allTextContents();

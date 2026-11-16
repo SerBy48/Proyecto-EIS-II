@@ -54,10 +54,10 @@ export interface Salida {
 }
 
 export const MENU: Opcion[] = [
-  { etiqueta: 'Costo de envio', texto: 'Cuanto cuesta el envio?' },
+  { etiqueta: 'Costo de envío', texto: 'Cuánto cuesta el envío?' },
   { etiqueta: 'Buscar un producto', texto: 'Quiero buscar un producto' },
-  { etiqueta: 'Mis pedidos', texto: 'Cual es el estado de mis pedidos?' },
-  { etiqueta: 'Medios de pago', texto: 'Cuales son los medios de pago?' },
+  { etiqueta: 'Mis pedidos', texto: 'Cuál es el estado de mis pedidos?' },
+  { etiqueta: 'Medios de pago', texto: 'Cuáles son los medios de pago?' },
   { etiqueta: 'Hablar con un asesor', texto: 'Quiero hablar con un asesor' }
 ];
 
@@ -67,7 +67,7 @@ const opciones = (lista: Opcion[]): Respuesta => ({ tipo: 'opciones', opciones: 
 const NOMBRE_ESTADO: Record<string, string> = {
   creado: 'creado (pendiente de pago)',
   pagado: 'pagado',
-  en_preparacion: 'en preparacion',
+  en_preparacion: 'en preparación',
   enviado: 'enviado',
   entregado: 'entregado',
   cancelado: 'cancelado'
@@ -76,8 +76,8 @@ export const describirEstado = (estado: string) => NOMBRE_ESTADO[estado] ?? esta
 
 const pedirSesion = (que: string): Salida => ({
   respuestas: [
-    texto(`Para ${que} necesito que inicies sesion: solo te muestro tus propios pedidos.`),
-    opciones([{ etiqueta: 'Iniciar sesion', accion: 'iniciar_sesion' }])
+    texto(`Para ${que} necesito que inicies sesión: solo te muestro tus propios pedidos.`),
+    opciones([{ etiqueta: 'Iniciar sesión', accion: 'iniciar_sesion' }])
   ]
 });
 
@@ -96,7 +96,7 @@ export const informacionPublica = (faq: Map<string, string>): string =>
 
 const responderFaq = (clave: string, ctx: Contexto): Salida => {
   const respuesta = ctx.faq.get(clave);
-  if (!respuesta) return { respuestas: [texto('No tengo esa informacion todavia.'), opciones(MENU)] };
+  if (!respuesta) return { respuestas: [texto('No tengo esa información todavía.'), opciones(MENU)] };
   const salida: Respuesta[] = [texto(completarPlantilla(respuesta))];
   if (clave === 'faq_horario') salida.push(opciones([{ etiqueta: 'Hablar con un asesor', texto: 'Quiero hablar con un asesor' }]));
   return { respuestas: salida };
@@ -109,7 +109,7 @@ const responderBusqueda = async (ctx: Contexto): Promise<Salida> => {
       const categorias = await listarCategorias(ctx.requestId);
       return {
         respuestas: [
-          texto('Claro. ¿Que producto buscas? Escribe su nombre o elige una categoria.'),
+          texto('Claro. ¿Qué producto buscas? Escribe su nombre o elige una categoría.'),
           opciones(categorias.map((c) => ({ etiqueta: `${c.categoria} (${c.productos})`, texto: `Busco ${c.categoria}` })))
         ],
         pendiente: { intencion: 'buscar_producto', espera: 'producto' }
@@ -118,13 +118,13 @@ const responderBusqueda = async (ctx: Contexto): Promise<Salida> => {
     const productos = await buscarProductos(consulta, ctx.requestId);
     if (!productos.length) {
       return {
-        respuestas: [texto(`No encontre productos para "${consulta}". Prueba con otra palabra, por ejemplo la marca o la categoria.`)],
+        respuestas: [texto(`No encontré productos para "${consulta}". Prueba con otra palabra, por ejemplo la marca o la categoría.`)],
         pendiente: { intencion: 'buscar_producto', espera: 'producto' }
       };
     }
-    return { respuestas: [texto(`Esto encontre para "${consulta}":`), { tipo: 'productos', productos }] };
+    return { respuestas: [texto(`Esto encontré para "${consulta}":`), { tipo: 'productos', productos }] };
   } catch (error) {
-    if (esServicioCaido(error)) return noDisponible('el catalogo');
+    if (esServicioCaido(error)) return noDisponible('el catálogo');
     throw error;
   }
 };
@@ -135,7 +135,7 @@ const frasePrecio = (p: ProductoResumen): string => {
       ? 'ahora no puedo confirmar cuantas unidades hay'
       : p.disponible > 0
         ? `hay ${p.disponible} unidad${p.disponible === 1 ? '' : 'es'} disponible${p.disponible === 1 ? '' : 's'}`
-        : 'esta agotado por ahora';
+        : 'está agotado por ahora';
   return `${p.nombre} (${p.sku}) cuesta ${moneda(p.precio_final)} antes de IVA y ${existencias}.`;
 };
 
@@ -143,18 +143,18 @@ const responderPrecio = async (r: Resultado, ctx: Contexto): Promise<Salida> => 
   try {
     if (r.entidades.sku) {
       const producto = await productoPorSku(r.entidades.sku, ctx.requestId);
-      if (!producto) return { respuestas: [texto(`No encontre el producto ${r.entidades.sku}. Revisa el codigo.`)] };
+      if (!producto) return { respuestas: [texto(`No encontré el producto ${r.entidades.sku}. Revisa el código.`)] };
       return { respuestas: [texto(frasePrecio(producto)), { tipo: 'productos', productos: [producto] }] };
     }
     const consulta = extraerConsultaProducto(ctx.texto);
     if (!consulta) {
       return {
-        respuestas: [texto('¿De que producto quieres saber el precio? Escribe su nombre o su codigo (por ejemplo SKU-TEC-001).')],
+        respuestas: [texto('¿De qué producto quieres saber el precio? Escribe su nombre o su código (por ejemplo SKU-TEC-001).')],
         pendiente: { intencion: 'precio_disponibilidad', espera: 'producto' }
       };
     }
     const [primero, ...otros] = await buscarProductos(consulta, ctx.requestId);
-    if (!primero) return { respuestas: [texto(`No encontre productos para "${consulta}".`)] };
+    if (!primero) return { respuestas: [texto(`No encontré productos para "${consulta}".`)] };
     return { respuestas: [texto(frasePrecio(primero)), { tipo: 'productos', productos: [primero, ...otros] }] };
   } catch (error) {
     if (esServicioCaido(error)) return noDisponible('los precios');
@@ -169,21 +169,21 @@ const responderEstadoPedido = async (r: Resultado, ctx: Contexto): Promise<Salid
       const pedido = await pedidoDelUsuario(r.entidades.pedido, ctx.autorizacion, ctx.requestId);
       if (!pedido) {
         // Igual que la API: un pedido de otra persona se responde como inexistente.
-        return { respuestas: [texto(`No encontre el pedido ${r.entidades.pedido} entre tus pedidos.`)] };
+        return { respuestas: [texto(`No encontré el pedido ${r.entidades.pedido} entre tus pedidos.`)] };
       }
       return {
         respuestas: [
-          texto(`Tu pedido ${pedido.numero} esta ${describirEstado(pedido.estado)}.`),
+          texto(`Tu pedido ${pedido.numero} está ${describirEstado(pedido.estado)}.`),
           { tipo: 'pedido', pedido: resumirPedido(pedido) }
         ]
       };
     }
     const lista = await pedidosDelUsuario(ctx.autorizacion, ctx.requestId);
-    if (!lista.length) return { respuestas: [texto('Todavia no tienes pedidos.'), opciones(MENU)] };
+    if (!lista.length) return { respuestas: [texto('Todavía no tienes pedidos.'), opciones(MENU)] };
     const ultimos = lista.slice(0, 3).map(resumirPedido);
     return {
       respuestas: [
-        texto(`Tu ultimo pedido, ${ultimos[0].numero}, esta ${describirEstado(ultimos[0].estado)}. Estos son los mas recientes; si quieres el detalle de uno, escribe su numero.`),
+        texto(`Tu último pedido, ${ultimos[0].numero}, está ${describirEstado(ultimos[0].estado)}. Estos son los más recientes; si quieres el detalle de uno, escribe su número.`),
         { tipo: 'pedidos', pedidos: ultimos },
         opciones([{ etiqueta: 'Ver todos mis pedidos', accion: 'ir_pedidos' }])
       ],
@@ -209,19 +209,19 @@ const responderCancelacion = async (r: Resultado, ctx: Contexto): Promise<Salida
   if (!r.entidades.pedido) {
     return {
       respuestas: [
-        texto('Puedes cancelar un pedido mientras este creado o pagado (si ya esta pagado, el reembolso es automatico). ¿Cual es el numero del pedido?')
+        texto('Puedes cancelar un pedido mientras esté creado o pagado (si ya está pagado, el reembolso es automático). ¿Cuál es el número del pedido?')
       ],
       pendiente: { intencion: 'cancelar_pedido', espera: 'pedido' }
     };
   }
   try {
     const pedido = await pedidoDelUsuario(r.entidades.pedido, ctx.autorizacion, ctx.requestId);
-    if (!pedido) return { respuestas: [texto(`No encontre el pedido ${r.entidades.pedido} entre tus pedidos.`)] };
+    if (!pedido) return { respuestas: [texto(`No encontré el pedido ${r.entidades.pedido} entre tus pedidos.`)] };
     const tarjeta: Respuesta = { tipo: 'pedido', pedido: resumirPedido(pedido) };
     if (['creado', 'pagado'].includes(pedido.estado)) {
       return {
         respuestas: [
-          texto(`El pedido ${pedido.numero} aun se puede cancelar. Hazlo desde "Mis pedidos": abre el pedido y pulsa "Cancelar pedido"; te pediremos confirmarlo.`),
+          texto(`El pedido ${pedido.numero} aún se puede cancelar. Hazlo desde "Mis pedidos": abre el pedido y pulsa "Cancelar pedido"; te pediremos confirmarlo.`),
           tarjeta,
           opciones([{ etiqueta: 'Ir a mis pedidos', accion: 'ir_pedidos' }])
         ]
@@ -230,13 +230,13 @@ const responderCancelacion = async (r: Resultado, ctx: Contexto): Promise<Salida
     if (pedido.estado === 'en_preparacion') {
       return {
         respuestas: [
-          texto(`El pedido ${pedido.numero} ya esta en preparacion y no se puede cancelar desde la tienda. Un asesor puede ayudarte.`),
+          texto(`El pedido ${pedido.numero} ya está en preparación y no se puede cancelar desde la tienda. Un asesor puede ayudarte.`),
           tarjeta,
           opciones([{ etiqueta: 'Hablar con un asesor', texto: 'Quiero hablar con un asesor' }])
         ]
       };
     }
-    return { respuestas: [texto(`El pedido ${pedido.numero} esta ${describirEstado(pedido.estado)} y ya no se puede cancelar.`), tarjeta] };
+    return { respuestas: [texto(`El pedido ${pedido.numero} está ${describirEstado(pedido.estado)} y ya no se puede cancelar.`), tarjeta] };
   } catch (error) {
     if (esServicioCaido(error)) return noDisponible('tus pedidos');
     throw error;
@@ -251,13 +251,13 @@ const responderEscalamiento = async (ctx: Contexto): Promise<Salida> => {
     ticket: numero,
     conversacion_id: ctx.conversacionId,
     cliente_id: ctx.usuario?.cliente_id ?? null,
-    contacto: ctx.usuario?.email ?? 'visitante sin sesion'
+    contacto: ctx.usuario?.email ?? 'visitante sin sesión'
   }, ctx.requestId);
   return {
     respuestas: [
       texto(
-        `Listo, registre tu solicitud con el numero ${numero}. Un asesor la revisara ${
-          ctx.usuario ? 'y te escribira a tu correo' : 'en el horario de atencion; si inicias sesion, podra escribirte a tu correo'
+        `Listo, registré tu solicitud con el número ${numero}. Un asesor la revisará ${
+          ctx.usuario ? 'y te escribirá a tu correo' : 'en el horario de atención; si inicias sesión, podrá escribirte a tu correo'
         }.`
       )
     ]
@@ -278,7 +278,7 @@ export const responder = async (r: Resultado, ctx: Contexto): Promise<Salida> =>
     case 'ayuda':
       return { respuestas: [texto('Esto es lo que puedo hacer por ti:'), opciones(MENU)] };
     case 'despedida':
-      return { respuestas: [texto('¡Con gusto! Si necesitas algo mas, aqui estoy.')] };
+      return { respuestas: [texto('¡Con gusto! Si necesitas algo más, aquí estoy.')] };
     case 'buscar_producto':
       return responderBusqueda(ctx);
     case 'precio_disponibilidad':
@@ -295,12 +295,12 @@ export const responder = async (r: Resultado, ctx: Contexto): Promise<Salida> =>
         if (respuestaIa) return { respuestas: [texto(respuestaIa), opciones(MENU)] };
       }
       return {
-        respuestas: [texto('No estoy seguro de haberte entendido. ¿Puedes decirlo de otra forma? Tambien puedes elegir una opcion:'), opciones(MENU)]
+        respuestas: [texto('No estoy seguro de haberte entendido. ¿Puedes decirlo de otra forma? También puedes elegir una opción:'), opciones(MENU)]
       };
     }
     default:
       if (r.intencion.startsWith('faq_')) return responderFaq(r.intencion, ctx);
       log.warn('Intencion sin respuesta definida', { intencion: r.intencion });
-      return { respuestas: [texto('Todavia no se responder eso.'), opciones(MENU)] };
+      return { respuestas: [texto('Todavía no sé responder eso.'), opciones(MENU)] };
   }
 };

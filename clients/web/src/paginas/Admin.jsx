@@ -12,8 +12,8 @@ export default function Admin() {
 
   return (
     <div className="max-w-6xl mx-auto p-4 sm:p-6">
-      <h1 className="sr-only">Panel de administracion</h1>
-      <nav aria-label="Secciones de administracion" className="relative flex gap-2 mb-6 border-b overflow-x-auto">
+      <h1 className="sr-only">Panel de administración</h1>
+      <nav aria-label="Secciones de administración" className="relative flex gap-2 mb-6 border-b overflow-x-auto">
         {[
           ['salud', 'Salud del sistema'],
           ['inventario', 'Inventario'],
@@ -122,7 +122,7 @@ function Salud() {
 
       <p className="mt-6 text-xs text-gray-500 leading-relaxed max-w-2xl">
         Una dependencia marcada como no critica (por ejemplo el message broker) puede estar caida
-        sin que el servicio se considere fuera de linea: los eventos quedan pendientes y se
+        sin que el servicio se considere fuera de línea: los eventos quedan pendientes y se
         procesan al restablecerse, pero la venta sigue funcionando.
       </p>
     </div>
@@ -176,7 +176,7 @@ function Inventario() {
                 <th className="px-4 py-2">SKU</th>
                 <th className="px-4 py-2">Bodega</th>
                 <th className="px-4 py-2">Disponible</th>
-                <th className="px-4 py-2">Minimo</th>
+                <th className="px-4 py-2">Mínimo</th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -191,7 +191,7 @@ function Inventario() {
               {alertas.length === 0 && (
                 <tr>
                   <td colSpan="4" className="px-4 py-6 text-center text-gray-500">
-                    Ningun producto por debajo del minimo.
+                    Ningún producto por debajo del mínimo.
                   </td>
                 </tr>
               )}
@@ -278,11 +278,11 @@ function PedidosAdmin() {
         <table className="min-w-full text-sm whitespace-nowrap">
           <thead className="bg-gray-50 text-xs uppercase text-gray-500 text-left">
             <tr>
-              <th className="px-4 py-2">Numero</th>
+              <th className="px-4 py-2">Número</th>
               <th className="px-4 py-2">Cliente</th>
               <th className="px-4 py-2">Total</th>
               <th className="px-4 py-2">Estado</th>
-              <th className="px-4 py-2">Accion</th>
+              <th className="px-4 py-2">Acción</th>
             </tr>
           </thead>
           <tbody className="divide-y">
@@ -356,7 +356,7 @@ function Notificaciones() {
           </div>
         ))}
         {mensajes.length === 0 && !error && (
-          <p className="text-gray-500 text-sm">Todavia no se ha enviado ningun mensaje.</p>
+          <p className="text-gray-500 text-sm">Todavía no se ha enviado ningún mensaje.</p>
         )}
       </div>
     </div>

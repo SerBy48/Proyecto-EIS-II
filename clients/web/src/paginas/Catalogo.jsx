@@ -99,7 +99,7 @@ export default function Catalogo({ usuario, alAgregar }) {
 
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto">
-      <h1 className="sr-only">Catalogo de productos</h1>
+      <h1 className="sr-only">Catálogo de productos</h1>
       <div role="search" className="flex flex-wrap gap-3 mb-6">
         <label htmlFor="filtro-q" className="sr-only">Buscar productos</label>
         <input
@@ -110,14 +110,14 @@ export default function Catalogo({ usuario, alAgregar }) {
           onChange={(e) => cambiarFiltro({ q: e.target.value })}
           className="flex-1 min-w-[200px] border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
         />
-        <label htmlFor="filtro-categoria" className="sr-only">Categoria</label>
+        <label htmlFor="filtro-categoria" className="sr-only">Categoría</label>
         <select
           id="filtro-categoria"
           value={filtros.categoria}
           onChange={(e) => cambiarFiltro({ categoria: e.target.value })}
           className="flex-1 sm:flex-none border border-gray-300 rounded-lg px-3 py-2"
         >
-          <option value="">Todas las categorias</option>
+          <option value="">Todas las categorías</option>
           {categorias.map((c) => (
             <option key={c.categoria} value={c.categoria}>
               {c.categoria} ({c.productos})
@@ -131,7 +131,7 @@ export default function Catalogo({ usuario, alAgregar }) {
           onChange={(e) => cambiarFiltro({ orden: e.target.value })}
           className="flex-1 sm:flex-none border border-gray-300 rounded-lg px-3 py-2"
         >
-          <option value="">Mas recientes</option>
+          <option value="">Más recientes</option>
           <option value="precio_asc">Precio: menor a mayor</option>
           <option value="precio_desc">Precio: mayor a menor</option>
           <option value="nombre">Nombre</option>
@@ -147,7 +147,7 @@ export default function Catalogo({ usuario, alAgregar }) {
 
       {error && (
         <div role="alert" className="mb-6 bg-red-50 border border-red-200 text-red-800 rounded-lg p-4">
-          <p className="font-semibold">No fue posible cargar el catalogo</p>
+          <p className="font-semibold">No fue posible cargar el catálogo</p>
           <p className="text-sm mt-1">{error}</p>
           <button onClick={cargar} className="mt-3 text-sm underline">
             Reintentar
@@ -210,7 +210,7 @@ export default function Catalogo({ usuario, alAgregar }) {
                   {agregando === p.sku
                     ? 'Agregando...'
                     : !usuario
-                      ? 'Inicie sesion para comprar'
+                      ? 'Inicie sesión para comprar'
                       : p.hay_stock === false
                         ? 'Agotado'
                         : 'Agregar al carrito'}
@@ -223,7 +223,7 @@ export default function Catalogo({ usuario, alAgregar }) {
       )}
 
       {!cargando && !error && totalPaginas > 1 && (
-        <nav aria-label="Paginas del catalogo" className="mt-8 flex flex-wrap items-center justify-center gap-2">
+        <nav aria-label="Páginas del catálogo" className="mt-8 flex flex-wrap items-center justify-center gap-2">
           <button
             onClick={() => irAPagina(pagina - 1)}
             disabled={pagina === 1}
@@ -236,7 +236,7 @@ export default function Catalogo({ usuario, alAgregar }) {
               key={n}
               onClick={() => irAPagina(n)}
               aria-current={n === pagina ? 'page' : undefined}
-              aria-label={`Pagina ${n}`}
+              aria-label={`Página ${n}`}
               className={`w-9 py-1.5 rounded-lg text-sm font-semibold ${
                 n === pagina ? 'bg-indigo-600 text-white' : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
               }`}
