@@ -56,12 +56,14 @@ ENDPOINT_PRINCIPAL = {
     "login": "login",
     "checkout": "checkout",
     "flujo-completo": "checkout",
+    "asistente": "asistente",
 }
 NOMBRE_ESCENARIO = {
     "catalogo-busqueda": "Catálogo (búsqueda)",
     "login": "Login",
     "checkout": "Checkout",
     "flujo-completo": "Flujo completo",
+    "asistente": "Asistente virtual",
 }
 NOMBRE_ENDPOINT = {
     "catalogo_busqueda": "GET /catalogo/productos?q=",
@@ -70,6 +72,7 @@ NOMBRE_ENDPOINT = {
     "carrito_agregar": "POST /carrito/:id/items",
     "mis_pedidos": "GET /pedidos",
     "catalogo_detalle": "GET /catalogo/productos/:sku",
+    "asistente": "POST /asistente/mensajes",
 }
 
 plt.rcParams.update(
@@ -456,6 +459,119 @@ def grafica_antes_despues(salida: dict, destino: Path):
     plt.close(fig)
 
 
+# ---------------------------------------------------------------------------
+# Carga con fallo inyectado (Trabajo Final, Fase 4)
+# ---------------------------------------------------------------------------
+GRIS_CAIDA = "#f2d7cc"
+
+
+def leer_eventos(ruta: Path):
+    """Marcas de tiempo (epoch) del docker stop y del docker start."""
+    parada = arranque = None
+    for linea in ruta.read_text(encoding="utf-8").splitlines():
+        partes = linea.split(" ", 2)
+        if len(partes) < 3:
+            continue
+        if partes[2].startswith("docker stop"):
+            parada = int(partes[0])
+        elif partes[2].startswith("docker start"):
+            arranque = int(partes[0])
+    return parada, arranque
+
+
+def serie_con_checks(ruta: Path, endpoint: str, nombre_check: str | None):
+    """Por balde: inicio absoluto, p95 del endpoint, % de errores y % del check."""
+    baldes = defaultdict(lambda: {"dur": [], "fallos": 0, "n": 0, "ok": 0, "chk": 0})
+    inicio = None
+    with gzip.open(ruta, "rt", encoding="utf-8") as f:
+        for linea in f:
+            if '"type":"Point"' not in linea:
+                continue
+            p = json.loads(linea)
+            d = p["data"]
+            t = datetime.fromisoformat(d["time"].replace("Z", "+00:00")).timestamp()
+            inicio = inicio if inicio is not None else t
+            etiquetas = d.get("tags") or {}
+            if etiquetas.get("fase") == "preparacion":
+                continue
+            b = baldes[int((t - inicio) // BALDE_S)]
+            m = p["metric"]
+            if m == "http_req_duration" and etiquetas.get("endpoint") == endpoint:
+                b["dur"].append(d["value"])
+            elif m == "http_req_failed":
+                b["n"] += 1
+                b["fallos"] += d["value"]
+            elif m == "checks" and nombre_check and etiquetas.get("check") == nombre_check:
+                b["chk"] += 1
+                b["ok"] += d["value"]
+    filas = []
+    for i in sorted(baldes):
+        b = baldes[i]
+        filas.append({
+            "t": i * BALDE_S,
+            "p95": percentil(b["dur"], 95),
+            "errores_pct": 100 * b["fallos"] / b["n"] if b["n"] else 0.0,
+            "check_pct": 100 * b["ok"] / b["chk"] if b["chk"] else float("nan"),
+        })
+    return inicio, filas
+
+
+def grafica_fallo(servicio: str, destino: Path, sufijo: str = ""):
+    escenario = "catalogo-busqueda" if servicio == "inventario" else "checkout"
+    serie = EVIDENCIA / f"{escenario}-carga-fallo-{servicio}{sufijo}-serie.json.gz"
+    eventos = EVIDENCIA / f"fallo-{servicio}{sufijo}-eventos.txt"
+    muestras = EVIDENCIA / f"fallo-{servicio}{sufijo}-muestras.csv"
+    if not (serie.exists() and eventos.exists() and muestras.exists()):
+        return None
+    inicio, filas = serie_con_checks(serie, ENDPOINT_PRINCIPAL[escenario],
+                                     "disponibilidad presente" if servicio == "inventario" else None)
+    parada, arranque = leer_eventos(eventos)
+    with muestras.open(encoding="utf-8") as f:
+        lector = list(csv.DictReader(f))
+    t = [f["t"] for f in filas]
+    if servicio == "inventario":
+        codigo = {"cerrado": 0, "semiabierto": 1, "abierto": 2}
+        tm = [int(x["marca_tiempo"]) - inicio for x in lector if x["circuito"] in codigo]
+        vm = [codigo[x["circuito"]] for x in lector if x["circuito"] in codigo]
+        paneles = [
+            ("Latencia p95 de GET /catalogo/productos?q= (ms)", t, [f["p95"] for f in filas], "linea"),
+            ("Respuestas con disponibilidad de stock (%)", t, [f["check_pct"] for f in filas], "linea"),
+            ("Errores del sistema (%)", t, [f["errores_pct"] for f in filas], "linea"),
+            ("Circuit breaker catálogo → inventario", tm, vm, "escalon"),
+        ]
+        titulo = "Inventario detenido durante la carga del catálogo (50 VU)" + (
+            " — antes de corregir R7" if sufijo == "-antes" else " — con R7 corregido" if sufijo == "" and (EVIDENCIA / "fallo-inventario-antes-eventos.txt").exists() else "")
+    else:
+        tm = [int(x["marca_tiempo"]) - inicio for x in lector if x["mensajes_en_cola"].strip() not in ("", "null")]
+        vm = [int(x["mensajes_en_cola"]) for x in lector if x["mensajes_en_cola"].strip() not in ("", "null")]
+        paneles = [
+            ("Latencia p95 de POST /pedidos/checkout (ms)", t, [f["p95"] for f in filas], "linea"),
+            ("Errores del sistema (%)", t, [f["errores_pct"] for f in filas], "linea"),
+            ("Mensajes en la cola notificaciones.envio", tm, vm, "linea"),
+        ]
+        titulo = "Notificaciones detenido durante la carga del checkout (50 VU)"
+    fig, ejes = plt.subplots(len(paneles), 1, figsize=(7.2, 1.85 * len(paneles) + 0.6), sharex=True)
+    for ax, (titulo_panel, x, y, tipo) in zip(ejes, paneles):
+        if parada and arranque:
+            ax.axvspan(parada - inicio, arranque - inicio, color=GRIS_CAIDA, linewidth=0, zorder=0)
+        if tipo == "escalon":
+            ax.step(x, y, where="post", color=VERDE, linewidth=1.6)
+            ax.set_yticks([0, 1, 2], ["cerrado", "semiabierto", "abierto"])
+        else:
+            ax.plot(x, y, color=VERDE, linewidth=1.6, solid_capstyle="round")
+            ax.set_ylim(bottom=0)
+        ax.set_title(titulo_panel, fontsize=9)
+    if parada and arranque:
+        ejes[0].annotate(f"{servicio} detenido ({arranque - parada} s)", ((parada - inicio), 1), xycoords=("data", "axes fraction"),
+                         xytext=(4, -12), textcoords="offset points", fontsize=8, color=TINTA)
+    rotulo_tiempo(ejes[-1])
+    fig.suptitle(titulo, x=0.01, ha="left", fontsize=11, fontweight="bold", color=TINTA)
+    fig.tight_layout()
+    fig.savefig(destino)
+    plt.close(fig)
+    return {"inicio_k6": inicio, "parada_s": parada - inicio if parada else None, "arranque_s": arranque - inicio if arranque else None}
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--solo", default="", help="procesar solo las corridas que empiezan por este prefijo")
@@ -493,6 +609,11 @@ def main():
                 grafica_cpu(nombre, escenario, stats, GRAFICAS / f"cpu-{nombre}.png")
                 grafica_cpu_tiempo(nombre, escenario, stats, filas, GRAFICAS / f"cpu-tiempo-{nombre}.png")
         salida[nombre] = entrada
+
+    for servicio, sufijo in (("inventario", "-antes"), ("inventario", ""), ("notificaciones", "")):
+        marcas = grafica_fallo(servicio, GRAFICAS / f"fallo-{servicio}{sufijo}.png", sufijo)
+        if marcas:
+            salida[f"fallo-{servicio}{sufijo}"] = marcas
 
     if not args.solo:
         grafica_comparativa(resumenes, GRAFICAS / "p95-por-escenario.png")
