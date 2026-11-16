@@ -1,0 +1,30 @@
+@startuml 03-componentes-gateway
+!include lib/C4_Component.puml
+!include estilo.puml
+title N3 - Componentes del API Gateway (services/api-gateway/src/index.ts)
+
+Container(web, "Web / App movil", "Cliente")
+Container(servicios, "Microservicios", "8 destinos (DESTINOS); +asistente en F3")
+Container(swagger, "Swagger UI", "/api/docs", $tags="planificado")
+
+Container_Boundary(gw, "API Gateway :8080") {
+  Component(seg, "Seguridad de transporte", "helmet + CORS", "Origenes de CORS_ORIGENES; rechazo -> 403 ORIGEN_NO_PERMITIDO")
+  Component(san, "Saneamiento", "CABECERAS_DE_CONFIANZA", "Borra x-usuario-*, x-llamada-interna... del exterior (invariante 10)")
+  Component(rid, "Correlacion", "request_id", "Genera o propaga x-request-id")
+  Component(rl, "Rate limiters", "express-rate-limit", "general (1 min), login (15 min), checkout (1 min)")
+  Component(jwt, "Validacion JWT", "esPublica() + RUTAS_PUBLICAS", "Lista blanca de rutas publicas; el resto exige Bearer; escribe x-usuario-id/rol/cliente")
+  Component(proxy, "Proxy", "http-proxy-middleware + http.Agent keep-alive", "proxyTimeout -> 504 TIEMPO_AGOTADO")
+  Component(salud, "Salud agregada", "GET /api/health", "Consulta /health de cada destino en paralelo (2 s)")
+}
+
+Rel(web, seg, "HTTPS")
+Rel(seg, san, "")
+Rel(san, rid, "")
+Rel(rid, rl, "")
+Rel(rl, jwt, "")
+Rel(jwt, proxy, "peticion autenticada")
+Rel(proxy, servicios, "REST/JSON")
+Rel(salud, servicios, "/health")
+Rel(seg, swagger, "antes de la validacion JWT", $tags="planificado")
+SHOW_LEGEND()
+@enduml

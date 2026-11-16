@@ -175,7 +175,7 @@ confirmada y cobrada.
 | `pago.rechazado` | pagos | notificaciones | Aviso al cliente |
 | `inventario.stock_minimo` | inventario | notificaciones | Alerta de reposición a operaciones |
 | `inventario.reserva_expirada` | inventario | — | Trazabilidad de reservas devueltas |
-| `carrito.abandonado` | carrito | notificaciones | Recordatorio al cliente |
+| `carrito.abandonado` | — (declarado; ningún servicio lo publica aún) | notificaciones | Punto de extensión: recordatorio al cliente cuando se implemente la detección de carritos inactivos |
 
 Los eventos sin consumidor están declarados a propósito: muestran los puntos de
 extensión donde encajarían facturación electrónica, analítica o el motor de

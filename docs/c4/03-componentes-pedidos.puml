@@ -1,0 +1,40 @@
+@startuml 03-componentes-pedidos
+!include lib/C4_Component.puml
+!include estilo.puml
+title N3 - Componentes de pedidos-service
+
+Container(gateway, "API Gateway", "Express")
+ContainerDb(pg, "pedidos_db", "PostgreSQL", "pedidos, pedido_items, saga_pasos, idempotencia")
+ContainerQueue(rabbit, "RabbitMQ", "ecommerce.eventos")
+Container(clientes, "clientes-service", "REST")
+Container(carrito, "carrito-service", "REST")
+Container(catalogo, "catalogo-service", "REST")
+Container(inventario, "inventario-service", "REST")
+Container(pagos, "pagos-service", "REST")
+
+Container_Boundary(pedidos, "pedidos-service :3006") {
+  Component(router, "Router", "index.ts + crearServicio()", "Rutas, requiereRol() y asincrono()")
+  Component(ctrl, "Controlador", "controlador.ts", "checkout, listar, detalle, cancelar, cambiar estado, bitacora de la saga")
+  Component(saga, "Orquestador de la saga", "saga-checkout.ts / ejecutarCheckout", "Pasos en orden; registra cada compensacion justo despues del efecto (invariante 5)")
+  Component(deps, "Clientes de dependencias", "dependencias.ts / ClienteServicio", "Timeout por servicio, reintentos solo red/5xx, circuit breaker; pagos sin reintento")
+  Component(repo, "Acceso a datos", "db.ts (pg Pool, SQL parametrizado)", "Pedidos, items y saga_pasos")
+  Component(pub, "Publicador de eventos", "BusEventos (shared)", "publicar() nunca tumba la operacion (invariante 12)")
+}
+
+Rel(gateway, router, "/api/pedidos/*", "REST + x-usuario-*")
+Rel(router, ctrl, "invoca")
+Rel(ctrl, saga, "POST /checkout con Idempotency-Key")
+Rel(ctrl, repo, "consultas")
+Rel(saga, repo, "registrarPaso(), crear pedido")
+Rel(saga, deps, "llamadas sincronas")
+Rel(saga, pub, "pedido.confirmado / pedido.cancelado")
+Rel(ctrl, pub, "cambios de estado")
+Rel(repo, pg, "SQL")
+Rel(pub, rabbit, "AMQP", $tags="asincrono")
+Rel(deps, clientes, "validar cliente (2 s)")
+Rel(deps, carrito, "leer carrito (2 s)")
+Rel(deps, catalogo, "precio vigente (2 s)")
+Rel(deps, inventario, "reservar / confirmar / liberar (3 s)")
+Rel(deps, pagos, "cobrar (10 s, sin reintento)")
+SHOW_LEGEND()
+@enduml

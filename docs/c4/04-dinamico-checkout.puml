@@ -1,0 +1,39 @@
+@startuml 04-dinamico-checkout
+!include lib/C4_Sequence.puml
+!include estilo.puml
+title Dinamico - Checkout como saga orquestada (saga-checkout.ts)
+
+Person(cliente, "Cliente")
+Container(gw, "API Gateway")
+Container(ped, "pedidos-service", "orquestador")
+Container(cli, "clientes-service")
+Container(car, "carrito-service")
+Container(cat, "catalogo-service")
+Container(inv, "inventario-service")
+Container(pag, "pagos-service")
+ContainerQueue(mq, "RabbitMQ")
+
+Rel(cliente, gw, "POST /api/pedidos/checkout + Idempotency-Key")
+Rel(gw, ped, "proxy con x-usuario-* (cliente_id del JWT)")
+Rel(ped, cli, "1. validar_cliente: cliente y direccion")
+Rel(ped, car, "2. leer_carrito")
+Rel(ped, cat, "3. verificar_precios (precio vigente, invariante 2)")
+Rel(ped, inv, "4. reservar_stock por item (clave idempotente)")
+note right of ped: compensacion registrada al instante:\nliberar_reserva:{sku} (invariante 5)
+Rel(ped, ped, "5. crear_pedido (pendiente) -> compensacion cancelar_pedido")
+Rel(ped, pag, "6. cobrar (sin reintento, idempotente)")
+alt pago aprobado
+  Rel(ped, inv, "7. confirmar_reserva por item")
+  note right of ped: si falla aqui NO se devuelve el dinero:\nse registra en saga_pasos y se resuelve hacia adelante (invariante 6)
+  Rel(ped, ped, "8. estado = pagado")
+  Rel(ped, car, "9. vaciar carrito (best effort, sin compensar)")
+  Rel(ped, mq, "10. pedido.confirmado", "AMQP")
+  Rel(ped, gw, "201 pedido pagado")
+else pago rechazado o error de la pasarela
+  Rel(ped, inv, "C1. liberar_reserva por cada SKU reservado")
+  Rel(ped, ped, "C2. cancelar_pedido")
+  Rel(ped, mq, "pedido.cancelado", "AMQP")
+  Rel(ped, gw, "402 PAGO_RECHAZADO / 502")
+end
+Rel(gw, cliente, "respuesta")
+@enduml

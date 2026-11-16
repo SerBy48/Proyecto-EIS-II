@@ -1,0 +1,40 @@
+@startuml 05-despliegue
+!include lib/C4_Deployment.puml
+!include estilo.puml
+title Despliegue - Docker Compose (perfil laboratorio hoy; perfil prod en la Fase 5)
+
+Person(usuario, "Usuarios", "Navegador / app movil")
+
+Deployment_Node(host, "Equipo anfitrion", "Windows/Linux + Docker Engine") {
+  Deployment_Node(tunel, "Tunel (defensa)", "Cloudflare Tunnel o ngrok", $tags="planificado") {
+  }
+  Deployment_Node(red, "Red Docker 'interna'", "bridge") {
+    Container(web, "web", "nginx:alpine + build de Vite", "Publica :80/8081; proxy /api -> api-gateway", $tags="planificado")
+    Container(gw, "api-gateway", "node:22-alpine", "Publica :8080 en todos los perfiles de laboratorio")
+    Deployment_Node(svcs, "Microservicios", "infra/Dockerfile.servicio (tsx)") {
+      Container(ms, "auth, clientes, catalogo, inventario, carrito, pedidos, pagos, notificaciones", "node:22-alpine", "Lab: 127.0.0.1:3001-3008. Prod: sin puertos publicados")
+      Container(asis, "asistente-service", "node:22-alpine", ":3009", $tags="planificado")
+    }
+    Deployment_Node(datos, "Motores de datos", "imagenes oficiales") {
+      ContainerDb(pg, "postgres:16-alpine", "", "Lab: 127.0.0.1:5432|5434. Prod: sin publicar")
+      ContainerDb(mongo, "mongo:7", "", "Lab: 127.0.0.1:27017")
+      ContainerDb(redis, "redis:7-alpine", "", "Lab: 127.0.0.1:6379")
+      ContainerQueue(mq, "rabbitmq:3.13-management", "", "Lab: 127.0.0.1:5672 / 15672")
+      Container(mail, "axllent/mailpit", "", "SMTP 1025, UI 8025", $tags="planificado")
+    }
+  }
+}
+
+Rel(usuario, gw, "HTTP :8080 (hoy)")
+Rel(usuario, tunel, "HTTPS (defensa)", $tags="planificado")
+Rel(tunel, web, "HTTP", $tags="planificado")
+Rel(web, gw, "/api", $tags="planificado")
+Rel(gw, ms, "REST (red interna)")
+Rel(gw, asis, "REST", $tags="planificado")
+Rel(ms, pg, "TCP 5432")
+Rel(ms, mongo, "TCP 27017")
+Rel(ms, redis, "TCP 6379")
+Rel(ms, mq, "AMQP 5672")
+Rel(ms, mail, "SMTP 1025", $tags="planificado")
+SHOW_LEGEND()
+@enduml

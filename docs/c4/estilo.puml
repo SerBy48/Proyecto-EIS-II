@@ -1,0 +1,8 @@
+' Estilo comun de los diagramas C4 del proyecto.
+' Los elementos con la etiqueta "planificado" todavia no existen en el codigo:
+' se construyen en la fase indicada del PLAN-TRABAJO-FINAL (borde discontinuo).
+AddElementTag("planificado", $borderStyle=DashedLine(), $borderThickness="2", $legendText="planificado (aun no existe en el codigo)")
+AddRelTag("planificado", $lineStyle=DashedLine(), $legendText="relacion planificada")
+AddRelTag("asincrono", $textColor="#1B5E20", $lineColor="#2E7D32", $legendText="AMQP asincrono (RabbitMQ)")
+SHOW_PERSON_OUTLINE()
+skinparam defaultFontName Arial

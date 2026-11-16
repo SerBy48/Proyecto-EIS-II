@@ -1,0 +1,84 @@
+@startuml 02-contenedores
+!include lib/C4_Container.puml
+!include estilo.puml
+LAYOUT_TOP_DOWN()
+title N2 - Contenedores: Plataforma e-commerce
+
+Person(cliente, "Cliente")
+Person(interno, "Vendedor / Administrador")
+System_Ext(pasarela, "Pasarela de pagos", "Simulada (pasarela.ts)")
+System_Ext(ia, "Proveedor de IA", "Opcional", $tags="planificado")
+
+System_Boundary(plataforma, "Plataforma e-commerce (red Docker 'interna')") {
+  Container(web, "Web", "React + Vite + Tailwind", "Tienda y panel de administracion. Hoy: vite dev :5173 / preview :4173. F5: nginx que hace proxy de /api")
+  Container(movil, "App movil", "Flutter", "Tienda para clientes")
+  Container(gateway, "API Gateway", "Node.js, Express, http-proxy", ":8080 (unico puerto publico). Sanea cabeceras, request_id, rate limit, valida JWT, proxy y /api/health agregado")
+
+  Container(auth, "auth-service", "Node.js/TS", ":3001 Registro, login, refresh rotatorio, usuarios internos")
+  Container(clientes, "clientes-service", "Node.js/TS", ":3002 Perfiles, direcciones, historial")
+  Container(catalogo, "catalogo-service", "Node.js/TS", ":3003 Productos, categorias, precios, promociones")
+  Container(inventario, "inventario-service", "Node.js/TS", ":3004 Stock, reservas con TTL, movimientos, alertas")
+  Container(carrito, "carrito-service", "Node.js/TS", ":3005 Carrito con TTL y cupones")
+  Container(pedidos, "pedidos-service", "Node.js/TS", ":3006 Checkout (saga orquestada), ciclo de vida del pedido")
+  Container(pagos, "pagos-service", "Node.js/TS", ":3007 Cobros idempotentes, transacciones sin datos de tarjeta")
+  Container(notif, "notificaciones-service", "Node.js/TS", ":3008 Plantillas y envio por canal; consume eventos")
+  Container(asistente, "asistente-service", "Node.js/TS", ":3009 Motor de intenciones, FAQ, tickets", $tags="planificado")
+
+  ContainerDb(pg, "PostgreSQL 16", "5 bases logicas con usuario propio", "auth_db, clientes_db, inventario_db, pedidos_db, pagos_db")
+  ContainerDb(mongo, "MongoDB 7", "Documental", "catalogo_db, notificaciones_db (+ asistente_db en F3)")
+  ContainerDb(redis, "Redis 7", "Clave-valor con TTL", "Carritos")
+  ContainerQueue(rabbit, "RabbitMQ 3.13", "Exchange topic ecommerce.eventos + ecommerce.eventos.dlq", "Eventos de dominio")
+  Container(mailpit, "Mailpit", "SMTP :1025, UI :8025", "Servidor de correo de pruebas", $tags="planificado")
+}
+
+Rel(cliente, web, "Usa", "HTTPS")
+Rel(cliente, movil, "Usa")
+Rel(interno, web, "Usa", "HTTPS")
+Rel(web, gateway, "Llama", "REST/JSON + JWT")
+Rel(movil, gateway, "Llama", "REST/JSON + JWT")
+
+Rel(gateway, auth, "/api/auth", "REST")
+Rel(gateway, clientes, "/api/clientes", "REST")
+Rel(gateway, catalogo, "/api/catalogo", "REST")
+Rel(gateway, inventario, "/api/inventario", "REST")
+Rel(gateway, carrito, "/api/carrito", "REST")
+Rel(gateway, pedidos, "/api/pedidos", "REST")
+Rel(gateway, pagos, "/api/pagos", "REST")
+Rel(gateway, notif, "/api/notificaciones", "REST")
+Rel(gateway, asistente, "/api/asistente", "REST", $tags="planificado")
+
+Rel(auth, clientes, "Verifica correo y cliente_id del registro", "REST sincrono")
+Rel(catalogo, inventario, "Disponibilidad (circuit breaker, degrada sin stock)", "REST sincrono")
+Rel(inventario, catalogo, "Nombre del SKU para alertas", "REST sincrono")
+Rel(carrito, catalogo, "Precio vigente", "REST sincrono")
+Rel(pedidos, clientes, "Valida cliente y direccion", "REST sincrono")
+Rel(pedidos, carrito, "Lee el carrito de checkout", "REST sincrono")
+Rel(pedidos, catalogo, "Relee precios (invariante 2)", "REST sincrono")
+Rel(pedidos, inventario, "Reserva / confirma / libera", "REST sincrono, idempotente")
+Rel(pedidos, pagos, "Cobra (sin reintento)", "REST sincrono, idempotente")
+Rel(pagos, pasarela, "Autoriza", "llamada en proceso")
+Rel(asistente, catalogo, "Busca productos y precios", "REST", $tags="planificado")
+Rel(asistente, inventario, "Disponibilidad", "REST", $tags="planificado")
+Rel(asistente, pedidos, "Pedidos del usuario con SU JWT", "REST", $tags="planificado")
+Rel(asistente, ia, "Respaldo opcional", "HTTPS", $tags="planificado")
+
+Rel(auth, pg, "auth_db")
+Rel(clientes, pg, "clientes_db")
+Rel(inventario, pg, "inventario_db")
+Rel(pedidos, pg, "pedidos_db")
+Rel(pagos, pg, "pagos_db")
+Rel(catalogo, mongo, "catalogo_db")
+Rel(notif, mongo, "notificaciones_db")
+Rel(asistente, mongo, "asistente_db", $tags="planificado")
+Rel(carrito, redis, "carrito:{cliente_id}")
+
+Rel(pedidos, rabbit, "pedido.confirmado, pedido.cancelado", "AMQP", $tags="asincrono")
+Rel(pagos, rabbit, "pago.aprobado, pago.rechazado", "AMQP", $tags="asincrono")
+Rel(inventario, rabbit, "inventario.stock_minimo, inventario.reserva_expirada", "AMQP", $tags="asincrono")
+Rel(rabbit, notif, "cola notificaciones.envio: pedido.*, pago.rechazado, inventario.stock_minimo, carrito.abandonado", "AMQP", $tags="asincrono")
+Rel(rabbit, clientes, "cola clientes.historial: pedido.confirmado, pedido.cancelado", "AMQP", $tags="asincrono")
+Rel(asistente, rabbit, "asistente.escalamiento", "AMQP", $tags="planificado")
+Rel(notif, mailpit, "Correo", "SMTP", $tags="planificado")
+
+SHOW_LEGEND()
+@enduml
