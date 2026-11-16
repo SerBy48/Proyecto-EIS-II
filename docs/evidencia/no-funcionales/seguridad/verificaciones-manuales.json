@@ -1,5 +1,5 @@
 {
-  "fecha": "2026-11-16T15:14:39.138Z",
+  "fecha": "2026-11-16T21:00:03.429Z",
   "gateway": "http://localhost:8080",
   "web": "http://localhost:4173",
   "resultados": [
@@ -30,7 +30,7 @@
       "evidencia": {
         "categoria_tecnologia": {
           "estado": 200,
-          "total": 5
+          "total": 60
         },
         "categoria_ne": {
           "estado": 400,
@@ -60,13 +60,13 @@
       "area": "Validación de entradas",
       "titulo": "Inyección SQL en /pedidos/:id",
       "resultado": "SEGURO",
-      "detalle": "Estados: 404 (10 ms), 404 (10 ms), 404 (10 ms). Las consultas son parametrizadas (invariante 8) y pg_sleep no se ejecuta.",
+      "detalle": "Estados: 404 (45 ms), 404 (18 ms), 404 (15 ms). Las consultas son parametrizadas (invariante 8) y pg_sleep no se ejecuta.",
       "evidencia": {
         "cargas": [
           {
             "carga": "1'OR'1'='1",
             "estado": 404,
-            "ms": 10,
+            "ms": 45,
             "cuerpo": {
               "mensaje": "Pedido no encontrado.",
               "codigo": "NO_ENCONTRADO"
@@ -75,7 +75,7 @@
           {
             "carga": "1 OR 1=1",
             "estado": 404,
-            "ms": 10,
+            "ms": 18,
             "cuerpo": {
               "mensaje": "Pedido no encontrado.",
               "codigo": "NO_ENCONTRADO"
@@ -84,7 +84,7 @@
           {
             "carga": "1;SELECT pg_sleep(3)--",
             "estado": 404,
-            "ms": 10,
+            "ms": 15,
             "cuerpo": {
               "mensaje": "Pedido no encontrado.",
               "codigo": "NO_ENCONTRADO"
@@ -112,11 +112,11 @@
       "area": "Contraseñas",
       "titulo": "Contraseñas con bcrypt y el hash nunca expuesto",
       "resultado": "SEGURO",
-      "detalle": "13 de 13 usuarios con hash bcrypt de 10 rondas. El hash no aparece en la respuesta del login ni en /auth/perfil, y aparece 0 veces en los logs de auth.",
+      "detalle": "5 de 5 usuarios con hash bcrypt de 10 rondas. El hash no aparece en la respuesta del login ni en /auth/perfil, y aparece 0 veces en los logs de auth.",
       "evidencia": {
         "usuarios": {
-          "total": 13,
-          "bcrypt": 13
+          "total": 5,
+          "bcrypt": 5
         },
         "hash_en_respuestas": false,
         "hash_en_logs": 0
@@ -144,14 +144,14 @@
           "access-control-allow-credentials": "true",
           "access-control-expose-headers": "x-request-id",
           "connection": "keep-alive",
-          "content-length": "4192",
+          "content-length": "8168",
           "content-type": "application/json; charset=utf-8",
           "cross-origin-opener-policy": "same-origin",
           "cross-origin-resource-policy": "cross-origin",
-          "date": "Mon, 16 Nov 2026 15:14:38 GMT",
-          "etag": "W/\"1060-ZdbeOvbV32L6sFKw1XOZudOc42E\"",
+          "date": "Mon, 16 Nov 2026 21:00:01 GMT",
+          "etag": "W/\"1fe8-HfSuyfZBnQftFfPcoNJVeIhSYCk\"",
           "origin-agent-cluster": "?1",
-          "ratelimit": "limit=300, remaining=288, reset=60",
+          "ratelimit": "limit=300, remaining=288, reset=59",
           "ratelimit-policy": "300;w=60",
           "referrer-policy": "no-referrer",
           "strict-transport-security": "max-age=31536000; includeSubDomains",
@@ -161,7 +161,7 @@
           "x-download-options": "noopen",
           "x-frame-options": "SAMEORIGIN",
           "x-permitted-cross-domain-policies": "none",
-          "x-request-id": "952da562-e9ea-429f-bcad-db263a9b4869",
+          "x-request-id": "c0281c36-3b41-42e3-81bd-da1a300ff313",
           "x-xss-protection": "0"
         }
       }
@@ -260,8 +260,8 @@
           "cross-origin-embedder-policy": "require-corp",
           "cross-origin-opener-policy": "same-origin",
           "cross-origin-resource-policy": "same-origin",
-          "date": "Mon, 16 Nov 2026 15:14:38 GMT",
-          "etag": "W/\"1b5-Os/X4WufxGf7ur6otute/zvls7E\"",
+          "date": "Mon, 16 Nov 2026 21:00:01 GMT",
+          "etag": "W/\"284-ySEsOqo3rvf9VIxjpsLkz5VkWxg\"",
           "keep-alive": "timeout=5",
           "permissions-policy": "camera=(), microphone=(), geolocation=(), payment=()",
           "referrer-policy": "strict-origin-when-cross-origin",
@@ -319,7 +319,7 @@
       "area": "Validación de entradas",
       "titulo": "El registro acepta un correo sin formato de correo",
       "resultado": "SEGURO",
-      "detalle": "POST /auth/registro con email \"no-es-un-correo-1794842078647\" → 400. El escaneo activo creó además 115 usuarios administradores con \"correos\" como http://www.google.com/ o plantillas de inyección por POST /auth/usuarios.",
+      "detalle": "POST /auth/registro con email \"no-es-un-correo-1794862802056\" → 400. El escaneo activo creó además 115 usuarios administradores con \"correos\" como http://www.google.com/ o plantillas de inyección por POST /auth/usuarios.",
       "evidencia": {
         "estado": 400,
         "cuerpo": {
@@ -350,9 +350,9 @@
       "area": "Control de acceso",
       "titulo": "Asistente: un cliente consulta por el chat los pedidos de otro (IDOR)",
       "resultado": "SEGURO",
-      "detalle": "Bruno pidió el pedido PED-202611-001046 de Ana por número, por id y continuando la conversación de Ana: en los tres casos \"No encontré el pedido PED-202611-001046 entre tus pedidos.\" y ninguna tarjeta de pedido. El asistente consulta pedidos con el token del usuario (invariante 15).",
+      "detalle": "Bruno pidió el pedido PED-202611-001006 de Ana por número, por id y continuando la conversación de Ana: en los tres casos \"No encontré el pedido PED-202611-001006 entre tus pedidos.\" y ninguna tarjeta de pedido. El asistente consulta pedidos con el token del usuario (invariante 15).",
       "evidencia": {
-        "pedido_de_ana": "PED-202611-001046",
+        "pedido_de_ana": "PED-202611-001006",
         "respuestas": [
           {
             "estado": 200,
@@ -413,11 +413,33 @@
       "area": "Validación de entradas",
       "titulo": "Asistente: inyección de instrucciones (prompt injection)",
       "resultado": "SEGURO",
-      "detalle": "Sin datos de pedidos ni correos en la respuesta (intención: estado_pedido). El motor es de reglas; la IA opcional no recibe datos personales ni herramientas (ADR-0007).",
+      "detalle": "Sin datos de pedidos ni correos en la respuesta (intención: buscar_producto). El motor es de reglas; la IA opcional no recibe datos personales ni herramientas (ADR-0007).",
       "evidencia": {
         "estado": 200,
-        "intencion": "estado_pedido",
+        "intencion": "buscar_producto",
         "tarjetas": 0
+      }
+    },
+    {
+      "id": "V-22",
+      "area": "Control de acceso",
+      "titulo": "Rutas internas de eliminación de cuenta, invocadas desde afuera con token de administrador",
+      "resultado": "SEGURO",
+      "detalle": "POST /clientes/:id/anonimizar y GET /pedidos/internos/... responden 403 al administrador; el perfil de Ana sigue intacto. Solo auth-service, con el secreto interno, las invoca al eliminar una cuenta con contraseña.",
+      "evidencia": {
+        "anonimizar": 403,
+        "pendientes": 403,
+        "perfil_intacto": true
+      }
+    },
+    {
+      "id": "V-23",
+      "area": "Control de acceso",
+      "titulo": "Cambiar la dirección de envío de un pedido ajeno",
+      "resultado": "SEGURO",
+      "detalle": "Bruno recibió 404 al cambiar la dirección del pedido 7 de Ana: un pedido ajeno se responde como inexistente (invariante 1).",
+      "evidencia": {
+        "estado": 404
       }
     }
   ]

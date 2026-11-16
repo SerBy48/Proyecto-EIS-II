@@ -164,7 +164,7 @@ const escenario2 = async (): Promise<void> => {
 const escenario3 = async (): Promise<void> => {
   titulo('Escenario 3: idempotencia ante un reintento');
 
-  const SKU = 'SKU-HOG-001';
+  const SKU = 'SKU-TEC-006';
   await prepararStock(SKU, 10);
 
   const clave = `reintento-${randomUUID()}`;
@@ -237,7 +237,7 @@ const escenario4 = async (): Promise<void> => {
 const escenario5 = async (): Promise<void> => {
   titulo('Escenario 5: confirmacion tras un pago aprobado');
 
-  const SKU = 'SKU-DEP-001';
+  const SKU = 'SKU-TEC-009';
   await prepararStock(SKU, 4);
 
   const reserva = await intentarReserva(SKU, 2, `confirma-${randomUUID()}`);
@@ -266,7 +266,7 @@ const escenario5 = async (): Promise<void> => {
 const escenario6 = async (): Promise<void> => {
   titulo('Escenario 6: el stock nunca puede quedar negativo');
 
-  const SKU = 'SKU-HOG-003';
+  const SKU = 'SKU-TEC-008';
   await prepararStock(SKU, 2);
 
   // Se pide mas de lo que hay: debe rechazarse limpiamente, no dejar -3.

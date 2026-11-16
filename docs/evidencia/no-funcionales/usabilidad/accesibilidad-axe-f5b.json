@@ -1,0 +1,62 @@
+{
+  "fecha": "2026-11-16T21:17:22.075Z",
+  "estandar": "WCAG 2.2 A y AA (axe-core 4.10)",
+  "pantallas": [
+    {
+      "pantalla": "Catalogo (visitante)",
+      "violaciones": []
+    },
+    {
+      "pantalla": "Inicio de sesion",
+      "violaciones": []
+    },
+    {
+      "pantalla": "Catalogo (cliente)",
+      "violaciones": []
+    },
+    {
+      "pantalla": "Carrito con productos",
+      "violaciones": []
+    },
+    {
+      "pantalla": "Compra confirmada",
+      "violaciones": []
+    },
+    {
+      "pantalla": "Mis pedidos",
+      "violaciones": []
+    },
+    {
+      "pantalla": "Detalle del pedido (modal)",
+      "violaciones": []
+    },
+    {
+      "pantalla": "Pago rechazado",
+      "violaciones": []
+    },
+    {
+      "pantalla": "Administracion: salud",
+      "violaciones": []
+    },
+    {
+      "pantalla": "Administracion: inventario",
+      "violaciones": []
+    },
+    {
+      "pantalla": "Administracion: pedidos",
+      "violaciones": []
+    },
+    {
+      "pantalla": "Asistente virtual",
+      "violaciones": []
+    },
+    {
+      "pantalla": "Inicio de sesion con error",
+      "violaciones": []
+    },
+    {
+      "pantalla": "Catalogo en movil",
+      "violaciones": []
+    }
+  ]
+}

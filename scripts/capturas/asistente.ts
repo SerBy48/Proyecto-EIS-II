@@ -40,7 +40,7 @@ const principal = async (): Promise<void> => {
   resultado.foco_en_el_campo = await pagina.getByLabel('Escribe tu pregunta').evaluate((e) => e === document.activeElement);
   await pagina.getByRole('button', { name: 'Costo de envío' }).click();
   await pagina.waitForSelector('text=/15\\.000/');
-  await preguntar(pagina, 'tienen cafeteras?');
+  await preguntar(pagina, 'Hay audífonos disponibles?');
   await pagina.waitForSelector('[aria-label="Productos"]');
   await panel.screenshot({ path: path.join(carpeta, 'asistente-visitante.png') });
 

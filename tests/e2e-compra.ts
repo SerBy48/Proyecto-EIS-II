@@ -236,7 +236,7 @@ const escenarioB = async (admin: string): Promise<void> => {
   const bruno = await login('bruno@correo.co');
   await vaciarCarrito(bruno.token, bruno.usuario.cliente_id);
 
-  const catalogo = await pedir('/api/catalogo/productos?categoria=hogar');
+  const catalogo = await pedir('/api/catalogo/productos?subcategoria=accesorios');
   const producto = catalogo.datos.productos?.find((p: any) => p.hay_stock === true);
   if (!producto) {
     console.log(`  ${AMARILLO}OMITIDO${FIN} no hay productos con stock para este escenario`);
@@ -378,7 +378,7 @@ const escenarioD = async (admin: string): Promise<void> => {
   const carla = await login('carla@correo.co');
   await vaciarCarrito(carla.token, carla.usuario.cliente_id);
 
-  const catalogo = await pedir('/api/catalogo/productos?categoria=deportes');
+  const catalogo = await pedir('/api/catalogo/productos?subcategoria=gaming');
   const producto = catalogo.datos.productos?.find((p: any) => p.hay_stock === true);
   if (!producto) {
     console.log(`  ${AMARILLO}OMITIDO${FIN} no hay productos con stock`);
@@ -433,7 +433,7 @@ const escenarioE = async (admin: string): Promise<void> => {
   const ana = await login('ana@correo.co');
   await vaciarCarrito(ana.token, ana.usuario.cliente_id);
 
-  const catalogo = await pedir('/api/catalogo/productos?categoria=hogar');
+  const catalogo = await pedir('/api/catalogo/productos?subcategoria=accesorios');
   const producto = catalogo.datos.productos?.find((p: any) => p.hay_stock === true);
   if (!producto) {
     console.log(`  ${AMARILLO}OMITIDO${FIN} no hay productos con stock`);
@@ -572,8 +572,8 @@ const principal = async (): Promise<void> => {
   for (const [sku, cantidad] of [
     ['SKU-TEC-001', 50],
     ['SKU-TEC-002', 25],
-    ['SKU-HOG-001', 40],
-    ['SKU-DEP-001', 60]
+    ['SKU-TEC-006', 40],
+    ['SKU-TEC-009', 60]
   ] as Array<[string, number]>) {
     const actual = await stockDe(sku, admin);
     if (actual < 10) await reponer(sku, cantidad, admin);
