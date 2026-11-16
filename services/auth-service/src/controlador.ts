@@ -8,13 +8,14 @@ import {
   errorConflicto,
   errorNoAutenticado,
   errorProhibido,
+  errorDePostgres,
   errorSolicitud,
   exigirCampos,
   firmarAcceso,
   firmarRenovacion,
   verificarRenovacion
 } from '@ecommerce/shared';
-import { pool } from './db';
+import * as repositorio from './repositorio';
 import { compararHash, generarHash } from './pool-hash';
 
 const RONDAS_BCRYPT = 10;
@@ -70,8 +71,7 @@ const verificarClienteDelRegistro = async (clienteId: unknown, correo: string, r
     throw errorProhibido('El cliente indicado no corresponde a este correo.');
   }
 
-  const { rows } = await pool.query(`SELECT 1 FROM usuarios WHERE cliente_id = $1`, [id]);
-  if (rows.length) throw errorConflicto('Ese cliente ya tiene una cuenta.');
+  if (await repositorio.clienteTieneCuenta(id)) throw errorConflicto('Ese cliente ya tiene una cuenta.');
   return id;
 };
 
@@ -100,45 +100,10 @@ const conPoolHash = async <T>(res: Response, operacion: (senal: AbortSignal) => 
   }
 };
 
-interface FilaUsuario {
-  id: number;
-  email: string;
-  password_hash: string;
-  rol: Rol;
-  cliente_id: number | null;
-  activo: boolean;
-  intentos_fallidos: number;
-  bloqueado_hasta: Date | null;
-}
-
 const hashToken = (token: string): string =>
   createHash('sha256').update(token).digest('hex');
 
-const auditar = async (
-  datos: {
-    usuario_id?: number | null;
-    email?: string;
-    accion: string;
-    exitoso: boolean;
-    ip?: string;
-    request_id?: string;
-  }
-): Promise<void> => {
-  await pool
-    .query(
-      `INSERT INTO auditoria_accesos (usuario_id, email, accion, exitoso, ip, request_id)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [
-        datos.usuario_id ?? null,
-        datos.email ?? null,
-        datos.accion,
-        datos.exitoso,
-        datos.ip ?? null,
-        datos.request_id ?? null
-      ]
-    )
-    .catch(() => undefined); // la auditoria nunca debe tumbar la operacion
-};
+const { auditar } = repositorio;
 
 /**
  * POST /registro
@@ -168,19 +133,15 @@ export const registro = async (req: PeticionAutenticada, res: Response): Promise
   const hash = await conPoolHash(res, (senal) => generarHash(String(password), RONDAS_BCRYPT, senal));
 
   try {
-    const { rows } = await pool.query<FilaUsuario>(
-      `INSERT INTO usuarios (email, password_hash, rol, cliente_id)
-       VALUES ($1, $2, 'cliente', $3)
-       RETURNING id, email, rol, cliente_id, activo`,
-      [correo, hash, clienteId]
-    );
+    const usuario = await repositorio.crearCuentaCliente(correo, hash, clienteId);
 
-    await auditar({ usuario_id: rows[0].id, email, accion: 'registro', exitoso: true, request_id: req.requestId });
-    res.status(201).json({ mensaje: 'Usuario registrado.', usuario: rows[0] });
+    await auditar({ usuario_id: usuario.id, email, accion: 'registro', exitoso: true, request_id: req.requestId });
+    res.status(201).json({ mensaje: 'Usuario registrado.', usuario });
   } catch (error) {
-    if ((error as { code?: string; constraint?: string }).code === '23505') {
+    const pg = errorDePostgres(error);
+    if (pg?.code === '23505') {
       throw errorConflicto(
-        (error as { constraint?: string }).constraint === 'uq_usuarios_cliente'
+        pg.constraint === 'uq_usuarios_cliente'
           ? 'Ese cliente ya tiene una cuenta.'
           : 'El correo ya se encuentra registrado.'
       );
@@ -204,13 +165,7 @@ export const login = async (req: PeticionAutenticada, res: Response): Promise<vo
   const correo = String(email).toLowerCase();
   const ip = req.ip;
 
-  const { rows } = await pool.query<FilaUsuario>(
-    `SELECT id, email, password_hash, rol, cliente_id, activo, intentos_fallidos, bloqueado_hasta
-       FROM usuarios WHERE email = $1`,
-    [correo]
-  );
-
-  const usuario = rows[0];
+  const usuario = await repositorio.buscarUsuarioPorCorreo(correo);
 
   if (!usuario) {
     await auditar({ email: correo, accion: 'login', exitoso: false, ip, request_id: req.requestId });
@@ -237,13 +192,7 @@ export const login = async (req: PeticionAutenticada, res: Response): Promise<vo
     // Proteccion contra fuerza bruta: bloqueo temporal tras N intentos.
     const intentos = usuario.intentos_fallidos + 1;
     const bloquear = intentos >= MAX_INTENTOS;
-    await pool.query(
-      `UPDATE usuarios
-          SET intentos_fallidos = $1,
-              bloqueado_hasta = CASE WHEN $2 THEN NOW() + ($3 || ' minutes')::INTERVAL ELSE bloqueado_hasta END
-        WHERE id = $4`,
-      [bloquear ? 0 : intentos, bloquear, MINUTOS_BLOQUEO, usuario.id]
-    );
+    await repositorio.registrarIntentoFallido(usuario.id, intentos, bloquear, MINUTOS_BLOQUEO);
 
     await auditar({ usuario_id: usuario.id, email: correo, accion: 'login', exitoso: false, ip, request_id: req.requestId });
     throw errorNoAutenticado('Credenciales invalidas.');
@@ -260,16 +209,8 @@ export const login = async (req: PeticionAutenticada, res: Response): Promise<vo
   const refresh = randomBytes(32).toString('hex');
   const refreshFirmado = firmarRenovacion({ sub: usuario.id });
 
-  await pool.query(
-    `INSERT INTO tokens_renovacion (usuario_id, token_hash, expira_en)
-     VALUES ($1, $2, NOW() + INTERVAL '7 days')`,
-    [usuario.id, hashToken(refresh)]
-  );
-
-  await pool.query(
-    `UPDATE usuarios SET intentos_fallidos = 0, bloqueado_hasta = NULL, ultimo_acceso = NOW() WHERE id = $1`,
-    [usuario.id]
-  );
+  await repositorio.guardarTokenRenovacion(usuario.id, hashToken(refresh));
+  await repositorio.registrarAccesoExitoso(usuario.id);
 
   await auditar({ usuario_id: usuario.id, email: correo, accion: 'login', exitoso: true, ip, request_id: req.requestId });
 
@@ -309,34 +250,17 @@ export const renovar = async (req: PeticionAutenticada, res: Response): Promise<
     throw errorNoAutenticado('Refresh token invalido o expirado.');
   }
 
-  const { rows } = await pool.query(
-    `SELECT t.id, u.id AS usuario_id, u.email, u.rol, u.cliente_id, u.activo
-       FROM tokens_renovacion t
-       JOIN usuarios u ON u.id = t.usuario_id
-      WHERE t.token_hash = $1
-        AND t.usuario_id = $2
-        AND t.revocado_en IS NULL
-        AND t.expira_en > NOW()`,
-    [hashToken(parteAleatoria), sub]
-  );
-
-  const registro = rows[0];
+  const registro = await repositorio.buscarTokenVigente(hashToken(parteAleatoria), sub);
   if (!registro) throw errorNoAutenticado('Refresh token revocado o inexistente.');
   if (!registro.activo) throw errorNoAutenticado('La cuenta se encuentra inactiva.');
 
-  await pool.query(`UPDATE tokens_renovacion SET revocado_en = NOW() WHERE id = $1`, [registro.id]);
-
   const nuevoAleatorio = randomBytes(32).toString('hex');
-  await pool.query(
-    `INSERT INTO tokens_renovacion (usuario_id, token_hash, expira_en)
-     VALUES ($1, $2, NOW() + INTERVAL '7 days')`,
-    [registro.usuario_id, hashToken(nuevoAleatorio)]
-  );
+  await repositorio.rotarTokenRenovacion(registro.id, registro.usuario_id, hashToken(nuevoAleatorio));
 
   const claims = {
     sub: registro.usuario_id,
     email: registro.email,
-    rol: registro.rol as Rol,
+    rol: registro.rol,
     ...(registro.cliente_id !== null ? { cliente_id: registro.cliente_id } : {})
   };
 
@@ -355,24 +279,16 @@ export const renovar = async (req: PeticionAutenticada, res: Response): Promise<
  */
 export const logout = async (req: PeticionAutenticada, res: Response): Promise<void> => {
   const usuarioId = req.usuario!.sub;
-  const { rowCount } = await pool.query(
-    `UPDATE tokens_renovacion SET revocado_en = NOW()
-      WHERE usuario_id = $1 AND revocado_en IS NULL`,
-    [usuarioId]
-  );
+  const revocados = await repositorio.revocarTokensDelUsuario(usuarioId);
   await auditar({ usuario_id: usuarioId, accion: 'logout', exitoso: true, request_id: req.requestId });
-  res.status(200).json({ mensaje: 'Sesion cerrada.', tokens_revocados: rowCount });
+  res.status(200).json({ mensaje: 'Sesion cerrada.', tokens_revocados: revocados });
 };
 
 /** GET /perfil - devuelve los claims del token actual. */
 export const perfil = async (req: PeticionAutenticada, res: Response): Promise<void> => {
-  const { rows } = await pool.query(
-    `SELECT id, email, rol, cliente_id, activo, ultimo_acceso, creado_en
-       FROM usuarios WHERE id = $1`,
-    [req.usuario!.sub]
-  );
-  if (!rows[0]) throw errorNoAutenticado();
-  res.status(200).json(rows[0]);
+  const usuario = await repositorio.obtenerPerfil(req.usuario!.sub);
+  if (!usuario) throw errorNoAutenticado();
+  res.status(200).json(usuario);
 };
 
 /**
@@ -395,14 +311,10 @@ export const crearUsuarioInterno = async (req: PeticionAutenticada, res: Respons
   const hash = await conPoolHash(res, (senal) => generarHash(String(password), RONDAS_BCRYPT, senal));
 
   try {
-    const { rows } = await pool.query(
-      `INSERT INTO usuarios (email, password_hash, rol)
-       VALUES ($1, $2, $3) RETURNING id, email, rol, activo`,
-      [correo, hash, rol]
-    );
-    res.status(201).json({ mensaje: 'Usuario creado.', usuario: rows[0] });
+    const usuario = await repositorio.crearUsuarioInterno(correo, hash, rol);
+    res.status(201).json({ mensaje: 'Usuario creado.', usuario });
   } catch (error) {
-    if ((error as { code?: string }).code === '23505') {
+    if (errorDePostgres(error)?.code === '23505') {
       throw errorConflicto('El correo ya se encuentra registrado.');
     }
     throw error;
