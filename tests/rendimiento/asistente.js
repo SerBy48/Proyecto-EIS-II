@@ -33,9 +33,9 @@ const PREGUNTAS = [
   { texto: 'el precio incluye iva?', intencion: 'faq_iva', tipo: 'faq' },
   { texto: 'cual es el horario de atencion', intencion: 'faq_horario', tipo: 'faq' },
   { texto: 'tienen portatiles?', intencion: 'buscar_producto', tipo: 'catalogo' },
-  { texto: 'busco una cafetera', intencion: 'buscar_producto', tipo: 'catalogo' },
+  { texto: 'hay audifonos disponibles?', intencion: 'precio_disponibilidad', tipo: 'catalogo' },
   { texto: 'precio del SKU-TEC-001', intencion: 'precio_disponibilidad', tipo: 'catalogo' },
-  { texto: 'hay stock de SKU-HOG-001?', intencion: 'precio_disponibilidad', tipo: 'catalogo' }
+  { texto: 'hay stock de SKU-TEC-006?', intencion: 'precio_disponibilidad', tipo: 'catalogo' }
 ];
 
 let sesion = null;
