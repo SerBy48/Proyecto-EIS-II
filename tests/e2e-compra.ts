@@ -197,6 +197,37 @@ const escenarioA = async (admin: string): Promise<void> => {
     'El servicio de notificaciones reacciono al evento',
     { mensajes: mensajes.datos?.length }
   );
+
+  paso('El correo de confirmacion llega al buzon (SMTP real, Mailpit)');
+  const correo = await buscarCorreo(compra.datos.pedido.numero);
+  afirmar(correo !== null, `Llega un correo con el numero ${compra.datos.pedido.numero}`, { mailpit: MAILPIT });
+  afirmar(
+    correo?.To?.some((d: { Address: string }) => d.Address === ana.usuario.email) ?? false,
+    'El correo va dirigido al cliente que compro',
+    correo?.To
+  );
+};
+
+/**
+ * Busca en Mailpit el correo de un pedido. Reintenta durante unos segundos: el
+ * correo es asincrono y la cola de notificaciones puede traer eventos atrasados
+ * de pruebas anteriores (consume ~10 por segundo, hallazgo R6).
+ */
+const MAILPIT = process.env.MAILPIT_URL || 'http://localhost:8025';
+const buscarCorreo = async (numeroPedido: string, esperaMs = 15_000): Promise<any | null> => {
+  const consulta = encodeURIComponent(`subject:"${numeroPedido}"`);
+  const limite = Date.now() + esperaMs;
+  while (Date.now() < limite) {
+    try {
+      const respuesta = await fetch(`${MAILPIT}/api/v1/search?query=${consulta}`);
+      const datos = (await respuesta.json()) as { messages?: any[] };
+      if (datos.messages?.length) return datos.messages[0];
+    } catch {
+      /* Mailpit aun no responde: se reintenta */
+    }
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  return null;
 };
 
 const escenarioB = async (admin: string): Promise<void> => {

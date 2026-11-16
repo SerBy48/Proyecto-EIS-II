@@ -114,6 +114,25 @@ services:
       start_period: 90s
     networks: [interna]
 
+  # Servidor de correo de pruebas: recibe por SMTP todo lo que envia
+  # notificaciones y lo muestra en su interfaz web (http://localhost:8025).
+  # No entrega nada fuera del equipo (docs/adr/0009).
+  mailpit:
+    image: axllent/mailpit:v1.27
+    container_name: ecom_mailpit
+    restart: unless-stopped
+    environment:
+      MP_MAX_MESSAGES: 5000
+    ports:
+      - "127.0.0.1:1025:1025"    # SMTP (para npm run dev)
+      - "127.0.0.1:8025:8025"    # interfaz web y API
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [interna]
+
   # ------------------------------------------------------ microservicios ----
   auth-service:
     <<: *servicio-base
@@ -230,10 +249,15 @@ services:
       <<: *entorno-base
       PORT: 3008
       MONGO_URL: mongodb://notificaciones_user:notificaciones_pass@mongo:27017/notificaciones_db?authSource=notificaciones_db
+      CANAL_CORREO: ${CANAL_CORREO:-smtp}
+      SMTP_HOST: mailpit
+      SMTP_PUERTO: 1025
+      CORREO_REMITENTE: ${CORREO_REMITENTE:-Tienda en linea <no-responder@tienda.co>}
     ports: ["127.0.0.1:3008:3008"]
     depends_on:
       mongo: { condition: service_healthy }
       rabbitmq: { condition: service_healthy }
+      mailpit: { condition: service_healthy }
 
   # ------------------------------------------------------- api gateway -----
   api-gateway:
@@ -258,6 +282,7 @@ services:
       LIMITE_LOGIN: ${LIMITE_LOGIN:-10}
       LIMITE_CHECKOUT: ${LIMITE_CHECKOUT:-10}
       PROXY_TIMEOUT_MS: ${PROXY_TIMEOUT_MS:-15000}
+      EXPONER_DOCS: ${EXPONER_DOCS:-true}
     ports:
       - "8080:8080"
     depends_on:

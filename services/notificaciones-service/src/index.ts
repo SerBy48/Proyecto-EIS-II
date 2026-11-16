@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { Application, Router } from 'express';
 import { BusEventos, asincrono, crearServicio, requiereRol } from '@ecommerce/shared';
+import { verificarCorreo } from './canales';
 import { cliente, conectarMongo, verificarMongo } from './db';
 import {
   actualizarPlantilla,
@@ -34,7 +35,9 @@ void crearServicio({
   rutas,
   dependencias: [
     { nombre: 'mongo:notificaciones_db', verificar: verificarMongo },
-    { nombre: 'rabbitmq', verificar: async () => bus.conectado }
+    { nombre: 'rabbitmq', verificar: async () => bus.conectado },
+    // No critica: si el correo cae, los eventos se reintentan y esperan en la cola.
+    { nombre: 'correo', verificar: verificarCorreo, critica: false }
   ],
   alIniciar: async () => {
     await conectarMongo();

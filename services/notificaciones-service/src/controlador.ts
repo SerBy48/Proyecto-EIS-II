@@ -7,6 +7,7 @@ import {
   errorNoEncontrado
 } from '@ecommerce/shared';
 import { coleccionMensajes, coleccionPlantillas } from './db';
+import { canalPara } from './canales';
 import { canalConHtml, renderizar } from './plantillas';
 
 const log = crearLogger('notificaciones-service');
@@ -26,28 +27,6 @@ const formatearMoneda = (valor: unknown): string => {
   const numero = Number(valor);
   if (!Number.isFinite(numero)) return String(valor ?? '');
   return `$${numero.toLocaleString('es-CO')}`;
-};
-
-/**
- * Envio real del mensaje.
- *
- * En produccion aqui iria el proveedor de correo (SendGrid, SES), el de SMS
- * (Twilio) o el de push (FCM). Para el laboratorio se registra en el log y se
- * persiste en MongoDB, que es suficiente para verificar el flujo completo.
- */
-const enviar = async (
-  canal: string,
-  destinatario: string,
-  asunto: string,
-  cuerpo: string
-): Promise<{ exitoso: boolean; proveedor: string }> => {
-  // Latencia simulada del proveedor externo. Es precisamente esta latencia la
-  // que justifica que la notificacion sea asincrona: el cliente no deberia
-  // esperarla para ver su pedido confirmado.
-  await new Promise((r) => setTimeout(r, Number(process.env.LATENCIA_ENVIO_MS || 100)));
-
-  log.info(`[${canal.toUpperCase()}] -> ${destinatario}`, { asunto, cuerpo });
-  return { exitoso: true, proveedor: `${canal}-simulado` };
 };
 
 /**
@@ -82,9 +61,12 @@ export const procesarEvento = async (evento: EventoDominio): Promise<void> => {
   };
 
   // En el correo, los datos del usuario se escapan como HTML (hallazgo S-11).
-  const escapar = canalConHtml(String(plantilla.canal));
+  // Se guarda la version escapada; el texto plano va solo en el envio.
+  const canal = String(plantilla.canal);
+  const conHtml = canalConHtml(canal);
   const asunto = renderizar(String(plantilla.asunto), variables);
-  const cuerpo = renderizar(String(plantilla.cuerpo), variables, escapar);
+  const texto = renderizar(String(plantilla.cuerpo), variables);
+  const cuerpo = renderizar(String(plantilla.cuerpo), variables, conHtml);
 
   // La clave de deduplicacion combina el evento con el identificador del
   // agregado afectado: el mismo evento sobre el mismo pedido se envia una vez.
@@ -108,25 +90,45 @@ export const procesarEvento = async (evento: EventoDominio): Promise<void> => {
       creado_en: new Date()
     });
   } catch (error) {
-    if ((error as { code?: number }).code === 11000) {
+    if ((error as { code?: number }).code !== 11000) throw error;
+    // Ya existe un mensaje con esta clave. Si se envio, es un duplicado del
+    // broker y se ignora. Si quedo pendiente o fallido, es un REINTENTO del
+    // mismo evento tras un fallo del proveedor: hay que volver a enviarlo. Antes
+    // todo se trataba como duplicado y un fallo de envio perdia el mensaje.
+    const previo = await coleccionMensajes().findOne({ clave_dedupe: claveDedupe }, { projection: { estado: 1 } });
+    if (previo?.estado === 'enviado') {
       log.info('Evento duplicado, no se reenvia', { evento: evento.nombre, clave: claveDedupe });
       return;
     }
-    throw error;
   }
 
-  const resultado = await enviar(String(plantilla.canal), destinatario, asunto, cuerpo);
-
-  await coleccionMensajes().updateOne(
-    { clave_dedupe: claveDedupe },
-    {
-      $set: {
-        estado: resultado.exitoso ? 'enviado' : 'fallido',
-        proveedor: resultado.proveedor,
-        enviado_en: new Date()
+  try {
+    const resultado = await canalPara(canal).enviar({
+      destinatario,
+      asunto,
+      texto,
+      html: conHtml ? `<p>${cuerpo.replace(/\n/g, '<br>')}</p>` : undefined
+    });
+    await coleccionMensajes().updateOne(
+      { clave_dedupe: claveDedupe },
+      {
+        $set: { estado: 'enviado', proveedor: resultado.proveedor, id_externo: resultado.id_externo, enviado_en: new Date() },
+        $inc: { intentos: 1 }
       }
-    }
-  );
+    );
+  } catch (error) {
+    // El fallo queda registrado y se relanza: el bus reintenta el evento y, al
+    // agotar los intentos, lo deja en la dead letter queue. Nunca se pierde
+    // (mismo principio de la invariante 12, del lado del consumidor).
+    await coleccionMensajes().updateOne(
+      { clave_dedupe: claveDedupe },
+      {
+        $set: { estado: 'fallido', ultimo_error: (error as Error).message, fallido_en: new Date() },
+        $inc: { intentos: 1 }
+      }
+    );
+    throw error;
+  }
 };
 
 /**
