@@ -1,0 +1,17 @@
+
+> ecommerce-distribuido@1.0.0 build:web
+> npm run build -w @ecommerce/web
+
+
+> @ecommerce/web@1.0.0 build
+> vite build
+
+vite v5.4.21 building for production...
+transforming...
+✓ 37 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.44 kB │ gzip:  0.29 kB
+dist/assets/index-jTIfFrZe.css   21.43 kB │ gzip:  4.88 kB
+dist/assets/index-nbiQfebp.js   193.89 kB │ gzip: 59.00 kB
+✓ built in 3.00s
