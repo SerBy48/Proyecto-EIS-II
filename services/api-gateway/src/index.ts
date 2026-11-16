@@ -7,6 +7,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { createProxyMiddleware, Options } from 'http-proxy-middleware';
 import { crearLogger, ErrorApp, leerSecreto, PeticionAutenticada, verificarAcceso, verificarSecretos } from '@ecommerce/shared';
+import { docsExpuestas, montarDocumentacion, PATRON_DOCS } from './documentacion';
 
 /**
  * API GATEWAY - punto unico de entrada del sistema (seccion 5.2 del documento).
@@ -70,7 +71,9 @@ const RUTAS_PUBLICAS: Array<{ metodo: string; patron: RegExp }> = [
   { metodo: 'POST', patron: /^\/api\/auth\/(login|registro|renovar)$/ },
   { metodo: 'POST', patron: /^\/api\/clientes\/?$/ },
   { metodo: 'GET',  patron: /^\/api\/catalogo\/productos(\/[^/]+)?$/ },
-  { metodo: 'GET',  patron: /^\/api\/catalogo\/categorias$/ }
+  { metodo: 'GET',  patron: /^\/api\/catalogo\/categorias$/ },
+  // Swagger UI y la especificacion, solo si estan expuestas (EXPONER_DOCS).
+  ...(docsExpuestas() ? [{ metodo: 'GET', patron: PATRON_DOCS }] : [])
 ];
 
 const esPublica = (metodo: string, ruta: string): boolean =>
@@ -216,6 +219,12 @@ app.use((req: PeticionAutenticada, res: Response, next: NextFunction) => {
   });
   next();
 });
+
+// --------------------------------------------------------------------------
+// Documentacion de la API (Swagger UI). Antes de la validacion del token: es
+// publica, y despues del rate limit general y del registro de peticiones.
+// --------------------------------------------------------------------------
+montarDocumentacion(app);
 
 // --------------------------------------------------------------------------
 // Validacion centralizada del token

@@ -1,0 +1,125 @@
+# catalogo-service (prefijo /api/catalogo).
+productos:
+  get:
+    tags: [catalogo]
+    summary: Buscar y filtrar productos
+    description: |
+      Solo productos activos, con su disponibilidad. Si inventario no responde, el circuit
+      breaker lo aisla y los productos se devuelven igual con `disponible: null`
+      (degradacion elegante).
+    operationId: listarProductos
+    security: []
+    x-roles: [publica]
+    parameters:
+      - { name: q, in: query, description: 'Busqueda de texto completo (nombre, descripcion, marca).', schema: { type: string, example: portatil } }
+      - { name: categoria, in: query, schema: { type: string, example: tecnologia } }
+      - { name: marca, in: query, schema: { type: string, example: Aurora } }
+      - { name: precio_min, in: query, schema: { type: number, example: 100000 } }
+      - { name: precio_max, in: query, schema: { type: number, example: 5000000 } }
+      - { name: orden, in: query, description: 'Sin orden, por relevancia si hay q o por los mas nuevos.', schema: { type: string, enum: [precio_asc, precio_desc, nombre] } }
+      - { name: pagina, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+      - { name: limite, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+    responses:
+      '200':
+        description: Pagina de resultados.
+        content:
+          application/json:
+            schema: { $ref: '../componentes/esquemas.yaml#/PaginaProductos' }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+  post:
+    tags: [catalogo]
+    summary: Crear un producto
+    operationId: crearProducto
+    x-roles: [administrador, vendedor]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../componentes/esquemas.yaml#/ProductoNuevo' }
+    responses:
+      '201':
+        description: Producto creado.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mensaje: { type: string, example: Producto creado. }
+                producto: { $ref: '../componentes/esquemas.yaml#/Producto' }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+      '409': { $ref: '../componentes/respuestas.yaml#/Conflicto' }
+
+producto:
+  parameters: [{ $ref: '../componentes/parametros.yaml#/Sku' }]
+  get:
+    tags: [catalogo]
+    summary: Detalle de un producto
+    operationId: obtenerProducto
+    security: []
+    x-roles: [publica]
+    responses:
+      '200':
+        description: Producto con su disponibilidad.
+        content:
+          application/json:
+            schema: { $ref: '../componentes/esquemas.yaml#/Producto' }
+      '404': { $ref: '../componentes/respuestas.yaml#/NoEncontrado' }
+  patch:
+    tags: [catalogo]
+    summary: Actualizar un producto
+    description: El precio que cuenta en el carrito y en el checkout es siempre el vigente aqui (invariante 2).
+    operationId: actualizarProducto
+    x-roles: [administrador, vendedor]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../componentes/esquemas.yaml#/CambiosProducto' }
+    responses:
+      '200':
+        description: Producto actualizado.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mensaje: { type: string, example: Producto actualizado. }
+                producto: { $ref: '../componentes/esquemas.yaml#/Producto' }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+      '404': { $ref: '../componentes/respuestas.yaml#/NoEncontrado' }
+
+categorias:
+  get:
+    tags: [catalogo]
+    summary: Categorias con su conteo y precio minimo
+    operationId: listarCategorias
+    security: []
+    x-roles: [publica]
+    responses:
+      '200':
+        description: Categorias.
+        content:
+          application/json:
+            schema: { type: array, items: { $ref: '../componentes/esquemas.yaml#/Categoria' } }
+      '429': { $ref: '../componentes/respuestas.yaml#/LimiteExcedido' }
+
+promocion:
+  get:
+    tags: [catalogo]
+    summary: Consultar un cupon
+    operationId: validarPromocion
+    x-roles: [sesion]
+    parameters:
+      - { name: codigo, in: path, required: true, schema: { type: string, example: BIENVENIDA10 } }
+    responses:
+      '200':
+        description: Cupon vigente.
+        content:
+          application/json:
+            schema: { $ref: '../componentes/esquemas.yaml#/Promocion' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '404': { $ref: '../componentes/respuestas.yaml#/NoEncontrado' }

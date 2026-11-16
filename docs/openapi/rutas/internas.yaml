@@ -1,0 +1,207 @@
+# Rutas internas: las usa la saga de pedidos (o el carrito) por la red privada,
+# con el secreto compartido Y la cabecera x-llamada-interna (invariante 11).
+# Por el gateway solo son accesibles para administrador y vendedor. No se
+# publican en Swagger UI (docs/adr/0008).
+validar:
+  get:
+    tags: [interna]
+    summary: Validar un cliente para la compra (paso 9 de la saga)
+    operationId: validarParaCompra
+    x-interna: true
+    x-roles: [administrador, vendedor]
+    parameters:
+      - { $ref: '../componentes/parametros.yaml#/IdCliente' }
+      - { name: direccion_id, in: query, schema: { type: integer, example: 1 } }
+    responses:
+      '200':
+        description: Cliente activo con direccion de envio.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                valido: { type: boolean }
+                cliente:
+                  type: object
+                  properties:
+                    id: { type: integer }
+                    nombre: { type: string, description: Nombre y apellido. }
+                    email: { type: string }
+                    telefono: { type: string, nullable: true }
+                direccion_envio: { $ref: '../componentes/esquemas.yaml#/Direccion' }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+      '404': { $ref: '../componentes/respuestas.yaml#/NoEncontrado' }
+
+precio:
+  get:
+    tags: [interna]
+    summary: Precio vigente de un SKU (carrito y paso 10 de la saga)
+    operationId: precioVigente
+    x-interna: true
+    x-roles: [sesion]
+    parameters: [{ $ref: '../componentes/parametros.yaml#/Sku' }]
+    responses:
+      '200':
+        description: Precio vigente.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sku: { type: string }
+                nombre: { type: string }
+                precio_lista: { type: number }
+                descuento_porcentaje: { type: number }
+                precio_final: { type: number }
+      '404': { $ref: '../componentes/respuestas.yaml#/NoEncontrado' }
+
+carritoCheckout:
+  get:
+    tags: [interna]
+    summary: Carrito con precios vigentes para la saga
+    operationId: carritoParaCheckout
+    x-interna: true
+    x-roles: [administrador, vendedor]
+    parameters: [{ $ref: '../componentes/parametros.yaml#/ClienteId' }]
+    responses:
+      '200':
+        description: Items, cupon y totales.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                cliente_id: { type: integer }
+                items: { type: array, items: { $ref: '../componentes/esquemas.yaml#/ItemCarrito' } }
+                cupon: { type: string, nullable: true }
+                totales: { type: object, additionalProperties: true }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+
+reservas:
+  post:
+    tags: [interna]
+    summary: Reservar stock (paso 11 de la saga)
+    description: Descuento condicional, version y bloqueo por SKU en la funcion reservar_stock. Vigencia por defecto de 15 minutos.
+    operationId: reservarStock
+    x-interna: true
+    x-roles: [administrador, vendedor]
+    parameters: [{ $ref: '../componentes/parametros.yaml#/IdempotencyKey' }]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [sku, cantidad]
+            properties:
+              sku: { type: string }
+              cantidad: { type: integer, minimum: 1 }
+              pedido_id: { type: integer }
+              minutos_vigencia: { type: integer, default: 15 }
+    responses:
+      '201': { description: Reserva creada. }
+      '200': { description: Replica idempotente. }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+      '409': { $ref: '../componentes/respuestas.yaml#/Conflicto' }
+
+reserva:
+  get:
+    tags: [interna]
+    summary: Consultar una reserva
+    operationId: obtenerReserva
+    x-interna: true
+    x-roles: [administrador, vendedor]
+    parameters: [{ $ref: '../componentes/parametros.yaml#/IdReserva' }]
+    responses:
+      '200': { description: Reserva. }
+      '404': { $ref: '../componentes/respuestas.yaml#/NoEncontrado' }
+
+confirmarReserva:
+  post:
+    tags: [interna]
+    summary: Confirmar una reserva tras el cobro (paso 13)
+    operationId: confirmarReserva
+    x-interna: true
+    x-roles: [administrador, vendedor]
+    parameters: [{ $ref: '../componentes/parametros.yaml#/IdReserva' }]
+    responses:
+      '200': { description: Reserva confirmada (o ya lo estaba). }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+      '404': { $ref: '../componentes/respuestas.yaml#/NoEncontrado' }
+
+liberarReserva:
+  post:
+    tags: [interna]
+    summary: Liberar una reserva (compensacion)
+    operationId: liberarReserva
+    x-interna: true
+    x-roles: [administrador, vendedor]
+    parameters: [{ $ref: '../componentes/parametros.yaml#/IdReserva' }]
+    requestBody:
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              motivo: { type: string }
+    responses:
+      '200': { description: Reserva liberada (o ya lo estaba). }
+      '404': { $ref: '../componentes/respuestas.yaml#/NoEncontrado' }
+
+cobros:
+  post:
+    tags: [interna]
+    summary: Cobrar (paso 12 de la saga)
+    description: Idempotente y sin reintentos. Nunca recibe el numero de tarjeta, solo el token de la pasarela.
+    operationId: cobrar
+    x-interna: true
+    x-roles: [administrador, vendedor]
+    parameters: [{ $ref: '../componentes/parametros.yaml#/IdempotencyKey' }]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [pedido_id, cliente_id, monto, medio_pago, token_medio_pago]
+            properties:
+              pedido_id: { type: integer }
+              numero_pedido: { type: string }
+              cliente_id: { type: integer }
+              monto: { type: number }
+              medio_pago: { type: string }
+              token_medio_pago: { type: string }
+    responses:
+      '201':
+        description: Cobro aprobado.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                aprobado: { type: boolean }
+                transaccion: { $ref: '../componentes/esquemas.yaml#/Transaccion' }
+      '200': { description: Cobro rechazado o replica idempotente. }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+      '502': { description: Error tecnico de la pasarela. }
+
+reembolsar:
+  post:
+    tags: [interna]
+    summary: Reembolsar una transaccion (compensacion de una cancelacion)
+    operationId: reembolsarTransaccion
+    x-interna: true
+    x-roles: [administrador, vendedor]
+    parameters: [{ $ref: '../componentes/parametros.yaml#/Referencia' }]
+    requestBody:
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              motivo: { type: string }
+    responses:
+      '200': { description: Reembolso procesado (o ya estaba reembolsada). }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+      '404': { $ref: '../componentes/respuestas.yaml#/NoEncontrado' }

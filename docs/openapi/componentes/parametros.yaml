@@ -1,0 +1,44 @@
+IdempotencyKey:
+  name: Idempotency-Key
+  in: header
+  required: true
+  description: Obligatoria (invariante 4). Un reintento con la misma clave devuelve el resultado original sin repetir el efecto.
+  schema: { type: string, maxLength: 100, example: checkout-ana-0001 }
+ClienteId:
+  name: clienteId
+  in: path
+  required: true
+  description: Id del cliente. Un cliente solo puede usar el suyo (el del JWT).
+  schema: { type: integer, example: 1 }
+IdCliente:
+  name: id
+  in: path
+  required: true
+  description: Id del cliente. Un cliente solo puede usar el suyo (el del JWT).
+  schema: { type: integer, example: 1 }
+Sku:
+  name: sku
+  in: path
+  required: true
+  schema: { type: string, example: SKU-TEC-001 }
+IdPedido:
+  name: id
+  in: path
+  required: true
+  description: Id numerico o numero de pedido (PED-...).
+  schema: { type: string, example: '1' }
+IdReserva:
+  name: id
+  in: path
+  required: true
+  schema: { type: string, example: 122a73cf-9420-4139-a7ea-36d7d2802ffb }
+Referencia:
+  name: referencia
+  in: path
+  required: true
+  schema: { type: string, example: TRX-4B2CB23F-814 }
+FiltroClienteId:
+  name: cliente_id
+  in: query
+  description: Solo personal interno. Para un cliente se ignora y se usa el del JWT.
+  schema: { type: integer, example: 1 }

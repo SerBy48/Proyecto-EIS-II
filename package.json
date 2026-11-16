@@ -22,9 +22,9 @@
     "dev:web": "npm run dev -w @ecommerce/web",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "build:web": "npm run build -w @ecommerce/web",
-    "infra:up": "docker compose up -d --wait postgres mongo redis rabbitmq",
+    "infra:up": "docker compose up -d --wait postgres mongo redis rabbitmq mailpit",
     "infra:down": "docker compose down",
-    "infra:reset": "docker compose down -v && docker compose up -d --wait postgres mongo redis rabbitmq",
+    "infra:reset": "docker compose down -v && docker compose up -d --wait postgres mongo redis rabbitmq mailpit",
     "test:salud": "tsx --env-file-if-exists=.env tests/salud.ts",
     "test:e2e": "tsx --env-file-if-exists=.env tests/e2e-compra.ts",
     "test:concurrencia": "tsx --env-file-if-exists=.env tests/concurrencia-stock.ts",
@@ -45,17 +45,24 @@
     "usabilidad:sus": "tsx tests/usabilidad/calcular-sus.ts",
     "usabilidad:recorrido": "tsx --env-file-if-exists=.env tests/usabilidad/recorrido.ts",
     "informe:estrategias": "tsx scripts/informes/generar-estrategias.ts && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/informes/actualizar-indice.ps1 -Docx docs/informes/Informe_Estrategias_Validacion_Pruebas.docx",
-    "docs:c4": "bash scripts/c4.sh"
+    "docs:c4": "bash scripts/c4.sh",
+    "docs:openapi": "redocly lint docs/openapi/openapi.yaml docs/openapi/openapi-interna.yaml && redocly bundle docs/openapi/openapi.yaml -o services/api-gateway/especificacion/openapi.json && redocly bundle docs/openapi/openapi-interna.yaml -o docs/openapi/generado/openapi-interna.json",
+    "test:openapi": "tsx tests/openapi-cobertura.ts",
+    "test:unit": "vitest run",
+    "test:unit:cobertura": "vitest run --coverage"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.10.0",
+    "@redocly/cli": "2.78.0",
     "@types/node": "^22.7.5",
+    "@vitest/coverage-v8": "4.1.12",
     "concurrently": "^8.2.2",
     "docx": "^9.5.0",
     "playwright": "1.48.2",
     "playwright-core": "1.48.2",
     "tsx": "^4.19.2",
-    "typescript": "^5.6.3"
+    "typescript": "^5.6.3",
+    "vitest": "4.1.12"
   },
   "engines": {
     "node": ">=22.9"
