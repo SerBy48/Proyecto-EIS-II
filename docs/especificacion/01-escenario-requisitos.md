@@ -161,7 +161,7 @@ Cada escenario sigue la plantilla del SEI: **fuente y estímulo → entorno → 
 | RNF-08 | Notificaciones se detiene durante el checkout | Carga | Las compras siguen confirmándose; los eventos esperan en RabbitMQ | 0 compras fallidas por notificaciones; todos los eventos consumidos al volver | F4: carga con fallo inyectado |
 | RNF-09 | La pasarela rechaza o falla | Normal | La saga compensa: libera el stock y cancela el pedido | Stock igual al de antes; pedido `cancelado` | `test:e2e`, `test:http` |
 | RNF-10 | Un servicio dependiente no responde | Normal | El gateway responde 504 `TIEMPO_AGOTADO`, sin cortar la conexión | 504 en ≤ 15,1 s; 0 EOF | `docker pause` + curl |
-| RNF-11 | Arranque en frío del despliegue completo | `down -v` y `up` | Todos los servicios quedan sanos sin intervención | 10/10 servicios sanos | F5 (perfil prod) |
+| RNF-11 | Arranque en frío del despliegue completo | `down -v` y `up` | Todos los servicios quedan sanos sin intervención | 10/10 servicios sanos | `down -v` y `npm run prod:up`: 16/16 contenedores sanos en 276 s (F5, `PRUEBAS.md` 4.32) |
 
 ### Consistencia
 
@@ -193,4 +193,4 @@ Cada escenario sigue la plantilla del SEI: **fuente y estímulo → entorno → 
 |---|---|---|---|---|---|
 | RNF-21 | Se agrega un servicio nuevo | Desarrollo | Se registra siguiendo el checklist de `CLAUDE.md` | Cambios solo en el servicio y los 5 puntos de registro | Revisión del PR de la Fase 3 |
 | RNF-22 | Se cambia una ruta de la API | Desarrollo | La documentación queda desalineada y se detecta | `test:openapi` falla ante rutas sin documentar 🆕 | `test:openapi` |
-| RNF-23 | Un cambio rompe un componente compartido | Desarrollo / CI | Las pruebas lo detectan antes de integrar | Cobertura de `packages/shared` medida 🆕; CI en cada PR 🆕 | `test:unit`, GitHub Actions |
+| RNF-23 | Un cambio rompe un componente compartido | Desarrollo / CI | Las pruebas lo detectan antes de integrar | Cobertura de `packages/shared` medida 🆕; CI en cada PR 🆕 | `test:unit:cobertura`; GitHub Actions (`.github/workflows/ci.yml`) en cada push y PR, con `test:e2e:ui` |

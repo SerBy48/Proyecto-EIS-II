@@ -6,9 +6,9 @@ electrónico.
 
 | | |
 |---|---|
-| **Última ejecución** | 15 de noviembre de 2026 (servicios en contenedores, base poblada con `npm run sembrar:carga` y secretos propios en `.env`) |
-| **Casos ejecutados** | 316: 203 de integración (33 de concurrencia + 73 por HTTP + 51 extremo a extremo + 46 del asistente) y 113 unitarias. Además, 355 comprobaciones de cobertura de OpenAPI y 21 verificaciones de seguridad |
-| **Resultado** | 316 pasan, 0 fallan; las 355 comprobaciones de OpenAPI pasan; seguridad: 1 hallazgo de 21 (S-09, aceptado). Asistente: 91,7 % de acierto de intenciones. Regresión de la Fase 4: [`no-funcionales/08-regresion-tf-fase4.txt`](evidencia/no-funcionales/08-regresion-tf-fase4.txt) |
+| **Última ejecución** | 16 de noviembre de 2026, Fase 5: sistema completo en contenedores (perfil de laboratorio, y `test:e2e:ui` también sobre el perfil prod), secretos propios en `.env` |
+| **Casos ejecutados** | 320: 205 de integración (33 de concurrencia + 73 por HTTP + 53 extremo a extremo + 46 del asistente) y 115 unitarias. Además, 12 criterios de aceptación en la interfaz (`test:e2e:ui`), 355 comprobaciones de cobertura de OpenAPI y 21 verificaciones de seguridad |
+| **Resultado** | 320 pasan, 0 fallan; 12/12 criterios de aceptación; las 355 comprobaciones de OpenAPI pasan; seguridad: 1 hallazgo de 21 (S-09, aceptado). Evidencia de la Fase 5: [`evidencia/trabajo-final/regresion-f5/`](evidencia/trabajo-final/regresion-f5/) |
 | **Entorno** | Windows 11, Node 25, Docker: PostgreSQL 16 (puerto 5434 del host), MongoDB 7, Redis 7, RabbitMQ 3 y Mailpit 1.27. Infraestructura completa |
 | **Evidencia** | [`evidencia/`](evidencia/) — salida literal de cada suite |
 
@@ -808,6 +808,68 @@ Lo encontró la carga con fallo inyectado: inventario detenido durante la búsqu
 - Pruebas unitarias en `circuit-breaker.test.ts`.
 - La misma carga con fallo: p99 de 6 373 a 76 ms, con 0 errores ([`calidad/RENDIMIENTO.md`](calidad/RENDIMIENTO.md), sección 9.6).
 
+### 4.31 El correo de cancelación iba al buzón de operaciones (H-F5-01)
+
+Lo encontró el E2E de interfaz de la Fase 5, al tomar la captura del correo para el manual de usuario.
+
+**Síntoma.** Al cancelar un pedido pagado:
+- el correo «no pudo completarse» llegaba a `operaciones@tienda.co` y no al cliente;
+- empezaba con «Hola ,»;
+- decía «No se realizo ningun cobro», aunque el pago sí se había cobrado y se reembolsó.
+
+Lo mismo pasaba cuando el personal cambiaba el estado de un pedido: el aviso «fue confirmado» también iba a operaciones.
+
+**Causa.** La saga publica `pedido.cancelado` con `email` y `nombre`, pero `POST /pedidos/:id/cancelar` y `PATCH /pedidos/:id/estado` no los incluían. Sin destinatario, notificaciones usa el buzón de operaciones. La plantilla, además, daba por hecho que nunca había cobro.
+
+**Corrección:**
+- `pedidos-service` consulta el contacto del cliente (`GET /clientes/:id`, con la identidad de quien hace el cambio) y lo agrega al evento. Si clientes no responde, el cambio de estado se mantiene igual (invariante 12).
+- El evento lleva `detalle_cobro`: «El reembolso del pago ya fue procesado», «…está en trámite» o «No se realizó ningún cobro».
+- La plantilla `pedido.cancelado` ahora dice «Tu pedido … fue cancelado. Motivo: … {{detalle_cobro}}».
+  - En volúmenes nuevos: `infra/mongo/init-mongo.js`.
+  - En una base existente: `PATCH /api/notificaciones/plantillas/pedido.cancelado`.
+
+**Verificación:**
+- `test:e2e`, escenario E: dos comprobaciones nuevas (el correo le llega al cliente; saluda por su nombre e informa el reembolso). Pasa de 51 a 53 comprobaciones.
+- CA-08 de `test:e2e:ui`.
+
+### 4.32 Regresión de la Fase 5 (despliegue y aceptación)
+
+**Cambios que se probaron:**
+- web en contenedor (nginx con proxy `/api`);
+- perfil prod;
+- bus de eventos con reconexión;
+- registro de cuentas y bitácora de la saga en la web;
+- tratamiento de `Origin` en nginx;
+- H-F5-01.
+
+| Suite | Resultado | Evidencia |
+|---|---|---|
+| `typecheck` | sin errores | `regresion-f5/typecheck.txt` |
+| `test:unit` | 115/115 (2 nuevas: el bus arranca sin broker y vuelve a suscribirse tras una caída) | `regresion-f5/test-unit.txt` |
+| `test:openapi` | 355/355 | `regresion-f5/test-openapi.txt` |
+| `build:web` | compila | `regresion-f5/build-web.txt` |
+| `test:salud` | 10/10 servicios | `regresion-f5/test-salud.txt` |
+| `test:http` | 73/73 | `regresion-f5/test-http.txt` |
+| `test:concurrencia` | 33/33 | `regresion-f5/test-concurrencia.txt` |
+| `test:e2e` | 53/53 | `regresion-f5/test-e2e.txt` |
+| `test:asistente` | 46/46, con `ASISTENTE_PROBAR_DEGRADACION=1` (44/44 sin ella) | `regresion-f5/test-asistente.txt` |
+| `test:seguridad` | 20 seguras y 1 hallazgo aceptado (V-13 / S-09). Desde la Fase 5, un riesgo aceptado no hace fallar la suite; uno nuevo sí | `regresion-f5/test-seguridad.txt` |
+| **`test:e2e:ui`** | **12/12 criterios** | `trabajo-final/e2e-ui/` |
+| `npm audit --omit=dev --audit-level=high` | 0 vulnerabilidades | — |
+| Lint de OpenAPI (Redocly) | válido | — |
+
+**Arranque en frío del perfil prod (RNF-11):**
+- `docker compose down -v` y luego `npm run prod:up`;
+- 16/16 contenedores sanos en 276 s, sin intervención;
+- solo se publica el 8081, más Mailpit en `127.0.0.1:8025`;
+- el gateway no responde en el host; `/api/health` responde por el proxy de la web;
+- evidencia: [`evidencia/trabajo-final/arranque-en-frio-prod.txt`](evidencia/trabajo-final/arranque-en-frio-prod.txt).
+
+**Estabilidad de `test:e2e:ui`.** Pasó 12/12 en cuatro ejecuciones seguidas: dos sobre el perfil prod, una dentro de la regresión y una con la grabación de video. Las primeras ejecuciones fallaron por causas de la prueba, ya corregidas:
+- CORS: el 8081 no estaba entre los orígenes permitidos;
+- una espera que no aguardaba al inicio de sesión;
+- `waitForFunction`, que la CSP de la web bloquea (`unsafe-eval`).
+
 ---
 
 ## 5. Lo que queda por probar
@@ -823,14 +885,14 @@ Quedan las pruebas que requieren provocar fallos a mano:
 
 El circuit breaker abriéndose por fallos reales ya está verificado, y bajo carga: la Fase 4 detuvo inventario y notificaciones en plena corrida ([`calidad/RENDIMIENTO.md`](calidad/RENDIMIENTO.md), secciones 9.3, 9.4 y 9.6).
 
-### Limitación conocida: arranque antes que el broker
+### Resuelto en la Fase 5: arranque antes que el broker
 
-`BusEventos` reintenta la conexión cuando una conexión **ya establecida** se
-cierra, pero no cuando el **primer** intento falla. Si los servicios arrancan
-mientras RabbitMQ aún se está iniciando, notificaciones queda sin suscripción y
-`test:salud` lo reporta caído hasta reiniciar `npm run dev`. Se mitiga con
-`npm run infra:up`, que usa `docker compose up --wait` y no termina hasta que los
-cuatro contenedores están sanos.
+Antes, `BusEventos` no reintentaba si fallaba el **primer** intento de conexión. Desde la Fase 5:
+- reintenta con espera exponencial (1 s, 2 s… hasta 30 s);
+- al reconectar, vuelve a declarar sus consumidores;
+- el arranque en frío del perfil prod pasa sin intervención (4.32).
+
+Las pruebas unitarias de `bus-eventos.test.ts` cubren el arranque sin broker y la caída de una conexión ya establecida.
 
 ### Observación sobre el control de rol
 

@@ -1,40 +1,41 @@
 @startuml 05-despliegue
 !include lib/C4_Deployment.puml
 !include estilo.puml
-title Despliegue - Docker Compose (perfil laboratorio hoy; perfil prod en la Fase 5)
+title Despliegue - Docker Compose, perfil prod (npm run prod:up) con tunel para la defensa
 
 Person(usuario, "Usuarios", "Navegador / app movil")
+System_Ext(cf, "Cloudflare", "Quick Tunnel: https://<aleatorio>.trycloudflare.com")
 
 Deployment_Node(host, "Equipo anfitrion", "Windows/Linux + Docker Engine") {
-  Deployment_Node(tunel, "Tunel (defensa)", "Cloudflare Tunnel o ngrok", $tags="planificado") {
-  }
   Deployment_Node(red, "Red Docker 'interna'", "bridge") {
-    Container(web, "web", "nginx:alpine + build de Vite", "Publica :80/8081; proxy /api -> api-gateway", $tags="planificado")
-    Container(gw, "api-gateway", "node:22-alpine", "Publica :8080 en todos los perfiles de laboratorio")
-    Deployment_Node(svcs, "Microservicios", "infra/Dockerfile.servicio (tsx)") {
-      Container(ms, "auth, clientes, catalogo, inventario, carrito, pedidos, pagos, notificaciones", "node:22-alpine", "Lab: 127.0.0.1:3001-3008. Prod: sin puertos publicados")
-      Container(asis, "asistente-service", "node:22-alpine", "Lab: 127.0.0.1:3009")
+    Container(tunel, "ecom_tunel", "cloudflare/cloudflared", "npm run tunel; solo mientras dura la demostracion")
+    Container(web, "web", "nginx-unprivileged:1.27 + build de Vite", "UNICO puerto publicado: 8081. Proxy /api -> api-gateway")
+    Container(gw, "api-gateway", "node:22-alpine", "Prod: sin puerto publicado. Lab: :8080")
+    Deployment_Node(svcs, "Microservicios", "infra/Dockerfile.servicio (tsx), limites de CPU y memoria") {
+      Container(ms, "auth, clientes, catalogo, inventario, carrito, pedidos, pagos, notificaciones", "node:22-alpine", "Prod: sin puertos. Lab: 127.0.0.1:3001-3008")
+      Container(asis, "asistente-service", "node:22-alpine", "Prod: sin puerto. Lab: 127.0.0.1:3009")
     }
     Deployment_Node(datos, "Motores de datos", "imagenes oficiales") {
-      ContainerDb(pg, "postgres:16-alpine", "", "Lab: 127.0.0.1:5432|5434. Prod: sin publicar")
-      ContainerDb(mongo, "mongo:7", "", "Lab: 127.0.0.1:27017")
-      ContainerDb(redis, "redis:7-alpine", "", "Lab: 127.0.0.1:6379")
-      ContainerQueue(mq, "rabbitmq:3.13-management", "", "Lab: 127.0.0.1:5672 / 15672")
-      Container(mail, "axllent/mailpit:v1.27", "", "Lab: 127.0.0.1:1025 / 8025")
+      ContainerDb(pg, "postgres:16-alpine", "", "Prod: sin publicar. Lab: 127.0.0.1:5432|5434")
+      ContainerDb(mongo, "mongo:7", "", "Prod: sin publicar")
+      ContainerDb(redis, "redis:7-alpine", "", "Prod: sin publicar")
+      ContainerQueue(mq, "rabbitmq:3.13-management", "", "Prod: sin publicar")
+      Container(mail, "axllent/mailpit:v1.27", "", "Prod: interfaz solo en 127.0.0.1:8025")
     }
   }
 }
 
-Rel(usuario, gw, "HTTP :8080 (hoy)")
-Rel(usuario, tunel, "HTTPS (defensa)", $tags="planificado")
-Rel(tunel, web, "HTTP", $tags="planificado")
-Rel(web, gw, "/api", $tags="planificado")
+Rel(usuario, cf, "HTTPS (defensa)")
+Rel(cf, tunel, "conexion saliente del tunel")
+Rel(tunel, web, "HTTP :8080")
+Rel(usuario, web, "HTTP :8081 (mismo equipo / red local)")
+Rel(web, gw, "/api (mismo origen)")
 Rel(gw, ms, "REST (red interna)")
 Rel(gw, asis, "REST")
 Rel(ms, pg, "TCP 5432")
 Rel(ms, mongo, "TCP 27017")
 Rel(ms, redis, "TCP 6379")
-Rel(ms, mq, "AMQP 5672")
+Rel(ms, mq, "AMQP 5672 (reconexion con espera exponencial)")
 Rel(ms, mail, "SMTP 1025 (notificaciones)")
 SHOW_LEGEND()
 @enduml

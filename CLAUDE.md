@@ -34,7 +34,7 @@ docs/                   Arquitectura, flujo, comunicación, análisis, api.http
 | pagos-service | 3007 | PostgreSQL `pagos_db` |
 | notificaciones-service | 3008 | MongoDB `notificaciones_db` |
 | asistente-service | 3009 | MongoDB `asistente_db` |
-| web | 5173 | — |
+| web | 5173 (`dev:web`); 8081 en contenedor (nginx, proxy `/api`) | — |
 | Mailpit (correo de pruebas) | 8025 (web y API), 1025 (SMTP) | — |
 
 Infraestructura: PostgreSQL 5432 (o `POSTGRES_PUERTO_HOST`), MongoDB 27017, Redis 6379,
@@ -54,6 +54,9 @@ npm run typecheck           # tipos de todos los paquetes
 npm run test:salud          # todos los servicios responden
 npm run test:concurrencia   # no hay sobreventa
 npm run test:e2e            # flujo de compra completo (incluye el correo en Mailpit)
+npm run test:e2e:ui         # 12 criterios de aceptacion en la web (Playwright, 8081, modo pruebas; GRABAR_VIDEO=1)
+npm run prod:up             # perfil de produccion: solo la web publica puerto (prod:down, prod:logs)
+npm run tunel               # Cloudflare Quick Tunnel hacia la web (solo durante la defensa)
 npm run test:unit           # pruebas unitarias con Vitest (sin Docker); :cobertura para el reporte
 npm run test:openapi        # la especificacion OpenAPI cubre exactamente las rutas del codigo
 npm run docs:openapi        # valida (Redocly) y empaqueta docs/openapi para el gateway
@@ -206,6 +209,9 @@ petición queda colgada. Para los errores se usan los constructores de
 | Asistente: motor, diálogo, intenciones y FAQ | `services/asistente-service/src/{motor,dialogo}.ts`, `src/datos/*.json` |
 | Chat de la web | `clients/web/src/componentes/Asistente.jsx` |
 | Especificación, C4 y ADR del Trabajo Final | `docs/especificacion/`, `docs/c4/`, `docs/adr/` |
+| Web en contenedor y perfil prod | `clients/web/{Dockerfile,nginx.conf}`, `docker-compose.prod.yml` |
+| Criterios de aceptación, trazabilidad y E2E de interfaz | `docs/aceptacion/`, `tests/e2e-ui/aceptacion.ts` |
+| Manuales y guion de la defensa | `docs/manuales/`, `docs/defensa/GUION.md` |
 
 ---
 
@@ -233,15 +239,15 @@ Tokens de la pasarela simulada (resultado determinista):
 ## Estado y pendientes conocidos
 
 **Verificado y funcionando** (ver `docs/PRUEBAS.md` para el detalle y la
-evidencia; última ejecución el 2026-11-15 con los servicios en contenedores y la
-base poblada con `npm run sembrar:carga`): 157 casos de integración y 113
-unitarios, todos pasan; `test:openapi` pasa sus 355 comprobaciones y
+evidencia; última ejecución el 2026-11-16, Fase 5, con el sistema completo en
+contenedores): 205 casos de integración y 115 unitarios, todos pasan, y los 12
+criterios de aceptación de `test:e2e:ui`; `test:openapi` pasa sus 355 comprobaciones y
 `test:asistente` sus 46. Los diez servicios compilan y arrancan sanos; la prueba
 de concurrencia pasa sus 33 comprobaciones (20 compradores simultáneos por 5
 unidades → exactamente 5 ganan); `test:http` pasa sus 73 casos sobre
 autenticación, RBAC, aislamiento entre clientes, idempotencia, los cuatro
 desenlaces de la pasarela, el ciclo de vida de los pedidos, rate limiting,
-PCI-DSS y aislamiento de las bases; `test:e2e` pasa sus 51 comprobaciones
+PCI-DSS y aislamiento de las bases; `test:e2e` pasa sus 53 comprobaciones
 (compra, pago rechazado con compensación, última unidad, doble clic, cancelación
 y seguridad), incluido el consumo de eventos por notificaciones y el correo real
 en Mailpit. El cliente web
@@ -252,10 +258,21 @@ defecto; en este equipo 5434 porque hay un PostgreSQL nativo en 5432). Compose,
 los servicios y las pruebas lo respetan. Los scripts `dev` y `test:*` cargan el
 `.env` raíz con `--env-file-if-exists` (requiere Node ≥ 22.9).
 
-**Arranque:** `npm run infra:up` usa `docker compose up --wait`. `BusEventos` no
-reintenta si el **primer** intento de conexión falla, así que si los servicios
-arrancan antes que RabbitMQ, notificaciones queda caído hasta reiniciar
-`npm run dev`.
+**Arranque:** `BusEventos` reconecta con espera exponencial (también si el
+primer intento falla) y vuelve a declarar sus consumidores; por eso los
+servicios dependen de RabbitMQ con `service_started`, no `service_healthy`. Si
+`alIniciar` falla, `crearServicio` termina el proceso y Docker lo reinicia.
+Arranque en frío del perfil prod: 16/16 contenedores sanos en 276 s.
+
+**Despliegue (Fase 5, ADR-0009):** `docker-compose.prod.yml` sobre el de
+laboratorio (`npm run prod:up`): sin puertos salvo la web (8081) y Mailpit en
+127.0.0.1:8025, `EXPONER_DOCS=false`, límites de recursos. La web se compila con
+`MODO_VITE` (`pruebas` muestra el selector de la pasarela; `production` lo
+oculta). nginx quita el `Origin` cuando coincide con el `Host` (mismo origen,
+también por el túnel); los orígenes ajenos los rechaza el gateway
+(`CORS_ORIGENES`, o `CORS_ORIGENES_PROD` en prod). CI en
+`.github/workflows/ci.yml`. `test:seguridad` no falla por los riesgos aceptados
+(`RIESGOS_ACEPTADOS`: V-13 = S-09).
 
 **Defectos ya corregidos**, cada uno con su caso de prueba (sección 4 de
 `docs/PRUEBAS.md`): escalada de privilegios por el token interno, error 500 al
