@@ -499,3 +499,77 @@ Salud:
                 nombre: { type: string, example: 'postgres:auth_db' }
                 ok: { type: boolean }
                 critica: { type: boolean }
+
+# ----------------------------------------------------------------- asistente
+MensajeAsistente:
+  type: object
+  required: [texto]
+  properties:
+    texto: { type: string, minLength: 1, maxLength: 500, example: Cuanto cuesta el envio? }
+    conversacion_id:
+      type: string
+      format: uuid
+      description: Para continuar una conversacion (contexto de varios turnos). Si es de otra persona, se empieza una nueva.
+
+RespuestaAsistente:
+  type: object
+  properties:
+    conversacion_id: { type: string, format: uuid }
+    intencion: { type: string, example: faq_envio, description: 'Intencion reconocida, o no_entendido.' }
+    respuestas:
+      type: array
+      items:
+        type: object
+        required: [tipo]
+        description: 'Segun tipo: texto (texto), productos (productos[]), pedido (pedido), pedidos (pedidos[]) u opciones (opciones[] con etiqueta y texto o accion).'
+        properties:
+          tipo: { type: string, enum: [texto, productos, pedido, pedidos, opciones] }
+          texto: { type: string }
+          productos:
+            type: array
+            items:
+              type: object
+              properties:
+                sku: { type: string }
+                nombre: { type: string }
+                precio_final: { type: number }
+                disponible: { type: integer, nullable: true }
+                hay_stock: { type: boolean, nullable: true }
+          pedido: { $ref: '#/PedidoResumen' }
+          pedidos: { type: array, items: { $ref: '#/PedidoResumen' } }
+          opciones:
+            type: array
+            items:
+              type: object
+              properties:
+                etiqueta: { type: string }
+                texto: { type: string }
+                accion: { type: string, enum: [iniciar_sesion, ir_pedidos, ir_carrito] }
+
+TicketAsistente:
+  type: object
+  properties:
+    numero: { type: string, example: TCK-MI0ABC12F3 }
+    conversacion_id: { type: string, format: uuid }
+    usuario_id: { type: integer, nullable: true }
+    cliente_id: { type: integer, nullable: true }
+    email: { type: string, nullable: true }
+    texto: { type: string, description: Mensaje del usuario con los datos sensibles enmascarados. }
+    estado: { type: string, example: abierto }
+    creado_en: { type: string, format: date-time }
+
+IntencionAsistente:
+  type: object
+  properties:
+    clave: { type: string, example: faq_envio }
+    descripcion: { type: string }
+    prioridad: { type: number }
+    requiere_sesion: { type: boolean }
+    terminos:
+      type: array
+      items:
+        type: object
+        properties:
+          texto: { type: string }
+          peso: { type: number }
+    refuerzos: { type: object, additionalProperties: { type: number } }

@@ -47,7 +47,8 @@ export const Eventos = {
   PAGO_RECHAZADO: 'pago.rechazado',
   STOCK_MINIMO: 'inventario.stock_minimo',
   RESERVA_EXPIRADA: 'inventario.reserva_expirada',
-  CARRITO_ABANDONADO: 'carrito.abandonado'
+  CARRITO_ABANDONADO: 'carrito.abandonado',
+  ASISTENTE_ESCALAMIENTO: 'asistente.escalamiento'
 } as const;
 
 export type NombreEvento = (typeof Eventos)[keyof typeof Eventos];

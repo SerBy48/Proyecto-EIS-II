@@ -57,7 +57,8 @@ const DESTINOS: Destino[] = [
   { prefijo: '/api/carrito',        url: process.env.URL_CARRITO        || 'http://localhost:3005' },
   { prefijo: '/api/pedidos',        url: process.env.URL_PEDIDOS        || 'http://localhost:3006' },
   { prefijo: '/api/pagos',          url: process.env.URL_PAGOS          || 'http://localhost:3007' },
-  { prefijo: '/api/notificaciones', url: process.env.URL_NOTIFICACIONES || 'http://localhost:3008' }
+  { prefijo: '/api/notificaciones', url: process.env.URL_NOTIFICACIONES || 'http://localhost:3008' },
+  { prefijo: '/api/asistente',      url: process.env.URL_ASISTENTE      || 'http://localhost:3009', tienePublicas: true }
 ];
 
 /**
@@ -72,6 +73,8 @@ const RUTAS_PUBLICAS: Array<{ metodo: string; patron: RegExp }> = [
   { metodo: 'POST', patron: /^\/api\/clientes\/?$/ },
   { metodo: 'GET',  patron: /^\/api\/catalogo\/productos(\/[^/]+)?$/ },
   { metodo: 'GET',  patron: /^\/api\/catalogo\/categorias$/ },
+  // El asistente atiende tambien a visitantes; con token, el servicio lo valida.
+  { metodo: 'POST', patron: /^\/api\/asistente\/mensajes$/ },
   // Swagger UI y la especificacion, solo si estan expuestas (EXPONER_DOCS).
   ...(docsExpuestas() ? [{ metodo: 'GET', patron: PATRON_DOCS }] : [])
 ];
@@ -197,8 +200,23 @@ const limiteCheckout = rateLimit({
   message: { mensaje: 'Demasiados intentos de compra. Espere un momento.', codigo: 'LIMITE_CHECKOUT' }
 });
 
+/**
+ * El chat es publico y cada mensaje puede consultar el catalogo o los pedidos:
+ * lleva su propio limite, mas estricto que el general, para que no sirva de
+ * amplificador contra los servicios de dominio.
+ */
+const limiteAsistente = rateLimit({
+  windowMs: 60_000,
+  limit: Number(process.env.LIMITE_ASISTENTE || 30),
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  keyGenerator: identificar,
+  message: { mensaje: 'Estas enviando mensajes muy rapido. Espera un momento.', codigo: 'LIMITE_ASISTENTE' }
+});
+
 app.use('/api/auth/login', limiteLogin);
 app.use('/api/pedidos/checkout', limiteCheckout);
+app.use('/api/asistente/mensajes', limiteAsistente);
 app.use('/api', limiteGeneral);
 
 // --------------------------------------------------------------------------

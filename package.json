@@ -9,7 +9,7 @@
     "clients/web"
   ],
   "scripts": {
-    "dev": "concurrently -n gateway,auth,clientes,catalogo,inventario,carrito,pedidos,pagos,notif -c cyan,green,yellow,magenta,blue,red,white,gray,greenBright \"npm:dev:gateway\" \"npm:dev:auth\" \"npm:dev:clientes\" \"npm:dev:catalogo\" \"npm:dev:inventario\" \"npm:dev:carrito\" \"npm:dev:pedidos\" \"npm:dev:pagos\" \"npm:dev:notificaciones\"",
+    "dev": "concurrently -n gateway,auth,clientes,catalogo,inventario,carrito,pedidos,pagos,notif,asistente -c cyan,green,yellow,magenta,blue,red,white,gray,greenBright,blueBright \"npm:dev:gateway\" \"npm:dev:auth\" \"npm:dev:clientes\" \"npm:dev:catalogo\" \"npm:dev:inventario\" \"npm:dev:carrito\" \"npm:dev:pedidos\" \"npm:dev:pagos\" \"npm:dev:notificaciones\" \"npm:dev:asistente\"",
     "dev:gateway": "npm run dev -w @ecommerce/api-gateway",
     "dev:auth": "npm run dev -w @ecommerce/auth-service",
     "dev:clientes": "npm run dev -w @ecommerce/clientes-service",
@@ -19,6 +19,7 @@
     "dev:pedidos": "npm run dev -w @ecommerce/pedidos-service",
     "dev:pagos": "npm run dev -w @ecommerce/pagos-service",
     "dev:notificaciones": "npm run dev -w @ecommerce/notificaciones-service",
+    "dev:asistente": "npm run dev -w @ecommerce/asistente-service",
     "dev:web": "npm run dev -w @ecommerce/web",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "build:web": "npm run build -w @ecommerce/web",
@@ -49,7 +50,10 @@
     "docs:openapi": "redocly lint docs/openapi/openapi.yaml docs/openapi/openapi-interna.yaml && redocly bundle docs/openapi/openapi.yaml -o services/api-gateway/especificacion/openapi.json && redocly bundle docs/openapi/openapi-interna.yaml -o docs/openapi/generado/openapi-interna.json",
     "test:openapi": "tsx tests/openapi-cobertura.ts",
     "test:unit": "vitest run",
-    "test:unit:cobertura": "vitest run --coverage"
+    "test:unit:cobertura": "vitest run --coverage",
+    "infra:asistente": "tsx scripts/infra-asistente.ts",
+    "test:asistente": "tsx --env-file-if-exists=.env tests/asistente/integracion.ts",
+    "asistente:metricas": "tsx tests/asistente/metricas.ts"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.10.0",

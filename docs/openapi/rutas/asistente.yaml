@@ -1,0 +1,160 @@
+# asistente-service (prefijo /api/asistente). docs/adr/0007.
+mensajes:
+  post:
+    tags: [asistente]
+    summary: Enviar un mensaje al asistente
+    description: |
+      Publica: atiende a visitantes y a usuarios con sesion. Con un token valido, las
+      consultas de pedidos se hacen con la identidad del usuario (pedidos-service aplica
+      su autorizacion por dato: un pedido ajeno responde "no encontrado"). Un token
+      vencido o invalido responde 401, no se degrada a visitante.
+
+      Limite propio en el gateway: 30 mensajes por minuto (`LIMITE_ASISTENTE`).
+      Las respuestas son datos para pintar como texto, nunca HTML.
+    operationId: enviarMensajeAsistente
+    security: []
+    x-roles: [publica]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../componentes/esquemas.yaml#/MensajeAsistente' }
+    responses:
+      '200':
+        description: Respuestas del asistente.
+        content:
+          application/json:
+            schema: { $ref: '../componentes/esquemas.yaml#/RespuestaAsistente' }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '429': { $ref: '../componentes/respuestas.yaml#/LimiteExcedido' }
+
+conversacion:
+  get:
+    tags: [asistente]
+    summary: Consultar una conversacion
+    description: Solo su dueno o un administrador; cualquier otro recibe 404. Los textos estan enmascarados.
+    operationId: obtenerConversacion
+    x-roles: [sesion]
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    responses:
+      '200':
+        description: Conversacion.
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '404': { $ref: '../componentes/respuestas.yaml#/NoEncontrado' }
+
+tickets:
+  get:
+    tags: [asistente]
+    summary: Tickets de escalamiento a un asesor
+    operationId: listarTickets
+    x-roles: [administrador, vendedor]
+    parameters:
+      - { name: estado, in: query, schema: { type: string, example: abierto } }
+    responses:
+      '200':
+        description: Ultimos 100 tickets.
+        content:
+          application/json:
+            schema: { type: array, items: { $ref: '../componentes/esquemas.yaml#/TicketAsistente' } }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+
+intenciones:
+  get:
+    tags: [asistente]
+    summary: Intenciones del motor de reglas
+    operationId: listarIntenciones
+    x-roles: [administrador]
+    responses:
+      '200':
+        description: Intenciones con sus terminos y pesos.
+        content:
+          application/json:
+            schema: { type: array, items: { $ref: '../componentes/esquemas.yaml#/IntencionAsistente' } }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+
+intencion:
+  patch:
+    tags: [asistente]
+    summary: Editar una intencion (sin desplegar)
+    operationId: actualizarIntencion
+    x-roles: [administrador]
+    parameters:
+      - { name: clave, in: path, required: true, schema: { type: string, example: faq_envio } }
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            minProperties: 1
+            properties:
+              terminos:
+                type: array
+                maxItems: 100
+                items:
+                  type: object
+                  required: [texto, peso]
+                  properties:
+                    texto: { type: string, maxLength: 60, description: 'Sin tildes; con * al final coincide por prefijo.' }
+                    peso: { type: number, minimum: 1, maximum: 10 }
+              prioridad: { type: number, minimum: 0, maximum: 100 }
+              descripcion: { type: string, maxLength: 120 }
+    responses:
+      '200': { description: Intencion actualizada. }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+      '404': { $ref: '../componentes/respuestas.yaml#/NoEncontrado' }
+
+faq:
+  get:
+    tags: [asistente]
+    summary: Respuestas a preguntas frecuentes
+    operationId: listarFaq
+    x-roles: [administrador]
+    responses:
+      '200':
+        description: Respuestas con sus {{variables}} de configuracion.
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: object
+                properties:
+                  clave: { type: string, example: faq_envio }
+                  respuesta: { type: string }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+
+faqClave:
+  patch:
+    tags: [asistente]
+    summary: Editar una respuesta frecuente (sin desplegar)
+    description: 'Las cifras se escriben como variables: {{costo_envio}}, {{umbral_envio_gratis}}, {{porcentaje_iva}}, {{dias_entrega}}, {{dias_retracto}}, {{horario_atencion}}.'
+    operationId: actualizarFaq
+    x-roles: [administrador]
+    parameters:
+      - { name: clave, in: path, required: true, schema: { type: string, example: faq_horario } }
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [respuesta]
+            properties:
+              respuesta: { type: string, maxLength: 1000 }
+    responses:
+      '200': { description: Respuesta actualizada. }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+      '404': { $ref: '../componentes/respuestas.yaml#/NoEncontrado' }

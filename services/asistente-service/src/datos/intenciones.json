@@ -1,0 +1,161 @@
+{
+  "_descripcion": "Intenciones iniciales del asistente. Se siembran en asistente_db.intenciones solo si la coleccion esta vacia; despues el administrador las edita con PATCH /api/asistente/intenciones/:clave sin desplegar. Terminos sin tildes y en minusculas (el motor normaliza el texto). Un termino que termina en * coincide por prefijo (portatil* -> portatiles). Mayor prioridad gana los empates.",
+  "intenciones": [
+    {
+      "clave": "saludo",
+      "descripcion": "Saludo",
+      "prioridad": 1,
+      "terminos": [
+        { "texto": "hola", "peso": 3 }, { "texto": "buenas", "peso": 3 }, { "texto": "buenos dias", "peso": 3 },
+        { "texto": "buenas tardes", "peso": 3 }, { "texto": "buenas noches", "peso": 3 }, { "texto": "saludos", "peso": 3 },
+        { "texto": "hey", "peso": 2 }, { "texto": "que tal", "peso": 2 }
+      ]
+    },
+    {
+      "clave": "ayuda",
+      "descripcion": "Ayuda y menu de opciones",
+      "prioridad": 2,
+      "terminos": [
+        { "texto": "ayuda", "peso": 3 }, { "texto": "ayudame", "peso": 3 }, { "texto": "menu", "peso": 3 },
+        { "texto": "opciones", "peso": 2 }, { "texto": "que puedes hacer", "peso": 5 }, { "texto": "que haces", "peso": 3 },
+        { "texto": "como funciona", "peso": 2 }, { "texto": "en que me ayudas", "peso": 5 }
+      ]
+    },
+    {
+      "clave": "despedida",
+      "descripcion": "Agradecimiento o despedida",
+      "prioridad": 1,
+      "terminos": [
+        { "texto": "gracias", "peso": 3 }, { "texto": "muchas gracias", "peso": 3 }, { "texto": "adios", "peso": 3 },
+        { "texto": "chao", "peso": 3 }, { "texto": "hasta luego", "peso": 3 }, { "texto": "eso es todo", "peso": 4 }
+      ]
+    },
+    {
+      "clave": "faq_envio",
+      "descripcion": "Costo del envio",
+      "prioridad": 5,
+      "terminos": [
+        { "texto": "envio", "peso": 2 }, { "texto": "envios", "peso": 2 }, { "texto": "domicilio", "peso": 2 },
+        { "texto": "flete", "peso": 3 }, { "texto": "costo de envio", "peso": 4 }, { "texto": "valor del envio", "peso": 4 },
+        { "texto": "cuanto cuesta el envio", "peso": 5 }, { "texto": "cuanto vale el envio", "peso": 5 },
+        { "texto": "cuanto cobran por el envio", "peso": 5 }
+      ]
+    },
+    {
+      "clave": "faq_envio_gratis",
+      "descripcion": "Desde cuanto el envio es gratis",
+      "prioridad": 6,
+      "terminos": [
+        { "texto": "envio gratis", "peso": 5 }, { "texto": "gratis", "peso": 3 }, { "texto": "sin costo de envio", "peso": 5 },
+        { "texto": "envio sin costo", "peso": 5 }, { "texto": "no pagar envio", "peso": 4 }
+      ]
+    },
+    {
+      "clave": "faq_iva",
+      "descripcion": "Impuestos (IVA)",
+      "prioridad": 5,
+      "terminos": [
+        { "texto": "iva", "peso": 4 }, { "texto": "incluye iva", "peso": 4 }, { "texto": "impuesto", "peso": 3 },
+        { "texto": "impuestos", "peso": 3 }
+      ]
+    },
+    {
+      "clave": "faq_pagos",
+      "descripcion": "Medios de pago",
+      "prioridad": 5,
+      "terminos": [
+        { "texto": "medios de pago", "peso": 5 }, { "texto": "metodos de pago", "peso": 5 }, { "texto": "formas de pago", "peso": 5 },
+        { "texto": "como pago", "peso": 4 }, { "texto": "puedo pagar", "peso": 3 }, { "texto": "pagar con", "peso": 3 },
+        { "texto": "tarjeta", "peso": 2 }, { "texto": "credito", "peso": 2 }, { "texto": "debito", "peso": 2 },
+        { "texto": "pse", "peso": 3 }, { "texto": "efecty", "peso": 3 }
+      ]
+    },
+    {
+      "clave": "faq_entrega",
+      "descripcion": "Tiempos de entrega",
+      "prioridad": 4,
+      "terminos": [
+        { "texto": "tiempo de entrega", "peso": 5 }, { "texto": "tiempos de entrega", "peso": 5 }, { "texto": "cuanto tarda", "peso": 4 },
+        { "texto": "cuanto se demora", "peso": 4 }, { "texto": "demora", "peso": 3 }, { "texto": "cuando llega", "peso": 4 },
+        { "texto": "en cuanto llega", "peso": 4 }, { "texto": "dias habiles", "peso": 3 }, { "texto": "entrega", "peso": 2 }
+      ]
+    },
+    {
+      "clave": "faq_devoluciones",
+      "descripcion": "Devoluciones, garantia y retracto",
+      "prioridad": 5,
+      "terminos": [
+        { "texto": "devolucion", "peso": 4 }, { "texto": "devoluciones", "peso": 4 }, { "texto": "devolver", "peso": 4 },
+        { "texto": "garantia", "peso": 4 }, { "texto": "retracto", "peso": 4 }, { "texto": "reembolso", "peso": 3 },
+        { "texto": "cambio", "peso": 2 }, { "texto": "cambiar un producto", "peso": 4 }
+      ]
+    },
+    {
+      "clave": "faq_horario",
+      "descripcion": "Horario de atencion",
+      "prioridad": 5,
+      "terminos": [
+        { "texto": "horario", "peso": 4 }, { "texto": "horarios", "peso": 4 }, { "texto": "a que hora", "peso": 3 },
+        { "texto": "atienden", "peso": 3 }, { "texto": "atencion al cliente", "peso": 3 }, { "texto": "abren", "peso": 3 },
+        { "texto": "cierran", "peso": 3 }
+      ]
+    },
+    {
+      "clave": "buscar_producto",
+      "descripcion": "Buscar productos en el catalogo",
+      "prioridad": 3,
+      "terminos": [
+        { "texto": "tienen", "peso": 2 }, { "texto": "tienes", "peso": 2 }, { "texto": "venden", "peso": 3 },
+        { "texto": "busco", "peso": 3 }, { "texto": "buscar", "peso": 2 }, { "texto": "estoy buscando", "peso": 3 },
+        { "texto": "quiero comprar", "peso": 3 }, { "texto": "necesito", "peso": 2 }, { "texto": "muestrame", "peso": 3 },
+        { "texto": "recomiendame", "peso": 3 }, { "texto": "catalogo", "peso": 2 }, { "texto": "productos", "peso": 1 }
+      ]
+    },
+    {
+      "clave": "precio_disponibilidad",
+      "descripcion": "Precio y disponibilidad de un producto",
+      "prioridad": 4,
+      "refuerzos": { "sku": 4 },
+      "terminos": [
+        { "texto": "precio", "peso": 4 }, { "texto": "cuanto cuesta", "peso": 3 }, { "texto": "cuanto vale", "peso": 3 },
+        { "texto": "disponible", "peso": 3 }, { "texto": "disponibilidad", "peso": 4 }, { "texto": "stock", "peso": 4 },
+        { "texto": "quedan", "peso": 3 }, { "texto": "hay unidades", "peso": 4 }, { "texto": "existencias", "peso": 4 },
+        { "texto": "agotado", "peso": 3 }
+      ]
+    },
+    {
+      "clave": "estado_pedido",
+      "descripcion": "Estado de mis pedidos",
+      "prioridad": 6,
+      "requiere_sesion": true,
+      "refuerzos": { "pedido": 4 },
+      "terminos": [
+        { "texto": "pedido", "peso": 2 }, { "texto": "pedidos", "peso": 2 }, { "texto": "mi pedido", "peso": 3 },
+        { "texto": "mis pedidos", "peso": 4 }, { "texto": "mi compra", "peso": 3 }, { "texto": "mis compras", "peso": 3 },
+        { "texto": "estado", "peso": 2 }, { "texto": "donde esta", "peso": 3 }, { "texto": "seguimiento", "peso": 4 },
+        { "texto": "rastrear", "peso": 4 }, { "texto": "ya salio", "peso": 3 }, { "texto": "cuando llega mi pedido", "peso": 5 }
+      ]
+    },
+    {
+      "clave": "cancelar_pedido",
+      "descripcion": "Como cancelar un pedido",
+      "prioridad": 7,
+      "requiere_sesion": true,
+      "refuerzos": { "pedido": 4 },
+      "terminos": [
+        { "texto": "cancelar", "peso": 6 }, { "texto": "cancelo", "peso": 5 }, { "texto": "cancelacion", "peso": 6 },
+        { "texto": "anular", "peso": 6 }, { "texto": "ya no lo quiero", "peso": 5 }
+      ]
+    },
+    {
+      "clave": "humano",
+      "descripcion": "Hablar con una persona (escalamiento)",
+      "prioridad": 8,
+      "terminos": [
+        { "texto": "humano", "peso": 5 }, { "texto": "asesor", "peso": 5 }, { "texto": "agente", "peso": 4 },
+        { "texto": "operador", "peso": 4 }, { "texto": "persona", "peso": 3 }, { "texto": "hablar con alguien", "peso": 5 },
+        { "texto": "hablar con una persona", "peso": 6 }, { "texto": "queja", "peso": 3 }, { "texto": "reclamo", "peso": 3 }
+      ]
+    }
+  ]
+}

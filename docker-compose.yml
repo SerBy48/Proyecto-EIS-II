@@ -67,6 +67,8 @@ services:
     volumes:
       - mongo_datos:/data/db
       - ./infra/mongo/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+      # Se ejecuta despues de init-mongo.js (orden alfabetico).
+      - ./infra/mongo/asistente.js:/docker-entrypoint-initdb.d/z-asistente.js:ro
     healthcheck:
       test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
       interval: 10s
@@ -259,6 +261,31 @@ services:
       rabbitmq: { condition: service_healthy }
       mailpit: { condition: service_healthy }
 
+  asistente-service:
+    <<: *servicio-base
+    build: { context: ., dockerfile: infra/Dockerfile.servicio, args: { SERVICIO: asistente-service } }
+    container_name: ecom_asistente
+    environment:
+      <<: *entorno-base
+      PORT: 3009
+      MONGO_URL: mongodb://asistente_user:asistente_pass@mongo:27017/asistente_db?authSource=asistente_db
+      URL_CATALOGO: http://catalogo-service:3003
+      URL_PEDIDOS: http://pedidos-service:3006
+      COSTO_ENVIO_BASE: ${COSTO_ENVIO_BASE:-15000}
+      UMBRAL_ENVIO_GRATIS: ${UMBRAL_ENVIO_GRATIS:-500000}
+      PORCENTAJE_IVA: ${PORCENTAJE_IVA:-19}
+      DIAS_ENTREGA: ${DIAS_ENTREGA:-2 a 5}
+      DIAS_RETRACTO: ${DIAS_RETRACTO:-5}
+      HORARIO_ATENCION: ${HORARIO_ATENCION:-de lunes a viernes de 8:00 a. m. a 6:00 p. m.}
+      # IA opcional, apagada por defecto (docs/adr/0007).
+      ASISTENTE_IA: ${ASISTENTE_IA:-desactivada}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ASISTENTE_IA_MODELO: ${ASISTENTE_IA_MODELO:-claude-opus-5-5}
+    ports: ["127.0.0.1:3009:3009"]
+    depends_on:
+      mongo: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+
   # ------------------------------------------------------- api gateway -----
   api-gateway:
     <<: *servicio-base
@@ -275,12 +302,14 @@ services:
       URL_PEDIDOS: http://pedidos-service:3006
       URL_PAGOS: http://pagos-service:3007
       URL_NOTIFICACIONES: http://notificaciones-service:3008
+      URL_ASISTENTE: http://asistente-service:3009
       CORS_ORIGENES: ${CORS_ORIGENES:-http://localhost:5173,http://localhost:4173}
       # Limites del rate limiting. Mismos valores por defecto que el codigo; el
       # perfil .env.carga los eleva para medir el sistema y no el limitador.
       LIMITE_GENERAL: ${LIMITE_GENERAL:-300}
       LIMITE_LOGIN: ${LIMITE_LOGIN:-10}
       LIMITE_CHECKOUT: ${LIMITE_CHECKOUT:-10}
+      LIMITE_ASISTENTE: ${LIMITE_ASISTENTE:-30}
       PROXY_TIMEOUT_MS: ${PROXY_TIMEOUT_MS:-15000}
       EXPONER_DOCS: ${EXPONER_DOCS:-true}
     ports:
@@ -294,6 +323,7 @@ services:
       - pedidos-service
       - pagos-service
       - notificaciones-service
+      - asistente-service
 
 networks:
   interna:

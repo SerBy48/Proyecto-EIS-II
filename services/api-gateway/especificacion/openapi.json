@@ -60,6 +60,10 @@
     {
       "name": "notificaciones",
       "description": "Avisos enviados y plantillas"
+    },
+    {
+      "name": "asistente",
+      "description": "Asistente virtual: chat, tickets y edicion de intenciones y FAQ"
     }
   ],
   "paths": {
@@ -2128,6 +2132,358 @@
           }
         }
       }
+    },
+    "/api/asistente/mensajes": {
+      "post": {
+        "tags": [
+          "asistente"
+        ],
+        "summary": "Enviar un mensaje al asistente",
+        "description": "Publica: atiende a visitantes y a usuarios con sesion. Con un token valido, las\nconsultas de pedidos se hacen con la identidad del usuario (pedidos-service aplica\nsu autorizacion por dato: un pedido ajeno responde \"no encontrado\"). Un token\nvencido o invalido responde 401, no se degrada a visitante.\n\nLimite propio en el gateway: 30 mensajes por minuto (`LIMITE_ASISTENTE`).\nLas respuestas son datos para pintar como texto, nunca HTML.\n",
+        "operationId": "enviarMensajeAsistente",
+        "security": [],
+        "x-roles": [
+          "publica"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MensajeAsistente"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Respuestas del asistente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaAsistente"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/SolicitudInvalida"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "429": {
+            "$ref": "#/components/responses/LimiteExcedido"
+          }
+        }
+      }
+    },
+    "/api/asistente/conversaciones/{id}": {
+      "get": {
+        "tags": [
+          "asistente"
+        ],
+        "summary": "Consultar una conversacion",
+        "description": "Solo su dueno o un administrador; cualquier otro recibe 404. Los textos estan enmascarados.",
+        "operationId": "obtenerConversacion",
+        "x-roles": [
+          "sesion"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Conversacion.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      }
+    },
+    "/api/asistente/tickets": {
+      "get": {
+        "tags": [
+          "asistente"
+        ],
+        "summary": "Tickets de escalamiento a un asesor",
+        "operationId": "listarTickets",
+        "x-roles": [
+          "administrador",
+          "vendedor"
+        ],
+        "parameters": [
+          {
+            "name": "estado",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "example": "abierto"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ultimos 100 tickets.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TicketAsistente"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          }
+        }
+      }
+    },
+    "/api/asistente/intenciones": {
+      "get": {
+        "tags": [
+          "asistente"
+        ],
+        "summary": "Intenciones del motor de reglas",
+        "operationId": "listarIntenciones",
+        "x-roles": [
+          "administrador"
+        ],
+        "responses": {
+          "200": {
+            "description": "Intenciones con sus terminos y pesos.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/IntencionAsistente"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          }
+        }
+      }
+    },
+    "/api/asistente/intenciones/{clave}": {
+      "patch": {
+        "tags": [
+          "asistente"
+        ],
+        "summary": "Editar una intencion (sin desplegar)",
+        "operationId": "actualizarIntencion",
+        "x-roles": [
+          "administrador"
+        ],
+        "parameters": [
+          {
+            "name": "clave",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "faq_envio"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "minProperties": 1,
+                "properties": {
+                  "terminos": {
+                    "type": "array",
+                    "maxItems": 100,
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "texto",
+                        "peso"
+                      ],
+                      "properties": {
+                        "texto": {
+                          "type": "string",
+                          "maxLength": 60,
+                          "description": "Sin tildes; con * al final coincide por prefijo."
+                        },
+                        "peso": {
+                          "type": "number",
+                          "minimum": 1,
+                          "maximum": 10
+                        }
+                      }
+                    }
+                  },
+                  "prioridad": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "descripcion": {
+                    "type": "string",
+                    "maxLength": 120
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Intencion actualizada."
+          },
+          "400": {
+            "$ref": "#/components/responses/SolicitudInvalida"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      }
+    },
+    "/api/asistente/faq": {
+      "get": {
+        "tags": [
+          "asistente"
+        ],
+        "summary": "Respuestas a preguntas frecuentes",
+        "operationId": "listarFaq",
+        "x-roles": [
+          "administrador"
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuestas con sus {{variables}} de configuracion.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "clave": {
+                        "type": "string",
+                        "example": "faq_envio"
+                      },
+                      "respuesta": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          }
+        }
+      }
+    },
+    "/api/asistente/faq/{clave}": {
+      "patch": {
+        "tags": [
+          "asistente"
+        ],
+        "summary": "Editar una respuesta frecuente (sin desplegar)",
+        "description": "Las cifras se escriben como variables: {{costo_envio}}, {{umbral_envio_gratis}}, {{porcentaje_iva}}, {{dias_entrega}}, {{dias_retracto}}, {{horario_atencion}}.",
+        "operationId": "actualizarFaq",
+        "x-roles": [
+          "administrador"
+        ],
+        "parameters": [
+          {
+            "name": "clave",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "faq_horario"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "respuesta"
+                ],
+                "properties": {
+                  "respuesta": {
+                    "type": "string",
+                    "maxLength": 1000
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Respuesta actualizada."
+          },
+          "400": {
+            "$ref": "#/components/responses/SolicitudInvalida"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3483,6 +3839,195 @@
           },
           "activo": {
             "type": "boolean"
+          }
+        }
+      },
+      "MensajeAsistente": {
+        "type": "object",
+        "required": [
+          "texto"
+        ],
+        "properties": {
+          "texto": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500,
+            "example": "Cuanto cuesta el envio?"
+          },
+          "conversacion_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Para continuar una conversacion (contexto de varios turnos). Si es de otra persona, se empieza una nueva."
+          }
+        }
+      },
+      "RespuestaAsistente": {
+        "type": "object",
+        "properties": {
+          "conversacion_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "intencion": {
+            "type": "string",
+            "example": "faq_envio",
+            "description": "Intencion reconocida, o no_entendido."
+          },
+          "respuestas": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "tipo"
+              ],
+              "description": "Segun tipo: texto (texto), productos (productos[]), pedido (pedido), pedidos (pedidos[]) u opciones (opciones[] con etiqueta y texto o accion).",
+              "properties": {
+                "tipo": {
+                  "type": "string",
+                  "enum": [
+                    "texto",
+                    "productos",
+                    "pedido",
+                    "pedidos",
+                    "opciones"
+                  ]
+                },
+                "texto": {
+                  "type": "string"
+                },
+                "productos": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "sku": {
+                        "type": "string"
+                      },
+                      "nombre": {
+                        "type": "string"
+                      },
+                      "precio_final": {
+                        "type": "number"
+                      },
+                      "disponible": {
+                        "type": "integer",
+                        "nullable": true
+                      },
+                      "hay_stock": {
+                        "type": "boolean",
+                        "nullable": true
+                      }
+                    }
+                  }
+                },
+                "pedido": {
+                  "$ref": "#/components/schemas/PedidoResumen"
+                },
+                "pedidos": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PedidoResumen"
+                  }
+                },
+                "opciones": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "etiqueta": {
+                        "type": "string"
+                      },
+                      "texto": {
+                        "type": "string"
+                      },
+                      "accion": {
+                        "type": "string",
+                        "enum": [
+                          "iniciar_sesion",
+                          "ir_pedidos",
+                          "ir_carrito"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "TicketAsistente": {
+        "type": "object",
+        "properties": {
+          "numero": {
+            "type": "string",
+            "example": "TCK-MI0ABC12F3"
+          },
+          "conversacion_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "usuario_id": {
+            "type": "integer",
+            "nullable": true
+          },
+          "cliente_id": {
+            "type": "integer",
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "nullable": true
+          },
+          "texto": {
+            "type": "string",
+            "description": "Mensaje del usuario con los datos sensibles enmascarados."
+          },
+          "estado": {
+            "type": "string",
+            "example": "abierto"
+          },
+          "creado_en": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "IntencionAsistente": {
+        "type": "object",
+        "properties": {
+          "clave": {
+            "type": "string",
+            "example": "faq_envio"
+          },
+          "descripcion": {
+            "type": "string"
+          },
+          "prioridad": {
+            "type": "number"
+          },
+          "requiere_sesion": {
+            "type": "boolean"
+          },
+          "terminos": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "texto": {
+                  "type": "string"
+                },
+                "peso": {
+                  "type": "number"
+                }
+              }
+            }
+          },
+          "refuerzos": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number"
+            }
           }
         }
       }

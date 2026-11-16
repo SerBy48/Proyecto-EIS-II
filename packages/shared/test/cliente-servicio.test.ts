@@ -98,6 +98,20 @@ describe('ClienteServicio: cabeceras de la llamada interna', () => {
     expect(cabeceras['x-llamada-interna']).toBe('1');
   });
 
+  it('con la autorizacion del usuario viaja COMO el usuario: sin x-llamada-interna ni x-usuario-*', async () => {
+    const fetchSimulado = simularFetch(respuesta(200, []));
+    await cliente({ nombre: 'pedidos' }).pedir({
+      ruta: '/',
+      autorizacion: 'Bearer token-de-ana',
+      usuario: { sub: 3, email: 'ana@correo.co', rol: 'cliente', cliente_id: 1 }
+    });
+    const cabeceras = (fetchSimulado.mock.calls[0] as unknown as [string, RequestInit])[1].headers as Record<string, string>;
+    expect(cabeceras.authorization).toBe('Bearer token-de-ana');
+    expect(cabeceras['x-llamada-interna']).toBeUndefined();
+    expect(cabeceras['x-usuario-rol']).toBeUndefined();
+    expect(cabeceras['x-internal-token']).toBe(process.env.INTERNAL_TOKEN); // como el gateway
+  });
+
   it('propaga la clave de idempotencia, el request_id y la identidad del usuario', async () => {
     const fetchSimulado = simularFetch(respuesta(201, {}));
     await cliente().pedir({
