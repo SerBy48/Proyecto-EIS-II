@@ -11,7 +11,7 @@ Documento de especificación de la arquitectura del Trabajo Final. Integra, sin 
 | Decisiones registradas | [`docs/adr/`](../adr/) |
 | Requisitos y escenarios de calidad | [`01-escenario-requisitos.md`](01-escenario-requisitos.md) |
 
-Los diagramas están en [`docs/c4/`](../c4/). Las fuentes son C4-PlantUML con las librerías v2.10.0 copiadas en `docs/c4/lib/`, y los PNG se regeneran con `npm run docs:c4` (imagen Docker `plantuml/plantuml:1.2024.7`). En los diagramas, **el borde discontinuo marca lo planificado**: elementos de las Fases 3 y 5 que todavía no existen en el código.
+Los diagramas están en [`docs/c4/`](../c4/). Las fuentes son C4-PlantUML con las librerías v2.10.0 copiadas en `docs/c4/lib/`, y los PNG se regeneran con `npm run docs:c4` (imagen Docker `plantuml/plantuml:1.2024.7`). En los diagramas, **el borde discontinuo marca lo planificado**: elementos de la Fase 5 que todavía no existen en el código; el punteado, lo opcional (la IA del asistente).
 
 ---
 
@@ -36,7 +36,7 @@ Los diagramas están en [`docs/c4/`](../c4/). Las fuentes son C4-PlantUML con la
 | pedidos-service :3006 | Pedidos | Orquestación del checkout (saga) y ciclo de vida del pedido | `pedidos_db` (PG) | `/api/pedidos` | `pedido.confirmado`, `pedido.cancelado` | — |
 | pagos-service :3007 | Pagos | Cobro idempotente; adaptador de la pasarela | `pagos_db` (PG) | `/api/pagos` | `pago.aprobado`, `pago.rechazado` | — |
 | notificaciones-service :3008 | Comunicación | Plantillas y envío por canal, sin duplicados | `notificaciones_db` (Mongo) | `/api/notificaciones` | — | `pedido.*`, `pago.rechazado`, `inventario.stock_minimo`, `carrito.abandonado` |
-| asistente-service :3009 🆕 | Atención al cliente | Motor de intenciones, FAQ, consulta de pedidos con la identidad del usuario, tickets | `asistente_db` (Mongo) | `/api/asistente` | `asistente.escalamiento` | — |
+| asistente-service :3009 | Atención al cliente | Motor de intenciones, FAQ, consulta de pedidos con la identidad del usuario, tickets | `asistente_db` (Mongo) | `/api/asistente` | `asistente.escalamiento` | — |
 
 ## 2.3 Comunicación
 
@@ -51,8 +51,8 @@ Los diagramas están en [`docs/c4/`](../c4/). Las fuentes son C4-PlantUML con la
 | pedidos → clientes, carrito, catálogo, inventario, pagos | REST, timeouts por dependencia | La saga necesita cada respuesta para decidir el paso siguiente; consistencia inmediata en stock y cobro |
 | pedidos → notificaciones, clientes | AMQP | El cliente ya tiene su pedido; el correo y el historial pueden llegar después |
 | pagos, inventario → notificaciones | AMQP | Avisos que no bloquean la operación |
-| asistente → catálogo, inventario, pedidos 🆕 | REST + circuit breaker | Respuesta en la conversación; si pedidos cae, el asistente lo dice en lugar de fallar |
-| asistente → notificaciones 🆕 | AMQP | El escalamiento se avisa sin esperar al correo |
+| asistente → catálogo, pedidos | REST + circuit breaker | Respuesta en la conversación; si pedidos cae, el asistente lo dice en lugar de fallar. Pedidos se consulta con el token del usuario |
+| asistente → notificaciones | AMQP | El escalamiento se avisa sin esperar al correo |
 
 La decisión general está en el [ADR-0004](../adr/0004-rabbitmq-eventos-rest-consultas.md); timeouts y reintentos en [`COMUNICACION.md`](../COMUNICACION.md).
 
@@ -62,7 +62,7 @@ La decisión general está en el [ADR-0004](../adr/0004-rabbitmq-eventos-rest-co
 |---|---|
 | Exchange de eventos | `ecommerce.eventos`, tipo `topic`, durable |
 | Exchange de fallidos | `ecommerce.eventos.dlq`, tipo `topic`, durable |
-| Cola `notificaciones.envio` | Patrones `pedido.*`, `pago.rechazado`, `inventario.stock_minimo`, `carrito.abandonado`; `maxIntentos: 3` |
+| Cola `notificaciones.envio` | Patrones `pedido.*`, `pago.rechazado`, `inventario.stock_minimo`, `carrito.abandonado`, `asistente.escalamiento`; `maxIntentos: 3` |
 | Cola `clientes.historial` | Patrones `pedido.confirmado`, `pedido.cancelado` |
 | Dead letter | Cada cola declara `deadLetterExchange: ecommerce.eventos.dlq` y una cola de fallidos ligada con su nombre como *routing key* |
 | Consumo | `prefetch(1)`: un mensaje a la vez por consumidor (hallazgo R6 de rendimiento) |
@@ -92,11 +92,11 @@ La decisión general está en el [ADR-0004](../adr/0004-rabbitmq-eventos-rest-co
 | Reintentos con espera exponencial y *jitter* | Solo red, 5xx y timeouts; nunca 409 ni el cobro (invariante 7) | `packages/shared/src/cliente-servicio.ts` |
 | Idempotencia | Reserva, cobro y checkout con clave obligatoria (invariante 4) | `03-inventario.sql`, `pagos-service`, `pedidos-service` |
 | Dead letter queue | Mensajes que fallan 3 veces | `packages/shared/src/bus-eventos.ts` |
-| Degradación elegante | Catálogo sin stock si inventario cae; asistente sin pedidos si pedidos cae 🆕 | `catalogo-service/src/controlador.ts` |
+| Degradación elegante | Catálogo sin stock si inventario cae; asistente sin pedidos si pedidos cae | `catalogo-service/src/controlador.ts`, `asistente-service/src/dialogo.ts` |
 | *Health check* agregado | `/api/health` | gateway |
 | Base de datos por servicio | Usuarios de BD aislados | `infra/` |
-| Adaptador | Pasarela de pagos; canal de correo 🆕; proveedor de IA 🆕 | `pasarela.ts` |
-| Repositorio 🆕 | Acceso a datos con Drizzle | `services/{auth,clientes}-service/src/repositorio.ts` |
+| Adaptador | Pasarela de pagos; canal de correo; proveedor de IA | `pasarela.ts`, `canales.ts`, `ia.ts` |
+| Repositorio | Acceso a datos con Drizzle | `services/{auth,clientes}-service/src/repositorio.ts` |
 | Librería transversal | Errores, logs, JWT, bus y cliente HTTP comunes | `packages/shared/` |
 
 ### Componentes del orquestador y del gateway
@@ -158,6 +158,8 @@ Verificado el 2026-11-15 contra `docker-compose.yml`, `DESTINOS` y `RUTAS_PUBLIC
 | Pasarela de pagos como sistema externo | ⚠️ Simulada **en proceso** dentro de pagos-service, no como sistema separado. Se dibuja externa porque así es en producción (adaptador) | `pagos-service/src/pasarela.ts` |
 | Mailpit (SMTP :1025, UI :8025) y notificaciones → Mailpit | ✅ (Fase 2) | `docker-compose.yml` (`mailpit`), `notificaciones-service/src/canales.ts` |
 | Swagger UI en `/api/docs` | ✅ (Fase 2) | `api-gateway/src/documentacion.ts`; `test:openapi` |
-| asistente-service, web en nginx, túnel, proveedor de IA | 🔜 Planificados (borde discontinuo): Fases 3 y 5 | — |
+| asistente-service :3009, `asistente_db`, evento `asistente.escalamiento` | ✅ (Fase 3) | `services/asistente-service`, `infra/mongo/asistente.js`, `DESTINOS` |
+| Proveedor de IA | ✅ Opcional, apagado por defecto (borde punteado) | `asistente-service/src/ia.ts` |
+| web en nginx, túnel | 🔜 Planificados (borde discontinuo): Fase 5 | — |
 
 En sentido inverso, todo contenedor, puerto, cola y exchange del código aparece en el diagrama de contenedores o en el de despliegue.

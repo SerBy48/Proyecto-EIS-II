@@ -72,7 +72,9 @@ export const procesarEvento = async (evento: EventoDominio): Promise<void> => {
   // agregado afectado: el mismo evento sobre el mismo pedido se envia una vez.
   const claveDedupe = [
     evento.nombre,
-    datos.pedido_id ?? datos.sku ?? datos.cliente_id ?? '',
+    // El ticket identifica cada escalamiento: sin el, todos los de visitantes
+    // compartirian la clave y solo se avisaria del primero.
+    datos.pedido_id ?? datos.sku ?? datos.ticket ?? datos.cliente_id ?? '',
     datos.estado ?? ''
   ].join(':');
 
@@ -142,7 +144,7 @@ export const registrarSuscripciones = async (bus: BusEventos): Promise<void> => 
   await bus.suscribir(
     {
       cola: 'notificaciones.envio',
-      patrones: ['pedido.*', 'pago.rechazado', 'inventario.stock_minimo', 'carrito.abandonado'],
+      patrones: ['pedido.*', 'pago.rechazado', 'inventario.stock_minimo', 'carrito.abandonado', 'asistente.escalamiento'],
       maxIntentos: 3
     },
     procesarEvento

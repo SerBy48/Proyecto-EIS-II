@@ -541,7 +541,7 @@ const principal = async (): Promise<void> => {
       );
       process.exit(1);
     }
-    console.log(`${VERDE}Los nueve servicios responden correctamente.${FIN}`);
+    console.log(`${VERDE}Todos los servicios responden correctamente.${FIN}`);
   } catch (error) {
     console.error(
       `\n${ROJO}No fue posible contactar al API Gateway en ${GATEWAY}.${FIN}\n` +

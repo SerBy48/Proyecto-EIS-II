@@ -1,6 +1,6 @@
 # ADR-0007: Asistente virtual como microservicio con motor de reglas e IA opcional
 
-**Estado:** Aceptada por el equipo el 2026-11-15. Se implementa en la Fase 3.
+**Estado:** Aceptada por el equipo el 2026-11-15. Implementada en la Fase 3 ([`03-asistente-virtual.md`](../especificacion/03-asistente-virtual.md)): tasa de acierto del 91,7 % en el conjunto de evaluación y 46 comprobaciones de integración, incluido el aislamiento entre clientes.
 
 ## Contexto
 

@@ -4,6 +4,7 @@ import Catalogo from './paginas/Catalogo.jsx';
 import CarritoPagina from './paginas/Carrito.jsx';
 import MisPedidos from './paginas/MisPedidos.jsx';
 import Admin from './paginas/Admin.jsx';
+import Asistente from './componentes/Asistente.jsx';
 
 const CUENTAS = [
   ['ana@correo.co', 'Ana (cliente)'],
@@ -158,6 +159,13 @@ export default function App() {
         {vista === 'pedidos' && usuario && <MisPedidos usuario={usuario} />}
         {vista === 'admin' && esInterno && <Admin />}
       </main>
+
+      <Asistente
+        usuario={usuario}
+        alAgregar={agregarAlCarrito}
+        onNavegar={setVista}
+        onIniciarSesion={() => setVista('login')}
+      />
     </div>
   );
 }

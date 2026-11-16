@@ -1,0 +1,33 @@
+{
+  "_descripcion": "Respuestas a preguntas frecuentes. Se siembran en asistente_db.faq solo si la coleccion esta vacia y el administrador las edita con PATCH /api/asistente/faq/:clave. Las {{variables}} salen de la configuracion (configuracion.ts): los valores de dinero e impuestos son los mismos que usa el carrito, nunca se escriben a mano aqui.",
+  "faq": [
+    {
+      "clave": "faq_envio",
+      "respuesta": "El envio cuesta {{costo_envio}} a cualquier ciudad de Colombia. Es gratis cuando el subtotal de tu compra llega a {{umbral_envio_gratis}}."
+    },
+    {
+      "clave": "faq_envio_gratis",
+      "respuesta": "El envio es gratis cuando el subtotal de tu compra (antes de IVA) llega a {{umbral_envio_gratis}}. Un cupon de descuento no te hace perder el envio gratis. Por debajo de ese valor, el envio cuesta {{costo_envio}}."
+    },
+    {
+      "clave": "faq_iva",
+      "respuesta": "Los precios del catalogo no incluyen IVA. En el carrito se suma el {{porcentaje_iva}} % de IVA sobre el subtotal, despues de aplicar el descuento del cupon."
+    },
+    {
+      "clave": "faq_pagos",
+      "respuesta": "Puedes pagar con tarjeta de credito, tarjeta de debito, PSE o Efecty. Nunca guardamos los datos de tu tarjeta: la pasarela de pagos los procesa directamente."
+    },
+    {
+      "clave": "faq_entrega",
+      "respuesta": "Los pedidos llegan en {{dias_entrega}} dias habiles segun la ciudad. Cuando tu pedido sale de la bodega cambia a 'enviado' y te avisamos por correo."
+    },
+    {
+      "clave": "faq_devoluciones",
+      "respuesta": "Tienes {{dias_retracto}} dias habiles desde la entrega para retractarte de la compra (derecho de retracto). Si el pedido aun no esta en preparacion, puedes cancelarlo tu mismo desde 'Mis pedidos' y el reembolso es automatico."
+    },
+    {
+      "clave": "faq_horario",
+      "respuesta": "La tienda en linea funciona todo el dia. Nuestros asesores atienden {{horario_atencion}}. Si quieres, te comunico con uno."
+    }
+  ]
+}

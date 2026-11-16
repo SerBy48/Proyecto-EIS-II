@@ -81,7 +81,7 @@ Estado restablecido.
   E-04    PASA   Bitacora de saga con identificador invalido          esperado 404, obtenido 404
   E-05    PASA   Cancelacion con identificador invalido               esperado 404, obtenido 404
   E-06    PASA   Cambio de estado con identificador invalido          esperado 404, obtenido 404
-  E-07    PASA   Pedido existente por NUMERO (PED-202611-001113)      esperado 200, obtenido 200
+  E-07    PASA   Pedido existente por NUMERO (PED-202611-001120)      esperado 200, obtenido 200
   E-08    PASA   El mismo pedido por ID numerico                      esperado 200, obtenido 200
   E-09    PASA   Bitacora de la saga (administrador)                  esperado 200, obtenido 200
   E-10    PASA   Transicion valida: pagado -> en_preparacion          esperado 200, obtenido 200
@@ -139,6 +139,7 @@ Estado restablecido.
            pedidos          ok=true  estado=ok
            pagos            ok=true  estado=ok
            notificaciones   ok=true  estado=ok
+           asistente        ok=true  estado=ok
 
 ============================================================================
  RESULTADO: 73 casos PASA, 0 casos FALLA

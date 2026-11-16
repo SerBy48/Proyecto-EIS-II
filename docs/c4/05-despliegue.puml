@@ -13,7 +13,7 @@ Deployment_Node(host, "Equipo anfitrion", "Windows/Linux + Docker Engine") {
     Container(gw, "api-gateway", "node:22-alpine", "Publica :8080 en todos los perfiles de laboratorio")
     Deployment_Node(svcs, "Microservicios", "infra/Dockerfile.servicio (tsx)") {
       Container(ms, "auth, clientes, catalogo, inventario, carrito, pedidos, pagos, notificaciones", "node:22-alpine", "Lab: 127.0.0.1:3001-3008. Prod: sin puertos publicados")
-      Container(asis, "asistente-service", "node:22-alpine", ":3009", $tags="planificado")
+      Container(asis, "asistente-service", "node:22-alpine", "Lab: 127.0.0.1:3009")
     }
     Deployment_Node(datos, "Motores de datos", "imagenes oficiales") {
       ContainerDb(pg, "postgres:16-alpine", "", "Lab: 127.0.0.1:5432|5434. Prod: sin publicar")
@@ -30,7 +30,7 @@ Rel(usuario, tunel, "HTTPS (defensa)", $tags="planificado")
 Rel(tunel, web, "HTTP", $tags="planificado")
 Rel(web, gw, "/api", $tags="planificado")
 Rel(gw, ms, "REST (red interna)")
-Rel(gw, asis, "REST", $tags="planificado")
+Rel(gw, asis, "REST")
 Rel(ms, pg, "TCP 5432")
 Rel(ms, mongo, "TCP 27017")
 Rel(ms, redis, "TCP 6379")

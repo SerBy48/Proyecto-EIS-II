@@ -4,7 +4,7 @@
 title N3 - Componentes del API Gateway (services/api-gateway/src/index.ts)
 
 Container(web, "Web / App movil", "Cliente")
-Container(servicios, "Microservicios", "8 destinos (DESTINOS); +asistente en F3")
+Container(servicios, "Microservicios", "9 destinos (DESTINOS)")
 
 Container_Boundary(gw, "API Gateway :8080") {
   Component(seg, "Seguridad de transporte", "helmet + CORS", "Origenes de CORS_ORIGENES; rechazo -> 403 ORIGEN_NO_PERMITIDO")

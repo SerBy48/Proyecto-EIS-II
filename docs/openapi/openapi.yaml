@@ -38,6 +38,7 @@ tags:
   - { name: pedidos, description: Checkout (saga) y ciclo de vida del pedido }
   - { name: pagos, description: Transacciones sin datos de tarjeta }
   - { name: notificaciones, description: Avisos enviados y plantillas }
+  - { name: asistente, description: 'Asistente virtual: chat, tickets y edicion de intenciones y FAQ' }
 
 paths:
   /api/health: { $ref: 'rutas/auth.yaml#/salud' }
@@ -84,6 +85,14 @@ paths:
   /api/notificaciones/mensajes: { $ref: 'rutas/pagos-notificaciones.yaml#/mensajes' }
   /api/notificaciones/plantillas: { $ref: 'rutas/pagos-notificaciones.yaml#/plantillas' }
   /api/notificaciones/plantillas/{clave}: { $ref: 'rutas/pagos-notificaciones.yaml#/plantilla' }
+
+  /api/asistente/mensajes: { $ref: 'rutas/asistente.yaml#/mensajes' }
+  /api/asistente/conversaciones/{id}: { $ref: 'rutas/asistente.yaml#/conversacion' }
+  /api/asistente/tickets: { $ref: 'rutas/asistente.yaml#/tickets' }
+  /api/asistente/intenciones: { $ref: 'rutas/asistente.yaml#/intenciones' }
+  /api/asistente/intenciones/{clave}: { $ref: 'rutas/asistente.yaml#/intencion' }
+  /api/asistente/faq: { $ref: 'rutas/asistente.yaml#/faq' }
+  /api/asistente/faq/{clave}: { $ref: 'rutas/asistente.yaml#/faqClave' }
 
 components:
   securitySchemes:

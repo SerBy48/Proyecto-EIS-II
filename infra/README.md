@@ -57,14 +57,15 @@ Por eso inventario no usa ORM ([ADR-0006](../docs/adr/0006-estrategia-orm.md)), 
 
 ## MongoDB
 
-`init-mongo.js` crea dos bases, cada una con su usuario.
+`init-mongo.js` crea dos bases y `asistente.js` una tercera; cada una con su usuario.
 
 | Base | Usuario | Colecciones | Índices relevantes |
 |---|---|---|---|
 | `catalogo_db` | `catalogo_user` | `productos`, `categorias`, `promociones` | `sku` único; índice de texto con pesos (nombre > marca > descripción) |
 | `notificaciones_db` | `notificaciones_user` | `mensajes`, `plantillas` | `clave_dedupe` único (entrega "al menos una vez" sin correos duplicados) |
+| `asistente_db` | `asistente_user` | `conversaciones` (TTL de 30 días), `faq`, `tickets`, `intenciones` | `clave` única en `faq` e `intenciones`; `numero` único en `tickets` |
 
-`asistente_db` se agregará en la Fase 3, con sus colecciones de intenciones y preguntas frecuentes iniciales.
+`asistente_db` la crea `infra/mongo/asistente.js`, que se monta como `z-asistente.js` para ejecutarse después de `init-mongo.js`. El script es idempotente: en un volumen que ya existe se aplica con `npm run infra:asistente`. Las colecciones, los índices y los datos iniciales (intenciones y preguntas frecuentes) los prepara el propio servicio al arrancar, desde `services/asistente-service/src/datos/`; solo siembra si la colección está vacía, para no pisar las ediciones del administrador.
 
 ## Redis y RabbitMQ
 
