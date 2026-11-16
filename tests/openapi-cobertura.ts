@@ -152,8 +152,11 @@ execFileSync(
   [require.resolve('@redocly/cli/bin/cli.js'), 'bundle', path.join(RAIZ, 'docs/openapi/openapi.yaml'), '-o', fresco],
   { stdio: 'ignore' }
 );
+// Se compara el JSON interpretado y no el texto: Git puede convertir los
+// finales de linea (CRLF en Windows) y el contenido seria el mismo.
+const normalizado = (texto: string) => JSON.stringify(JSON.parse(texto));
 comprobar(
-  readFileSync(fresco, 'utf8').trim() === leer('services/api-gateway/especificacion/openapi.json').trim(),
+  normalizado(readFileSync(fresco, 'utf8')) === normalizado(leer('services/api-gateway/especificacion/openapi.json')),
   'services/api-gateway/especificacion/openapi.json esta desactualizado: ejecute npm run docs:openapi'
 );
 
