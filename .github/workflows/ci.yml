@@ -1,0 +1,156 @@
+# ============================================================================
+# Entorno de pruebas como codigo (Trabajo Final, Fase 5; docs/adr/0009).
+#
+# En cada push y pull request:
+#   1. estatico     typecheck, pruebas unitarias, OpenAPI y auditoria de
+#                   dependencias de produccion (control A03, hallazgo S-12)
+#   2. integracion  el sistema completo en Docker Compose y las suites de
+#                   integracion, extremo a extremo, asistente y E2E de interfaz
+#
+# Manual (workflow_dispatch): humo de k6 y escaneo baseline de ZAP.
+#
+# Los secretos se generan en cada ejecucion: el CI nunca usa los del equipo.
+# ============================================================================
+name: CI
+
+on:
+  push:
+    branches: [main, develop, 'feature/**']
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+    inputs:
+      no_funcionales:
+        description: 'Ejecutar tambien el humo de k6 y el baseline de ZAP'
+        type: boolean
+        default: true
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  estatico:
+    name: Tipos, unitarias, OpenAPI y dependencias
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - name: Pruebas unitarias con cobertura
+        run: npm run test:unit:cobertura
+      - name: La especificacion OpenAPI cubre el codigo
+        run: npm run test:openapi
+      - name: Lint de OpenAPI
+        run: npx redocly lint docs/openapi/openapi.yaml docs/openapi/openapi-interna.yaml
+      - name: Dependencias de produccion sin vulnerabilidades altas
+        run: npm audit --omit=dev --audit-level=high
+      - name: Compilacion de la web (produccion)
+        run: npm run build:web
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cobertura-unitarias
+          path: docs/evidencia/cobertura/
+          retention-days: 14
+
+  integracion:
+    name: Sistema completo, E2E y E2E de interfaz
+    runs-on: ubuntu-latest
+    needs: estatico
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      - name: Secretos propios de esta ejecucion
+        run: |
+          cp .env.example .env
+          sed -i "s/^JWT_SECRET=.*/JWT_SECRET=$(openssl rand -hex 32)/" .env
+          sed -i "s/^JWT_REFRESH_SECRET=.*/JWT_REFRESH_SECRET=$(openssl rand -hex 32)/" .env
+          sed -i "s/^INTERNAL_TOKEN=.*/INTERNAL_TOKEN=$(openssl rand -hex 32)/" .env
+
+      - name: Levantar el sistema (laboratorio, con la web en el 8081)
+        run: docker compose up -d --build --wait --wait-timeout 600
+
+      - name: Salud
+        run: npm run test:salud
+      - name: Contrato HTTP
+        run: npm run test:http
+      - name: Concurrencia sobre el inventario
+        run: npm run test:concurrencia
+      - name: Extremo a extremo (incluye el correo en Mailpit)
+        run: npm run test:e2e
+      - name: Asistente virtual
+        run: npm run test:asistente
+      - name: Verificaciones de seguridad
+        run: npm run test:seguridad
+
+      - name: Navegador para los E2E de interfaz
+        run: npx playwright install --with-deps chromium
+      - name: E2E de interfaz (Playwright contra la web en contenedor)
+        run: npm run test:e2e:ui
+
+      - name: Registros de los contenedores
+        if: failure()
+        run: docker compose logs --no-color --tail=200 > compose-logs.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: resultados-integracion
+          path: |
+            test-results/
+            docs/evidencia/trabajo-final/e2e-ui/
+            compose-logs.txt
+          retention-days: 14
+          if-no-files-found: ignore
+
+  no-funcionales:
+    name: Humo de k6 y baseline de ZAP (manual)
+    runs-on: ubuntu-latest
+    needs: integracion
+    if: github.event_name == 'workflow_dispatch' && inputs.no_funcionales
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Secretos y perfil de carga
+        run: |
+          cp .env.example .env
+          sed -i "s/^JWT_SECRET=.*/JWT_SECRET=$(openssl rand -hex 32)/" .env
+          sed -i "s/^JWT_REFRESH_SECRET=.*/JWT_REFRESH_SECRET=$(openssl rand -hex 32)/" .env
+          sed -i "s/^INTERNAL_TOKEN=.*/INTERNAL_TOKEN=$(openssl rand -hex 32)/" .env
+      - run: npm run infra:carga
+      - run: CLIENTES_CARGA=300 npm run sembrar:carga
+      - uses: grafana/setup-k6-action@v1
+      - name: Humo de k6 (catalogo y asistente)
+        run: |
+          bash tests/rendimiento/ejecutar.sh catalogo-busqueda humo ci
+          bash tests/rendimiento/ejecutar.sh asistente humo ci
+      - name: Baseline de ZAP contra la web
+        run: |
+          npm run build:web
+          (cd clients/web && npx vite preview --host 0.0.0.0 --port 4173 &)
+          sleep 5
+          bash tests/seguridad/zap-baseline.sh ci
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: no-funcionales
+          path: |
+            docs/evidencia/no-funcionales/rendimiento/*-ci*
+            docs/evidencia/no-funcionales/seguridad/*-ci*
+          retention-days: 14

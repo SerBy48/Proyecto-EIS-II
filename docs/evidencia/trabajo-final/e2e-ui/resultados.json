@@ -1,0 +1,104 @@
+{
+  "fecha": "2026-11-16T15:15:50.957Z",
+  "web": "http://localhost:8081",
+  "total": 12,
+  "fallidos": 0,
+  "resultados": [
+    {
+      "id": "CA-01",
+      "titulo": "Registro de un cliente nuevo",
+      "resultado": "PASA",
+      "segundos": 3.3,
+      "detalle": "e2e-ui-1794842112519@correo.co con sesión iniciada y dirección de envío lista para comprar",
+      "captura": "CA-01.png"
+    },
+    {
+      "id": "CA-02",
+      "titulo": "Inicio de sesión (error y éxito)",
+      "resultado": "PASA",
+      "segundos": 2.2,
+      "detalle": "error: \"Credenciales invalidas.\"; luego entra",
+      "captura": "CA-02.png"
+    },
+    {
+      "id": "CA-03",
+      "titulo": "Búsqueda y filtro",
+      "resultado": "PASA",
+      "segundos": 2,
+      "detalle": "1 productos, todos de tecnología",
+      "captura": "CA-03.png"
+    },
+    {
+      "id": "CA-04",
+      "titulo": "Carrito y cupón",
+      "resultado": "PASA",
+      "segundos": 2.8,
+      "detalle": "descuento de 314910 sobre 3149100",
+      "captura": "CA-04.png"
+    },
+    {
+      "id": "CA-05",
+      "titulo": "Compra aprobada",
+      "resultado": "PASA",
+      "segundos": 3.1,
+      "detalle": "PED-202611-001049 pagado; carrito vacío",
+      "captura": "CA-05.png"
+    },
+    {
+      "id": "CA-09",
+      "titulo": "Correo de confirmación",
+      "resultado": "PASA",
+      "segundos": 0.1,
+      "detalle": "correo de PED-202611-001049 para ana@correo.co",
+      "captura": "CA-09.png"
+    },
+    {
+      "id": "CA-08",
+      "titulo": "Cancelación",
+      "resultado": "PASA",
+      "segundos": 2.7,
+      "detalle": "PED-202611-001049 cancelado; aviso: \"El pedido PED-202611-001049 fue cancelado. Si ya se había co…\"",
+      "captura": "CA-08.png"
+    },
+    {
+      "id": "CA-06",
+      "titulo": "Compra rechazada con compensación",
+      "resultado": "PASA",
+      "segundos": 3.3,
+      "detalle": "stock de SKU-HOG-001: 47 antes y 47 después (devuelto)",
+      "captura": "CA-06.png"
+    },
+    {
+      "id": "CA-07",
+      "titulo": "Última unidad",
+      "resultado": "PASA",
+      "segundos": 2.8,
+      "detalle": "Ana compra SKU-ACE-352; Bruno ve \"Se agoto el producto SKU-ACE-352 mientras completa…\" y no se le cobra",
+      "captura": "CA-07.png"
+    },
+    {
+      "id": "CA-10",
+      "titulo": "Asistente virtual",
+      "resultado": "PASA",
+      "segundos": 6.2,
+      "detalle": "FAQ y búsqueda como visitante; Ana ve PED-202611-001052 y no ve PED-202611-001053 (de Bruno)",
+      "captura": "CA-10.png"
+    },
+    {
+      "id": "CA-11",
+      "titulo": "Vendedor: entrada de stock",
+      "resultado": "PASA",
+      "segundos": 2.6,
+      "detalle": "SKU-HOG-002: 13 -> 23",
+      "captura": "CA-11.png"
+    },
+    {
+      "id": "CA-12",
+      "titulo": "Administrador: estado y bitácora de la saga",
+      "resultado": "PASA",
+      "segundos": 2.7,
+      "detalle": "PED-202611-001054 en preparación; bitácora con 14 pasos",
+      "captura": "CA-12.png"
+    }
+  ]
+}

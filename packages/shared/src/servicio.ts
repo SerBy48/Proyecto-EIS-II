@@ -153,9 +153,14 @@ export const crearServicio = async (opciones: OpcionesServicio): Promise<void> =
     try {
       await opciones.alIniciar();
     } catch (error) {
-      log.error('Fallo la inicializacion', {
+      // Sin su base de datos el servicio no sirve: antes seguia escuchando y
+      // respondia 503 para siempre. Ahora termina con codigo 1 y Docker lo
+      // reinicia (restart: unless-stopped) hasta que la dependencia este lista.
+      // El broker no entra aqui: BusEventos reintenta solo, sin lanzar.
+      log.error('Fallo la inicializacion; el proceso termina para reiniciarse', {
         error: error instanceof Error ? error.message : error
       });
+      process.exit(1);
     }
   }
 

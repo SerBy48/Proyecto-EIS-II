@@ -31,6 +31,11 @@ export interface OpcionesSuscripcion {
   maxIntentos?: number;
 }
 
+type Manejador = (evento: EventoDominio) => Promise<void>;
+
+/** Espera maxima entre reintentos de conexion con el broker. */
+const ESPERA_MAXIMA_MS = 30_000;
+
 export class BusEventos {
   private conexion?: ChannelModel;
   private canal?: Channel;
@@ -38,6 +43,12 @@ export class BusEventos {
   private readonly log = crearLogger('bus-eventos');
   private readonly url: string;
   private cerrado = false;
+  private reconectando = false;
+  /**
+   * Suscripciones registradas. Se recuerdan para volver a declararlas en cada
+   * reconexion: un canal nuevo no conserva los consumidores del anterior.
+   */
+  private readonly suscripciones: Array<{ opciones: OpcionesSuscripcion; manejador: Manejador }> = [];
 
   constructor(private readonly servicio: string) {
     this.url = process.env.RABBITMQ_URL || 'amqp://ecommerce:ecommerce@localhost:5672';
@@ -47,36 +58,81 @@ export class BusEventos {
     return Boolean(this.canal);
   }
 
+  /**
+   * Un intento de conexion. Si falla, deja en marcha la reconexion en segundo
+   * plano y propaga el error a quien llamo.
+   *
+   * Antes, si el PRIMER intento fallaba (el servicio arrancaba antes que
+   * RabbitMQ), nadie volvia a intentarlo: notificaciones quedaba sin
+   * suscripcion hasta reiniciarlo. Y tras una caida del broker se reconectaba
+   * el canal pero no los consumidores. Ahora ambos casos se recuperan solos
+   * (docs/calidad/RENDIMIENTO.md 9.6, arranque en frio).
+   */
   async conectar(): Promise<void> {
     if (this.canal) return;
     if (this.conectando) return this.conectando;
 
     this.conectando = (async () => {
-      this.conexion = await amqp.connect(this.url, { clientProperties: { connection_name: this.servicio } });
-      this.canal = await this.conexion.createChannel();
+      const conexion = await amqp.connect(this.url, { clientProperties: { connection_name: this.servicio } });
+      const canal = await conexion.createChannel();
 
-      await this.canal.assertExchange(EXCHANGE, 'topic', { durable: true });
-      await this.canal.assertExchange(EXCHANGE_DLQ, 'topic', { durable: true });
+      await canal.assertExchange(EXCHANGE, 'topic', { durable: true });
+      await canal.assertExchange(EXCHANGE_DLQ, 'topic', { durable: true });
 
-      this.conexion.on('error', (e) => this.log.error('Error de conexion con el broker', { error: e.message }));
-      this.conexion.on('close', () => {
+      conexion.on('error', (e) => this.log.error('Error de conexion con el broker', { error: e.message }));
+      conexion.on('close', () => {
         this.canal = undefined;
         this.conexion = undefined;
-        this.conectando = undefined;
         if (!this.cerrado) {
-          this.log.warn('Conexion con el broker cerrada, reintentando en 5s');
-          setTimeout(() => this.conectar().catch(() => undefined), 5000);
+          this.log.warn('Conexion con el broker cerrada; se reintentara');
+          this.reconectarEnSegundoPlano();
         }
       });
 
-      this.log.info('Conectado al message broker', { exchange: EXCHANGE });
+      this.conexion = conexion;
+      this.canal = canal;
+      for (const { opciones, manejador } of this.suscripciones) {
+        await this.prepararSuscripcion(canal, opciones, manejador);
+      }
+      this.log.info('Conectado al message broker', { exchange: EXCHANGE, suscripciones: this.suscripciones.length });
     })();
 
     try {
       await this.conectando;
+    } catch (error) {
+      this.reconectarEnSegundoPlano();
+      throw error;
     } finally {
       this.conectando = undefined;
     }
+  }
+
+  /** Reintenta con espera exponencial (1 s, 2 s, 4 s... hasta 30 s) hasta conectar. */
+  private reconectarEnSegundoPlano(): void {
+    if (this.reconectando || this.cerrado) return;
+    this.reconectando = true;
+    let espera = Number(process.env.BUS_ESPERA_INICIAL_MS || 1000);
+    const intentar = (): void => {
+      if (this.cerrado || this.canal) {
+        this.reconectando = false;
+        return;
+      }
+      this.conectar()
+        .then(() => {
+          this.reconectando = false;
+          this.log.info('Reconectado al message broker');
+        })
+        .catch((error) => {
+          this.log.warn('Broker no disponible, se reintentara', {
+            espera_ms: espera,
+            error: error instanceof Error ? error.message : String(error)
+          });
+          setTimeout(intentar, espera).unref?.();
+          espera = Math.min(espera * 2, ESPERA_MAXIMA_MS);
+        });
+    };
+    setTimeout(intentar, espera).unref?.();
+    espera = Math.min(espera * 2, ESPERA_MAXIMA_MS);
   }
 
   /**
@@ -91,6 +147,13 @@ export class BusEventos {
       request_id: requestId,
       datos
     };
+
+    // Durante una caida del broker no se espera a otro intento de conexion: la
+    // reconexion ya corre en segundo plano y la operacion principal sigue.
+    if (!this.canal && this.reconectando) {
+      this.log.error('No fue posible publicar el evento: broker no disponible', { evento: nombre, request_id: requestId });
+      return false;
+    }
 
     try {
       await this.conectar();
@@ -122,12 +185,25 @@ export class BusEventos {
    * termina sin lanzar; si falla, se reencola hasta maxIntentos y despues se
    * envia a la dead letter queue.
    */
-  async suscribir(
-    opciones: OpcionesSuscripcion,
-    manejador: (evento: EventoDominio) => Promise<void>
-  ): Promise<void> {
-    await this.conectar();
-    const canal = this.canal!;
+  async suscribir(opciones: OpcionesSuscripcion, manejador: Manejador): Promise<void> {
+    this.suscripciones.push({ opciones, manejador });
+    if (this.canal) {
+      await this.prepararSuscripcion(this.canal, opciones, manejador);
+      return;
+    }
+    // Sin broker todavia: la suscripcion queda registrada y se declara al
+    // conectar (lo hace conectar(), ahora o en un reintento). No se lanza: el
+    // servicio arranca igual y su /health muestra el broker como caido.
+    await this.conectar().catch((error) =>
+      this.log.warn('Broker no disponible; la suscripcion se activara al conectar', {
+        cola: opciones.cola,
+        error: error instanceof Error ? error.message : String(error)
+      })
+    );
+  }
+
+  /** Declara la cola, su DLQ y los enlaces, y empieza a consumir. */
+  private async prepararSuscripcion(canal: Channel, opciones: OpcionesSuscripcion, manejador: Manejador): Promise<void> {
     const maxIntentos = opciones.maxIntentos ?? 3;
     const colaFallidos = `${opciones.cola}.fallidos`;
 

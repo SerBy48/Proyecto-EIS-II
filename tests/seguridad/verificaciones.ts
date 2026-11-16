@@ -643,10 +643,19 @@ const ejecutar = async (): Promise<void> => {
   mkdirSync(path.dirname(SALIDA), { recursive: true });
   writeFileSync(SALIDA, JSON.stringify({ fecha: new Date().toISOString(), gateway: G, web: WEB, resultados }, null, 2));
   const hallazgos = resultados.filter((r) => r.resultado === 'HALLAZGO').length;
+  // Riesgos ACEPTADOS y documentados: se informan, pero no hacen fallar la
+  // suite (ni el CI). Cualquier otro hallazgo, o uno nuevo, si la hace fallar.
+  const RIESGOS_ACEPTADOS: Record<string, string> = {
+    'V-13': 'S-09, riesgo aceptado en docs/calidad/SEGURIDAD.md 9.4'
+  };
+  const abiertos = resultados.filter((r) => r.resultado === 'HALLAZGO' && !RIESGOS_ACEPTADOS[r.id]);
   console.log(`\n${resultados.length} verificaciones: ${hallazgos} hallazgos, ${resultados.filter((r) => r.resultado === 'SEGURO').length} seguras, ${resultados.filter((r) => r.resultado === 'INFO').length} informativas.`);
   console.log(`Evidencia: ${path.relative(RAIZ, SALIDA)}`);
   await pg.end();
-  process.exitCode = hallazgos ? 1 : 0;
+  for (const r of resultados.filter((x) => x.resultado === 'HALLAZGO' && RIESGOS_ACEPTADOS[x.id])) {
+    console.log(`  ${r.id} es un riesgo aceptado (${RIESGOS_ACEPTADOS[r.id]}).`);
+  }
+  process.exitCode = abiertos.length ? 1 : 0;
 };
 
 ejecutar().catch(async (error) => {

@@ -95,7 +95,7 @@ app.use(
   })
 );
 
-const origenesPermitidos = (process.env.CORS_ORIGENES || 'http://localhost:5173,http://localhost:4173')
+const origenesPermitidos = (process.env.CORS_ORIGENES || 'http://localhost:5173,http://localhost:4173,http://localhost:8081')
   .split(',')
   .map((o) => o.trim());
 

@@ -203,6 +203,7 @@ function BotonNav({ activo, onClick, children }) {
  * vista, pero como ayuda, no como unica opcion.
  */
 function Login({ onIngreso }) {
+  const [registrando, setRegistrando] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
@@ -220,6 +221,8 @@ function Login({ onIngreso }) {
       setCargando(false);
     }
   };
+
+  if (registrando) return <Registro onIngreso={onIngreso} onVolver={() => setRegistrando(false)} />;
 
   return (
     <div className="max-w-md mx-auto p-4 sm:p-6 mt-6 sm:mt-10">
@@ -267,6 +270,13 @@ function Login({ onIngreso }) {
           {cargando ? 'Verificando...' : 'Ingresar'}
         </button>
 
+        <p className="mt-4 text-sm text-center text-gray-600">
+          ¿No tienes cuenta?{' '}
+          <button type="button" onClick={() => setRegistrando(true)} className="text-indigo-700 font-semibold hover:underline">
+            Crear cuenta
+          </button>
+        </p>
+
         {/* Ayuda del entorno de laboratorio: las cuentas de prueba a la vista,
             sin escribirlas por el usuario. */}
         <details className="mt-6 text-sm text-gray-600">
@@ -282,6 +292,102 @@ function Login({ onIngreso }) {
             ))}
           </ul>
         </details>
+      </form>
+    </div>
+  );
+}
+
+/**
+ * Registro de un cliente nuevo (Trabajo Final, Fase 5; RF-01, RF-07, RF-09).
+ *
+ * Tres llamadas en orden: el perfil en clientes-service, la cuenta en
+ * auth-service (que verifica que el correo y el cliente_id coincidan, S-01) y,
+ * ya con sesion, la direccion de envio predeterminada. Sin direccion, la saga
+ * rechazaria la primera compra.
+ */
+function Registro({ onIngreso, onVolver }) {
+  const [datos, setDatos] = useState({ nombre: '', apellido: '', email: '', password: '', linea1: '', ciudad: '' });
+  const [error, setError] = useState(null);
+  const [cargando, setCargando] = useState(false);
+  const campo = (nombre) => ({
+    id: `registro-${nombre}`,
+    value: datos[nombre],
+    onChange: (e) => setDatos((d) => ({ ...d, [nombre]: e.target.value })),
+    className: 'w-full border border-gray-300 rounded-lg px-3 py-2 mb-4'
+  });
+
+  const enviar = async (e) => {
+    e.preventDefault();
+    setCargando(true);
+    setError(null);
+    try {
+      const { cliente } = await api('/clientes', {
+        metodo: 'POST',
+        cuerpo: { nombre: datos.nombre, apellido: datos.apellido, email: datos.email }
+      });
+      await api('/auth/registro', {
+        metodo: 'POST',
+        cuerpo: { email: datos.email, password: datos.password, cliente_id: cliente.id }
+      });
+      const usuario = await iniciarSesion(datos.email, datos.password);
+      await api(`/clientes/${cliente.id}/direcciones`, {
+        metodo: 'POST',
+        cuerpo: { tipo: 'envio', etiqueta: 'Principal', linea1: datos.linea1, ciudad: datos.ciudad, predeterminada: true }
+      });
+      onIngreso(usuario);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  const etiqueta = (nombre, texto) => (
+    <label htmlFor={`registro-${nombre}`} className="block text-sm font-semibold text-gray-700 mb-1">
+      {texto}
+    </label>
+  );
+
+  return (
+    <div className="max-w-md mx-auto p-4 sm:p-6 mt-6 sm:mt-10">
+      <form onSubmit={enviar} className="bg-white border border-gray-200 rounded-xl p-6 sm:p-8">
+        <h1 className="text-xl font-bold mb-6">Crear cuenta</h1>
+        {error && (
+          <div role="alert" className="mb-4 bg-red-50 border border-red-200 text-red-800 rounded-lg p-3 text-sm">
+            {error}
+          </div>
+        )}
+        <div className="grid grid-cols-2 gap-x-3">
+          <div>
+            {etiqueta('nombre', 'Nombre')}
+            <input {...campo('nombre')} required autoComplete="given-name" maxLength={100} />
+          </div>
+          <div>
+            {etiqueta('apellido', 'Apellido')}
+            <input {...campo('apellido')} required autoComplete="family-name" maxLength={100} />
+          </div>
+        </div>
+        {etiqueta('email', 'Correo')}
+        <input {...campo('email')} type="email" required autoComplete="email" maxLength={150} />
+        {etiqueta('password', 'Contraseña (mínimo 8 caracteres)')}
+        <input {...campo('password')} type="password" required minLength={8} autoComplete="new-password" />
+        {etiqueta('linea1', 'Dirección de envío')}
+        <input {...campo('linea1')} required autoComplete="street-address" maxLength={200} placeholder="Calle 10 # 5-20" />
+        {etiqueta('ciudad', 'Ciudad')}
+        <input {...campo('ciudad')} required autoComplete="address-level2" maxLength={100} />
+        <button
+          type="submit"
+          disabled={cargando}
+          className="w-full mt-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white font-semibold py-2.5 rounded-lg"
+        >
+          {cargando ? 'Creando la cuenta...' : 'Crear cuenta'}
+        </button>
+        <p className="mt-4 text-sm text-center text-gray-600">
+          ¿Ya tienes cuenta?{' '}
+          <button type="button" onClick={onVolver} className="text-indigo-700 font-semibold hover:underline">
+            Iniciar sesión
+          </button>
+        </p>
       </form>
     </div>
   );

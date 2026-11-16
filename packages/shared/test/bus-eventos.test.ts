@@ -58,6 +58,49 @@ describe('BusEventos.publicar (invariante 12)', () => {
   });
 });
 
+describe('BusEventos: arranque y reconexion (Fase 5)', () => {
+  it('si el broker no esta al arrancar, suscribir no lanza y la suscripcion se activa al reconectar', async () => {
+    vi.useFakeTimers();
+    try {
+      conectar.mockRejectedValueOnce(new Error('ECONNREFUSED'));
+      const bus = new BusEventos('prueba');
+      await expect(bus.suscribir({ cola: 'cola.prueba', patrones: ['pedido.*'] }, async () => undefined)).resolves.toBeUndefined();
+      expect(bus.conectado).toBe(false);
+      expect(canal.consume).not.toHaveBeenCalled();
+
+      await vi.advanceTimersByTimeAsync(1_000); // primer reintento
+      expect(bus.conectado).toBe(true);
+      expect(canal.consume).toHaveBeenCalledWith('cola.prueba', expect.any(Function));
+      await bus.cerrar();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('tras una caida del broker vuelve a declarar los consumidores en el canal nuevo', async () => {
+    vi.useFakeTimers();
+    try {
+      const bus = new BusEventos('prueba');
+      await bus.suscribir({ cola: 'cola.prueba', patrones: ['pedido.*'] }, async () => undefined);
+      expect(canal.consume).toHaveBeenCalledTimes(1);
+
+      // La conexion se cierra: se invoca el manejador "close" registrado.
+      const alCerrar = (conexion.on.mock.calls as unknown as Array<[string, () => void]>).find(([e]) => e === 'close')![1];
+      alCerrar();
+      expect(bus.conectado).toBe(false);
+      // Mientras reconecta, publicar no espera: devuelve false al instante.
+      await expect(bus.publicar('pedido.confirmado', {})).resolves.toBe(false);
+
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(bus.conectado).toBe(true);
+      expect(canal.consume).toHaveBeenCalledTimes(2);
+      await bus.cerrar();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
 describe('BusEventos.suscribir: reintentos y dead letter queue', () => {
   const suscribir = async (manejador: () => Promise<void>) => {
     const bus = new BusEventos('prueba');
