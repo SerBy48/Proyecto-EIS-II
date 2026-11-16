@@ -75,7 +75,9 @@ export const procesarEvento = async (evento: EventoDominio): Promise<void> => {
     // El ticket identifica cada escalamiento: sin el, todos los de visitantes
     // compartirian la clave y solo se avisaria del primero.
     datos.pedido_id ?? datos.sku ?? datos.ticket ?? datos.cliente_id ?? '',
-    datos.estado ?? ''
+    datos.estado ?? '',
+    // Cada cambio de direccion de un pedido es un aviso distinto.
+    datos.cambio ?? ''
   ].join(':');
 
   try {

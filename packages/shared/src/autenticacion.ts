@@ -136,6 +136,17 @@ export const requiereRol = (...rolesPermitidos: Rol[]) => {
   };
 };
 
+/**
+ * Restringe una ruta a las llamadas entre servicios. Va DESPUES de
+ * requiereRol(): un administrador con su token pasa el control de rol, pero no
+ * este. Sirve para operaciones que solo tienen sentido dentro de un flujo de
+ * otro servicio, como anonimizar un perfil al eliminar la cuenta.
+ */
+export const soloLlamadaInterna = (req: PeticionAutenticada, _res: Response, next: NextFunction): void => {
+  if (req.esLlamadaInterna) return next();
+  next(errorProhibido('Esta operacion solo la invoca otro servicio.'));
+};
+
 /** Cabecera con la que un microservicio se identifica ante otro. */
 export const CABECERA_LLAMADA_INTERNA = 'x-llamada-interna';
 

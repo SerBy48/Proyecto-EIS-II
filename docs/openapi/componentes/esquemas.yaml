@@ -119,25 +119,27 @@ Cliente:
 
 CambiosCliente:
   type: object
-  description: Al menos uno. El correo y el documento no se cambian por esta via.
+  description: Al menos uno. El correo no se cambia por esta via (es la identidad de la cuenta).
   minProperties: 1
   properties:
     nombre: { type: string, maxLength: 100 }
     apellido: { type: string, maxLength: 100 }
-    telefono: { type: string, maxLength: 30 }
+    telefono: { type: string, maxLength: 30, nullable: true, example: '300 123 4567' }
+    tipo_documento: { type: string, enum: [CC, CE, NIT, PAS] }
+    documento: { type: string, maxLength: 30, nullable: true, description: 'Letras, numeros y guiones; unico (409 si ya lo usa otra cuenta).' }
 
 DireccionNueva:
   type: object
-  required: [linea1, ciudad]
+  description: La primera direccion de envio del cliente queda como predeterminada aunque no se pida.
+  required: [linea1, ciudad, departamento]
   properties:
     tipo: { type: string, enum: [envio, facturacion], default: envio }
     etiqueta: { type: string, maxLength: 50, example: Casa }
     linea1: { type: string, maxLength: 200, example: 'Calle 10 # 5-20' }
     linea2: { type: string, maxLength: 200 }
     ciudad: { type: string, maxLength: 100, example: Neiva }
-    departamento: { type: string, maxLength: 100, example: Huila }
-    pais: { type: string, maxLength: 60, default: Colombia }
-    codigo_postal: { type: string, maxLength: 20, example: '410001' }
+    departamento: { type: string, maxLength: 100, example: Huila, description: 'Uno de GET /api/clientes/departamentos; se acepta sin tildes y se guarda el nombre oficial.' }
+    codigo_postal: { type: string, pattern: '^[0-9]{6}$', example: '410001' }
     predeterminada: { type: boolean, default: false, description: 'Si es true, quita la marca a la anterior del mismo tipo.' }
 
 Direccion:
@@ -173,6 +175,7 @@ Producto:
     nombre: { type: string, example: Portatil Aurora 14 pulgadas }
     descripcion: { type: string }
     categoria: { type: string, example: tecnologia }
+    subcategoria: { type: string, nullable: true, example: computadores }
     marca: { type: string, example: Aurora }
     precio: { type: number, example: 3499000 }
     descuento_porcentaje: { type: number, example: 10 }
@@ -219,14 +222,29 @@ PaginaProductos:
     total: { type: integer, example: 71 }
     pagina: { type: integer, example: 1 }
     por_pagina: { type: integer, example: 20 }
+    busqueda: { type: string, enum: [texto, tolerante], description: 'Solo con q: como se encontraron los resultados.' }
     productos: { type: array, items: { $ref: '#/Producto' } }
 
 Categoria:
   type: object
   properties:
     categoria: { type: string, example: tecnologia }
-    productos: { type: integer, example: 25 }
-    precio_min: { type: number, example: 120000 }
+    nombre: { type: string, example: Tecnología }
+    productos: { type: integer, example: 60 }
+    precio_min: { type: number, example: 59000 }
+    subcategorias:
+      type: array
+      items:
+        type: object
+        properties:
+          slug: { type: string, example: audio }
+          nombre: { type: string, example: Audio }
+          productos: { type: integer, example: 6 }
+          precio_min: { type: number, example: 249000 }
+          sinonimos:
+            type: array
+            description: El asistente los usa para reconocer la seccion (audifonos, parlante...).
+            items: { type: string }
 
 Promocion:
   type: object
@@ -573,3 +591,41 @@ IntencionAsistente:
           texto: { type: string }
           peso: { type: number }
     refuerzos: { type: object, additionalProperties: { type: number } }
+
+CambiosDireccion:
+  type: object
+  minProperties: 1
+  description: Al menos un campo. predeterminada solo admite true (para cambiarla se marca otra).
+  properties:
+    etiqueta: { type: string, maxLength: 50, nullable: true }
+    linea1: { type: string, maxLength: 200 }
+    linea2: { type: string, maxLength: 200, nullable: true }
+    ciudad: { type: string, maxLength: 100 }
+    departamento: { type: string, maxLength: 100 }
+    codigo_postal: { type: string, nullable: true, example: '110231' }
+    predeterminada: { type: boolean, enum: [true] }
+
+UsuarioAdministrado:
+  type: object
+  properties:
+    id: { type: integer, example: 2 }
+    email: { type: string, example: vendedor@tienda.co }
+    rol: { $ref: '#/Rol' }
+    activo: { type: boolean }
+    cliente_id: { type: integer, nullable: true }
+    ultimo_acceso: { type: string, format: date-time, nullable: true }
+    creado_en: { type: string, format: date-time }
+
+CambiosUsuario:
+  type: object
+  minProperties: 1
+  description: Solo las cuentas internas cambian de rol. Nadie se cambia el rol ni se desactiva a si mismo. Revoca las sesiones del usuario.
+  properties:
+    rol: { type: string, enum: [vendedor, administrador] }
+    activo: { type: boolean }
+
+CambioDireccionPedido:
+  type: object
+  required: [direccion_id]
+  properties:
+    direccion_id: { type: integer, example: 3, description: Una direccion de envio del propio cliente. }

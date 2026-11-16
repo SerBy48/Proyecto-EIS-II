@@ -44,7 +44,7 @@ porId:
       '404': { $ref: '../componentes/respuestas.yaml#/NoEncontrado' }
   patch:
     tags: [clientes]
-    summary: Actualizar nombre, apellido o telefono
+    summary: Actualizar los datos personales (nombre, apellido, telefono, documento)
     operationId: actualizarCliente
     x-roles: [sesion]
     requestBody:
@@ -124,3 +124,63 @@ historial:
             schema: { type: array, items: { $ref: '../componentes/esquemas.yaml#/CompraHistorica' } }
       '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
       '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+
+departamentos:
+  get:
+    tags: [clientes]
+    summary: Departamentos de Colombia
+    description: Lista oficial para el selector de direcciones; el servicio valida contra ella al guardar.
+    operationId: listarDepartamentos
+    security: []
+    x-roles: [publica]
+    responses:
+      '200':
+        description: Los 32 departamentos y Bogota D.C.
+        content:
+          application/json:
+            schema: { type: array, items: { type: string }, example: [Antioquia, Bogotá D.C., Huila] }
+      '429': { $ref: '../componentes/respuestas.yaml#/LimiteExcedido' }
+
+direccion:
+  parameters:
+    - { $ref: '../componentes/parametros.yaml#/IdCliente' }
+    - { name: direccionId, in: path, required: true, schema: { type: integer, example: 3 } }
+  patch:
+    tags: [clientes]
+    summary: Editar una direccion o marcarla como predeterminada
+    operationId: actualizarDireccion
+    x-roles: [sesion]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../componentes/esquemas.yaml#/CambiosDireccion' }
+    responses:
+      '200':
+        description: Direccion actualizada.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mensaje: { type: string, example: Direccion actualizada. }
+                direccion: { $ref: '../componentes/esquemas.yaml#/Direccion' }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+      '404': { $ref: '../componentes/respuestas.yaml#/NoEncontrado' }
+  delete:
+    tags: [clientes]
+    summary: Eliminar una direccion
+    description: Si era la predeterminada, la mas antigua que quede pasa a serlo.
+    operationId: eliminarDireccion
+    x-roles: [sesion]
+    responses:
+      '200':
+        description: Direccion eliminada.
+        content:
+          application/json:
+            schema: { $ref: '../componentes/esquemas.yaml#/Mensaje' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+      '404': { $ref: '../componentes/respuestas.yaml#/NoEncontrado' }

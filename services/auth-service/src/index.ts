@@ -3,7 +3,10 @@ import { Application, Router } from 'express';
 import { asincrono, crearServicio, requiereRol, verificarPostgres } from '@ecommerce/shared';
 import { pool } from './db';
 import {
+  actualizarUsuario,
   crearUsuarioInterno,
+  eliminarCuenta,
+  listarUsuarios,
   login,
   logout,
   perfil,
@@ -29,9 +32,12 @@ const rutas = (app: Application): void => {
   router.post('/logout', requiereRol(), asincrono(logout));
   router.get('/perfil', requiereRol(), asincrono(perfil));
   router.post('/verificar', requiereRol(), asincrono(verificarTokenRemoto));
+  router.delete('/cuenta', requiereRol('cliente'), asincrono(eliminarCuenta));
 
   // Solo administrador
+  router.get('/usuarios', requiereRol('administrador'), asincrono(listarUsuarios));
   router.post('/usuarios', requiereRol('administrador'), asincrono(crearUsuarioInterno));
+  router.patch('/usuarios/:id', requiereRol('administrador'), asincrono(actualizarUsuario));
 
   app.use('/', router);
 };

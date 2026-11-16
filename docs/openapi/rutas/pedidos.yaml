@@ -160,3 +160,41 @@ estado:
       '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
       '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
       '404': { $ref: '../componentes/respuestas.yaml#/NoEncontrado' }
+
+direccion:
+  parameters:
+    - { name: id, in: path, required: true, description: Id numerico del pedido., schema: { type: integer, example: 12 } }
+  patch:
+    tags: [pedidos]
+    summary: Cambiar la direccion de envio de un pedido
+    description: |
+      Solo el cliente dueno, como maximo 2 veces y mientras el pedido este creado, pagado o en
+      preparacion. El limite se aplica en una sola sentencia condicional (dos clics simultaneos no lo
+      superan). Envia un correo con la direccion nueva.
+    operationId: cambiarDireccionPedido
+    x-roles: [cliente]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../componentes/esquemas.yaml#/CambioDireccionPedido' }
+    responses:
+      '200':
+        description: Direccion actualizada.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mensaje: { type: string }
+                pedido: { type: object, additionalProperties: true }
+                cambios_restantes: { type: integer, example: 1 }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+      '404': { $ref: '../componentes/respuestas.yaml#/NoEncontrado' }
+      '409':
+        description: El pedido ya salio (DIRECCION_NO_EDITABLE) o ya se hicieron los 2 cambios (LIMITE_CAMBIOS_DIRECCION).
+        content:
+          application/json:
+            schema: { $ref: '../componentes/esquemas.yaml#/Error' }

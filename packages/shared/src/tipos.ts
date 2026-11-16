@@ -43,6 +43,7 @@ export type EstadoPago = 'iniciada' | 'aprobada' | 'rechazada' | 'reembolsada';
 export const Eventos = {
   PEDIDO_CONFIRMADO: 'pedido.confirmado',
   PEDIDO_CANCELADO: 'pedido.cancelado',
+  PEDIDO_DIRECCION_CAMBIADA: 'pedido.direccion_cambiada',
   PAGO_APROBADO: 'pago.aprobado',
   PAGO_RECHAZADO: 'pago.rechazado',
   STOCK_MINIMO: 'inventario.stock_minimo',

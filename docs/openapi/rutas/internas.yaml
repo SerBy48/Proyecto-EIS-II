@@ -205,3 +205,52 @@ reembolsar:
       '200': { description: Reembolso procesado (o ya estaba reembolsada). }
       '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
       '404': { $ref: '../componentes/respuestas.yaml#/NoEncontrado' }
+
+anonimizar:
+  parameters: [{ $ref: '../componentes/parametros.yaml#/IdCliente' }]
+  post:
+    tags: [interna]
+    summary: Anonimizar un perfil (al eliminar la cuenta)
+    description: Solo auth-service con el secreto interno (soloLlamadaInterna); un administrador desde afuera recibe 403.
+    operationId: anonimizarCliente
+    x-interna: true
+    x-roles: [administrador]
+    responses:
+      '200':
+        description: Datos personales eliminados.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mensaje: { type: string }
+                cliente_id: { type: integer }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+      '404': { $ref: '../componentes/respuestas.yaml#/NoEncontrado' }
+
+pendientes:
+  parameters:
+    - { name: clienteId, in: path, required: true, schema: { type: integer, example: 1 } }
+  get:
+    tags: [interna]
+    summary: Pedidos en curso de un cliente
+    description: auth-service lo consulta antes de eliminar una cuenta. Solo llamada interna.
+    operationId: pedidosEnCurso
+    x-interna: true
+    x-roles: [administrador]
+    responses:
+      '200':
+        description: Pedidos creados, pagados, en preparacion o enviados.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                pendientes:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      numero: { type: string }
+                      estado: { $ref: '../componentes/esquemas.yaml#/EstadoPedido' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
