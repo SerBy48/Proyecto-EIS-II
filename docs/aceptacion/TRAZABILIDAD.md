@@ -5,18 +5,19 @@ Trabajo Final, Fase 5. Une cada requisito de [`01-escenario-requisitos.md`](../e
 - los casos de prueba que lo verifican;
 - el resultado de la última regresión y su evidencia.
 
-**Resultado de la regresión del 2026-11-16** (sección 4.32 de [`PRUEBAS.md`](../PRUEBAS.md)), sobre el perfil de producción (`npm run prod:up`) con la web compilada en modo pruebas:
+**Resultado de la regresión del 2026-11-16, ajustes de SerByTek** (sección 4.36 de [`PRUEBAS.md`](../PRUEBAS.md)), desde volúmenes vacíos con la web compilada en modo pruebas:
 
 | Suite | Resultado |
 |---|---|
-| `test:e2e:ui` | 12/12 criterios |
+| `test:e2e:ui` | 18/18 criterios |
 | `test:e2e` | 53 comprobaciones |
 | `test:http` | 73 casos |
 | `test:concurrencia` | 33 comprobaciones |
 | `test:asistente` | 46 comprobaciones |
-| `test:seguridad` | 21 verificaciones |
-| `test:openapi` | 355 comprobaciones |
-| `test:unit` | 115 pruebas |
+| `test:seguridad` | 23 verificaciones (22 seguras + S-09 aceptado) |
+| `test:openapi` | 409 comprobaciones |
+| `test:unit` | 130 pruebas |
+| axe (temas claro y oscuro) | 21 pantallas, 0 reglas WCAG incumplidas |
 
 **Convenciones de la tabla:**
 - **Interfaz:** el número `CA-nn` es el criterio que lo verifica en la web; un guion indica que el requisito no tiene pantalla propia.
@@ -33,17 +34,18 @@ Trabajo Final, Fase 5. Une cada requisito de [`01-escenario-requisitos.md`](../e
 | RF-05 Perfil autenticado | — | `test:http` | Pasa | `PRUEBAS.md` §3 |
 | RF-06 Usuarios internos | — | `test:http` (RBAC: un cliente → 403) | Pasa | `PRUEBAS.md` §3 |
 | RF-07 Crear perfil de cliente | CA-01 | `test:http` | Pasa | `CA-01.png` |
-| RF-08 Perfil propio | — | `test:http` (otro cliente → 403) | Pasa | `PRUEBAS.md` §3 |
-| RF-09 Direcciones de envío | CA-01 | `test:http` | Pasa | `CA-01.png` |
+| RF-08 Perfil propio | CA-13 | `test:http` (otro cliente → 403) | Pasa | `CA-13.png` |
+| RF-09 Direcciones de envío | CA-01, CA-13 | `test:http`; departamento inválido → 400 | Pasa | `CA-13.png` |
+| RF-40 Departamentos (F5b) | CA-01, CA-13 | `test:openapi` | Pasa | `CA-01.png` |
 | RF-10 Historial de compras | — | `test:e2e` (evento consumido por clientes) | Pasa | `PRUEBAS.md` §3 |
-| RF-11 Buscar y filtrar | CA-03 | `test:http`, `test:seguridad` (inyección NoSQL, 4.17) | Pasa | `CA-03.png` |
+| RF-11 Buscar y filtrar (con subcategoría y búsqueda tolerante) | CA-03 | `test:http`, `test:seguridad` (inyección NoSQL, 4.17) | Pasa | `CA-03.png` |
 | RF-12 Detalle de producto | CA-04 | `test:http` | Pasa | `CA-04.png` |
 | RF-13 Categorías | CA-03 | `test:http` | Pasa | `CA-03.png` |
 | RF-14 Promociones | CA-04 | `test:http` | Pasa | `CA-04.png` |
 | RF-15 Crear y editar productos | CA-07 (preparación por API) | `test:http` (RBAC) | Pasa | `resultados.json` |
 | RF-16 Stock por SKU | CA-06, CA-11 | `test:http` | Pasa | `CA-11.png` |
 | RF-17 Entradas de stock | CA-11 | `test:http` (cliente → 403) | Pasa | `CA-11.png` |
-| RF-18 Movimientos y alertas | — | `test:http`, `test:e2e` (alerta de `SKU-HOG-002`) | Pasa | `PRUEBAS.md` §3 |
+| RF-18 Movimientos y alertas | — | `test:http`, `test:e2e` (alerta de `SKU-TEC-007`) | Pasa | `PRUEBAS.md` §3 |
 | RF-19 Reserva sin sobreventa | CA-07 | `test:concurrencia` (20 por 5 → 5), `test:e2e` escenario C | Pasa | `PRUEBAS.md` §3 |
 | RF-20 Reservas vencidas | — | `test:http` (barrido) | Pasa | `PRUEBAS.md` §3 |
 | RF-21 Totales del carrito | CA-04 | `test:unit` (`totales.ts`), `test:http` | Pasa | `CA-04.png` |
@@ -73,6 +75,16 @@ Trabajo Final, Fase 5. Une cada requisito de [`01-escenario-requisitos.md`](../e
 | RF-ASIS-08 Contexto de varios turnos | — | `test:asistente` | Pasa | `PRUEBAS.md` §3 |
 | RF-ASIS-09 Frase no entendida | — | `test:asistente`, `asistente:metricas` | Pasa | `PRUEBAS.md` §3 |
 | RF-ASIS-10 Tickets | — | `test:asistente` (RBAC) | Pasa | `PRUEBAS.md` §3 |
+| RF-ASIS-11 Ofertas (F5b) | — | `test:unit` (`motor.test.ts`), `asistente:metricas` | Pasa | `trabajo-final/asistente-metricas.md` |
+| RF-ASIS-12 Preguntas de tienda y cuenta (F5b) | — | `asistente:metricas` (conjunto SerByTek, 50/50) | Pasa | `trabajo-final/asistente-metricas.md` |
+| RF-38 Eliminar la cuenta (F5b) | CA-15 | `test:seguridad` V-22 (rutas internas no alcanzables desde afuera) | Pasa | `CA-15.png` |
+| RF-39 Administrar usuarios (F5b) | CA-17 | `test:openapi` (x-roles administrador) | Pasa | `CA-17.png` |
+| RF-41 Dirección al pagar (F5b) | CA-14 | `test:e2e:ui` | Pasa | `CA-14.png` |
+| RF-42 Cambiar la dirección del pedido (F5b) | CA-14 | `test:seguridad` V-23 (pedido ajeno → 404); tercer cambio → 409 | Pasa | `CA-14.png` |
+| RF-43 Identidad SerByTek (F5b) | todas | `flutter analyze` (móvil) | Pasa | capturas de `docs/manuales/img/` |
+| RF-44 Tema oscuro (F5b) | CA-16 | `usabilidad:recorrido` (axe en los dos temas) | Pasa | `CA-16.png` |
+| RF-45 Mostrar contraseña (F5b) | CA-16 | — | Pasa | `CA-16.png` |
+| RF-46 Sesión vencida (F5b, H-F5-02) | CA-18 | — | Pasa | `CA-18.png` |
 
 ## Requisitos no funcionales
 
@@ -95,7 +107,7 @@ Las cifras de rendimiento y seguridad se midieron en la Fase 4 y no se repiten e
 | RNF-17 PCI-DSS | `test:http` | Cumple | `PRUEBAS.md` §3 |
 | RNF-18 Usabilidad con evaluadores | Prueba con usuarios y SUS | ⚠️ PENDIENTE: dato humano | `calidad/USABILIDAD.md` §11 |
 | RNF-19 Accesibilidad | `usabilidad:recorrido` (axe) | Cumple | `calidad/USABILIDAD.md` §11 |
-| RNF-20 Acierto del asistente | `test:asistente`, `asistente:metricas` | Cumple | `calidad/MATRIZ-CALIDAD.md` |
+| RNF-20 Acierto del asistente | `test:asistente`, `asistente:metricas` (SerByTek: 50/50; primera medición 49/50) | Cumple | `calidad/MATRIZ-CALIDAD.md` |
 | RNF-21 Servicio nuevo | Revisión con el checklist de `CLAUDE.md` | Cumple | `CLAUDE.md` |
 | RNF-22 Documentación alineada | `test:openapi` | Cumple | `PRUEBAS.md` §3 |
 | **RNF-23 Detección en CI** | `test:unit:cobertura` y GitHub Actions en cada PR | **Cumple: `.github/workflows/ci.yml`** | Pestaña *Actions* del repositorio |

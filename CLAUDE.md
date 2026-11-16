@@ -1,7 +1,8 @@
 # Contexto del repositorio
 
-Plataforma de comercio electrónico con arquitectura de microservicios
-(Práctica de Laboratorio 2). Monorepo con npm workspaces.
+**SerByTek**: tienda en línea de tecnología (una sola tienda; el "vendedor" es
+personal interno) con arquitectura de microservicios (Práctica de Laboratorio 2
+y Trabajo Final). Monorepo con npm workspaces.
 
 ---
 
@@ -54,7 +55,7 @@ npm run typecheck           # tipos de todos los paquetes
 npm run test:salud          # todos los servicios responden
 npm run test:concurrencia   # no hay sobreventa
 npm run test:e2e            # flujo de compra completo (incluye el correo en Mailpit)
-npm run test:e2e:ui         # 12 criterios de aceptacion en la web (Playwright, 8081, modo pruebas; GRABAR_VIDEO=1)
+npm run test:e2e:ui         # 18 criterios de aceptacion en la web (Playwright, 8081, modo pruebas; GRABAR_VIDEO=1)
 npm run prod:up             # perfil de produccion: solo la web publica puerto (prod:down, prod:logs)
 npm run tunel               # Cloudflare Quick Tunnel hacia la web (solo durante la defensa)
 npm run test:unit           # pruebas unitarias con Vitest (sin Docker); :cobertura para el reporte
@@ -64,7 +65,7 @@ npm run test:asistente      # asistente contra el gateway (ASISTENTE_PROBAR_DEGR
 npm run asistente:metricas  # tasa de acierto de intenciones y matriz de confusion (-- --guardar)
 npm run infra:asistente     # crea asistente_db en un volumen de Mongo que ya existe (idempotente)
 npm run infra:reset         # borra volúmenes y recrea desde cero
-npm run test:seguridad      # 21 verificaciones de seguridad, 5 del asistente (ver docs/calidad/SEGURIDAD.md)
+npm run test:seguridad      # 23 verificaciones de seguridad, 5 del asistente (ver docs/calidad/SEGURIDAD.md)
 npm run usabilidad:recorrido # 9 tareas en Chromium: KLM, capturas y axe (vite preview en 4173 de build:web:pruebas)
 npm run build:web:pruebas   # build con los controles de la pasarela simulada (U-08); build:web los oculta
 npm run usabilidad:sus      # puntaje SUS; falla si no hay respuestas reales
@@ -185,6 +186,11 @@ petición queda colgada. Para los errores se usan los constructores de
     RBAC y su autorización por dato. Con una llamada interna, cualquiera vería
     por el chat los pedidos de otro cliente (`test:asistente` lo verifica).
 
+16. **Las rutas internas que borran o exponen datos de un cliente llevan
+    `soloLlamadaInterna` después de `requiereRol()`** (anonimizar el perfil,
+    pedidos en curso). Con solo `requiereRol('administrador')`, un administrador
+    con su token borraría los datos de un cliente sin su contraseña (V-22).
+
 ---
 
 ## Dónde está cada cosa
@@ -208,6 +214,10 @@ petición queda colgada. Para los errores se usan los constructores de
 | Scripts de base de datos | `infra/README.md` |
 | Asistente: motor, diálogo, intenciones y FAQ | `services/asistente-service/src/{motor,dialogo}.ts`, `src/datos/*.json` |
 | Chat de la web | `clients/web/src/componentes/Asistente.jsx` |
+| Busqueda tolerante del catalogo | `services/catalogo-service/src/busqueda.ts` |
+| Cambio de direccion del pedido y pedidos en curso | `services/pedidos-service/src/direccion-pedido.ts` |
+| Eliminar la cuenta y administrar usuarios | `services/auth-service/src/controlador.ts` (`eliminarCuenta`, `actualizarUsuario`) |
+| Perfil, direcciones y tema oscuro de la web | `clients/web/src/paginas/Perfil.jsx`, `componentes/FormularioDireccion.jsx`, `src/index.css` (variables de color) |
 | Especificación, C4 y ADR del Trabajo Final | `docs/especificacion/`, `docs/c4/`, `docs/adr/` |
 | Web en contenedor y perfil prod | `clients/web/{Dockerfile,nginx.conf}`, `docker-compose.prod.yml` |
 | Criterios de aceptación, trazabilidad y E2E de interfaz | `docs/aceptacion/`, `tests/e2e-ui/aceptacion.ts` |
@@ -221,9 +231,12 @@ Contraseña `Password123` en todas las cuentas:
 `admin@tienda.co` (administrador), `vendedor@tienda.co` (vendedor),
 `ana@correo.co`, `bruno@correo.co`, `carla@correo.co` (clientes 1, 2 y 3).
 
-**`SKU-TEC-004` tiene una sola unidad** a propósito: es el producto con el que se
-prueba la disputa por la última unidad. **`SKU-HOG-002`** está bajo el mínimo
-para disparar la alerta de reposición.
+Catálogo: 60 productos de tecnología (`SKU-TEC-001` a `060`) en 10 subcategorías,
+definidas con sus sinónimos en `infra/mongo/init-mongo.js` (el asistente los lee
+del catálogo). **`SKU-TEC-004` tiene una sola unidad** a propósito: es el producto
+con el que se prueba la disputa por la última unidad. **`SKU-TEC-007`** está bajo
+el mínimo para disparar la alerta de reposición. `test:unit` verifica que cada
+producto tenga stock en `06-datos-prueba.sql` y viceversa.
 
 Tokens de la pasarela simulada (resultado determinista):
 
@@ -239,10 +252,12 @@ Tokens de la pasarela simulada (resultado determinista):
 ## Estado y pendientes conocidos
 
 **Verificado y funcionando** (ver `docs/PRUEBAS.md` para el detalle y la
-evidencia; última ejecución el 2026-11-16, Fase 5, con el sistema completo en
-contenedores): 205 casos de integración y 115 unitarios, todos pasan, y los 12
-criterios de aceptación de `test:e2e:ui`; `test:openapi` pasa sus 355 comprobaciones y
-`test:asistente` sus 46. Los diez servicios compilan y arrancan sanos; la prueba
+evidencia; última ejecución el 2026-11-16, ajustes de SerByTek (F5b), desde
+volúmenes vacíos): 205 casos de integración y 130 unitarios, todos pasan, y los 18
+criterios de aceptación de `test:e2e:ui`; `test:openapi` pasa sus 409 comprobaciones y
+`test:asistente` sus 46. El asistente acierta 50/50 frases de SerByTek
+(`asistente:metricas`) y axe no encuentra reglas WCAG incumplidas en los temas claro
+y oscuro. Los diez servicios compilan y arrancan sanos; la prueba
 de concurrencia pasa sus 33 comprobaciones (20 compradores simultáneos por 5
 unidades → exactamente 5 ganan); `test:http` pasa sus 73 casos sobre
 autenticación, RBAC, aislamiento entre clientes, idempotencia, los cuatro
