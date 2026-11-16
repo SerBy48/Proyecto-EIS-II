@@ -241,6 +241,19 @@ function Inventario() {
 function PedidosAdmin() {
   const [pedidos, setPedidos] = useState([]);
   const [error, setError] = useState(null);
+  // Bitacora de la saga del pedido elegido (solo administrador: la API
+  // responde 403 a un vendedor).
+  const [saga, setSaga] = useState(null);
+
+  const verSaga = async (pedido) => {
+    try {
+      setSaga({ numero: pedido.numero, pasos: await api(`/pedidos/${pedido.id}/saga`) });
+      setError(null);
+    } catch (e) {
+      setSaga(null);
+      setError(e.estado === 403 ? 'Solo un administrador puede ver la bitácora de la saga.' : e.message);
+    }
+  };
 
   const cargar = async () => {
     try {
@@ -304,6 +317,12 @@ function PedidosAdmin() {
                   ) : (
                     <span className="text-xs text-gray-500">sin acciones</span>
                   )}
+                  <button
+                    onClick={() => verSaga(p)}
+                    className="ml-2 text-xs border border-gray-300 hover:bg-gray-50 px-2 py-1 rounded"
+                  >
+                    Bitácora<span className="sr-only"> de la saga del pedido {p.numero}</span>
+                  </button>
                 </td>
               </tr>
             ))}
@@ -317,6 +336,29 @@ function PedidosAdmin() {
           </tbody>
         </table>
       </div>
+
+      {saga && (
+        <section aria-label={`Bitácora de la saga del pedido ${saga.numero}`} className="mt-6 bg-white border border-gray-200 rounded-xl p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-bold">Bitácora de la saga · {saga.numero}</h3>
+            <button onClick={() => setSaga(null)} className="text-sm text-gray-600 hover:text-gray-900">
+              Cerrar
+            </button>
+          </div>
+          <ol className="space-y-1 text-sm">
+            {saga.pasos.map((paso, i) => (
+              <li key={i} className="flex gap-3">
+                <span className="font-mono text-xs text-gray-500 w-20">{new Date(paso.creado_en).toLocaleTimeString('es-CO')}</span>
+                <span className="font-mono w-56">{paso.paso}</span>
+                <span className={paso.estado === 'fallido' ? 'text-red-700' : paso.estado === 'compensado' ? 'text-amber-700' : 'text-gray-700'}>
+                  {paso.estado}
+                </span>
+              </li>
+            ))}
+            {saga.pasos.length === 0 && <li className="text-gray-500">Sin pasos registrados.</li>}
+          </ol>
+        </section>
+      )}
     </div>
   );
 }
