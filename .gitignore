@@ -12,3 +12,5 @@ coverage/
 # Se versiona solo el resumen en JSON.
 docs/evidencia/cobertura/*
 !docs/evidencia/cobertura/coverage-summary.json
+docs/evidencia/trabajo-final/e2e-ui/video/
+docs/evidencia/trabajo-final/e2e-ui/*-traza.zip

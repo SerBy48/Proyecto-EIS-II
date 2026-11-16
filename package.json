@@ -54,7 +54,12 @@
     "infra:asistente": "tsx scripts/infra-asistente.ts",
     "test:asistente": "tsx --env-file-if-exists=.env tests/asistente/integracion.ts",
     "asistente:metricas": "tsx tests/asistente/metricas.ts",
-    "build:web:pruebas": "npm run build:pruebas -w @ecommerce/web"
+    "build:web:pruebas": "npm run build:pruebas -w @ecommerce/web",
+    "prod:up": "docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build --wait",
+    "prod:down": "docker compose -f docker-compose.yml -f docker-compose.prod.yml down",
+    "prod:logs": "docker compose -f docker-compose.yml -f docker-compose.prod.yml logs -f --tail=100",
+    "test:e2e:ui": "tsx --env-file-if-exists=.env tests/e2e-ui/aceptacion.ts",
+    "tunel": "bash scripts/tunel.sh"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.10.0",

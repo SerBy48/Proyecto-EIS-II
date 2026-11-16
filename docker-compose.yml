@@ -112,8 +112,10 @@ services:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "check_port_connectivity"]
       interval: 10s
       timeout: 15s
-      retries: 10
-      start_period: 90s
+      # Con un volumen nuevo, RabbitMQ puede tardar mas de 90 s en Windows; con
+      # menos margen, "compose up --wait" lo daba por caido (RENDIMIENTO.md 9.6).
+      retries: 30
+      start_period: 180s
     networks: [interna]
 
   # Servidor de correo de pruebas: recibe por SMTP todo lo que envia
@@ -161,7 +163,8 @@ services:
     ports: ["127.0.0.1:3002:3002"]
     depends_on:
       postgres: { condition: service_healthy }
-      rabbitmq: { condition: service_healthy }
+      # El bus reintenta solo (BusEventos): basta con que el broker haya arrancado.
+      rabbitmq: { condition: service_started }
 
   catalogo-service:
     <<: *servicio-base
@@ -195,7 +198,8 @@ services:
     ports: ["127.0.0.1:3004:3004"]
     depends_on:
       postgres: { condition: service_healthy }
-      rabbitmq: { condition: service_healthy }
+      # El bus reintenta solo (BusEventos): basta con que el broker haya arrancado.
+      rabbitmq: { condition: service_started }
 
   carrito-service:
     <<: *servicio-base
@@ -227,7 +231,8 @@ services:
     ports: ["127.0.0.1:3006:3006"]
     depends_on:
       postgres: { condition: service_healthy }
-      rabbitmq: { condition: service_healthy }
+      # El bus reintenta solo (BusEventos): basta con que el broker haya arrancado.
+      rabbitmq: { condition: service_started }
 
   pagos-service:
     <<: *servicio-base
@@ -241,7 +246,8 @@ services:
     ports: ["127.0.0.1:3007:3007"]
     depends_on:
       postgres: { condition: service_healthy }
-      rabbitmq: { condition: service_healthy }
+      # El bus reintenta solo (BusEventos): basta con que el broker haya arrancado.
+      rabbitmq: { condition: service_started }
 
   notificaciones-service:
     <<: *servicio-base
@@ -258,7 +264,8 @@ services:
     ports: ["127.0.0.1:3008:3008"]
     depends_on:
       mongo: { condition: service_healthy }
-      rabbitmq: { condition: service_healthy }
+      # El bus reintenta solo (BusEventos): basta con que el broker haya arrancado.
+      rabbitmq: { condition: service_started }
       mailpit: { condition: service_healthy }
 
   asistente-service:
@@ -284,7 +291,8 @@ services:
     ports: ["127.0.0.1:3009:3009"]
     depends_on:
       mongo: { condition: service_healthy }
-      rabbitmq: { condition: service_healthy }
+      # El bus reintenta solo (BusEventos): basta con que el broker haya arrancado.
+      rabbitmq: { condition: service_started }
 
   # ------------------------------------------------------- api gateway -----
   api-gateway:
@@ -303,7 +311,7 @@ services:
       URL_PAGOS: http://pagos-service:3007
       URL_NOTIFICACIONES: http://notificaciones-service:3008
       URL_ASISTENTE: http://asistente-service:3009
-      CORS_ORIGENES: ${CORS_ORIGENES:-http://localhost:5173,http://localhost:4173}
+      CORS_ORIGENES: ${CORS_ORIGENES:-http://localhost:5173,http://localhost:4173,http://localhost:8081}
       # Limites del rate limiting. Mismos valores por defecto que el codigo; el
       # perfil .env.carga los eleva para medir el sistema y no el limitador.
       LIMITE_GENERAL: ${LIMITE_GENERAL:-300}
@@ -324,6 +332,25 @@ services:
       - pagos-service
       - notificaciones-service
       - asistente-service
+
+  # ------------------------------------------------------------- web -------
+  # Build de Vite servido por nginx, con proxy de /api al gateway (mismo
+  # origen, sin CORS) y las cabeceras de seguridad (clients/web/nginx.conf).
+  web:
+    build:
+      context: .
+      dockerfile: clients/web/Dockerfile
+      args:
+        # production oculta los controles de la pasarela simulada (U-08);
+        # pruebas los muestra (lo usan los E2E de interfaz).
+        MODO_VITE: ${MODO_VITE:-pruebas}
+    container_name: ecom_web
+    restart: unless-stopped
+    ports:
+      - "${WEB_PUERTO:-8081}:8080"
+    depends_on:
+      api-gateway: { condition: service_healthy }
+    networks: [interna]
 
 networks:
   interna:

@@ -1,0 +1,103 @@
+# ============================================================================
+# Perfil de PRODUCCION (Trabajo Final, Fase 5; docs/adr/0009). Se aplica encima
+# de docker-compose.yml:
+#
+#   npm run prod:up      (docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build --wait)
+#
+# Diferencias con el laboratorio:
+#   - Solo la web publica un puerto (WEB_PUERTO, 8081 por defecto). El gateway,
+#     los diez servicios y los motores de datos quedan en la red interna: la
+#     API se alcanza por el proxy /api de nginx, en el mismo origen que la web.
+#   - NODE_ENV=production, logs en JSON y Swagger UI apagado (EXPONER_DOCS=false).
+#   - Limites de CPU y memoria por contenedor.
+#   - La web se compila en modo produccion: sin los controles de la pasarela
+#     simulada (U-08). Para los E2E de interfaz: MODO_VITE=pruebas.
+#   - Los secretos siguen siendo obligatorios (${VAR:?...} en docker-compose.yml).
+#
+# Excepcion deliberada: la interfaz de Mailpit en 127.0.0.1:8025, solo en el
+# propio equipo, para mostrar los correos en la demo. En una produccion real
+# notificaciones usaria un SMTP externo (SMTP_HOST, SMTP_SEGURO, SMTP_USUARIO).
+# ============================================================================
+
+x-produccion: &produccion
+  NODE_ENV: production
+  LOG_LEVEL: info
+  LOG_FORMATO: json
+
+x-limites-servicio: &limites-servicio
+  deploy:
+    resources:
+      limits: { cpus: "1.0", memory: 384M }
+
+services:
+  postgres:
+    ports: !reset []
+    deploy: { resources: { limits: { cpus: "2.0", memory: 1G } } }
+  mongo:
+    ports: !reset []
+    deploy: { resources: { limits: { cpus: "1.0", memory: 1G } } }
+  redis:
+    ports: !reset []
+    deploy: { resources: { limits: { cpus: "0.5", memory: 256M } } }
+  rabbitmq:
+    ports: !reset []
+    deploy: { resources: { limits: { cpus: "1.0", memory: 512M } } }
+  mailpit:
+    ports: !override
+      - "127.0.0.1:8025:8025"
+
+  # bcrypt corre en un pool de hilos (pool-hash.ts): auth es el que mas CPU usa
+  # (RENDIMIENTO.md 9.2), por eso tiene mas margen.
+  auth-service:
+    ports: !reset []
+    environment: *produccion
+    deploy: { resources: { limits: { cpus: "2.0", memory: 512M } } }
+  clientes-service:
+    ports: !reset []
+    environment: *produccion
+    <<: *limites-servicio
+  catalogo-service:
+    ports: !reset []
+    environment: *produccion
+    <<: *limites-servicio
+  inventario-service:
+    ports: !reset []
+    environment: *produccion
+    <<: *limites-servicio
+  carrito-service:
+    ports: !reset []
+    environment: *produccion
+    <<: *limites-servicio
+  pedidos-service:
+    ports: !reset []
+    environment: *produccion
+    <<: *limites-servicio
+  pagos-service:
+    ports: !reset []
+    environment: *produccion
+    <<: *limites-servicio
+  notificaciones-service:
+    ports: !reset []
+    environment: *produccion
+    <<: *limites-servicio
+  asistente-service:
+    ports: !reset []
+    environment: *produccion
+    <<: *limites-servicio
+
+  api-gateway:
+    ports: !reset []
+    environment:
+      <<: *produccion
+      EXPONER_DOCS: "false"
+      # Mismo origen que la web (proxy /api de nginx): CORS solo para ese origen.
+      # Variable propia: CORS_ORIGENES del .env es la del laboratorio. Con el
+      # tunel se agrega su URL: CORS_ORIGENES_PROD=http://localhost:8081,https://....
+      CORS_ORIGENES: ${CORS_ORIGENES_PROD:-http://localhost:${WEB_PUERTO:-8081}}
+    <<: *limites-servicio
+
+  web:
+    build:
+      args:
+        MODO_VITE: ${MODO_VITE:-production}
+    deploy: { resources: { limits: { cpus: "0.5", memory: 128M } } }
