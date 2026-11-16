@@ -220,3 +220,71 @@ Todas las tareas siguen muy por debajo de su tiempo esperado; la mayor es T8, co
 No queda ningún hallazgo de severidad 3 o 4.
 
 Regresión completa ([`07-regresion-fase3-usabilidad.txt`](../evidencia/no-funcionales/07-regresion-fase3-usabilidad.txt)): typecheck, salud, 73/73 casos HTTP, concurrencia, 49/49 comprobaciones e2e y build de la web.
+
+---
+
+## 11. Trabajo Final: el asistente virtual
+
+Fase 4 del Trabajo Final. Se volvió a ejecutar el recorrido sobre la versión final con una tarea nueva, T9: «Pregúntele al asistente de la tienda cuánto cuesta el envío y en qué estado está su último pedido» ([`tareas.md`](../../tests/usabilidad/tareas.md)). Evidencia: [`recorrido-tf.json`](../evidencia/no-funcionales/usabilidad/recorrido-tf.json) y [`accesibilidad-axe-tf.json`](../evidencia/no-funcionales/usabilidad/accesibilidad-axe-tf.json); se ejecutó con `ETIQUETA=tf npm run usabilidad:recorrido`.
+
+### 11.1 Resultados
+
+| Medida | Resultado |
+|---|---|
+| Tareas completadas | **9/9** (las 8 de la práctica siguen pasando con el asistente montado en todas las vistas) |
+| KLM de T9 | **43,4 s** (usuario 41,6 s + sistema 1,8 s), frente a los 60 s esperados |
+| Accesibilidad (axe, WCAG 2.2 AA) | **0 incumplimientos en 14 pantallas**, incluido el panel del asistente |
+| Teclado y foco | El foco va al campo al abrir; Esc cierra y devuelve el foco al botón (`scripts/capturas/asistente.ts`) |
+
+### 11.2 Recorrido cognitivo de T9
+
+| Pregunta | Respuesta |
+|---|---|
+| ¿El usuario intentará el efecto correcto? | Sí. El botón flotante «¿Necesitas ayuda?» está en todas las vistas y su texto invita a preguntar |
+| ¿Notará que la acción está disponible? | Sí. Al abrir el panel, el saludo ofrece opciones rápidas, y una de ellas es justamente «Costo de envío» |
+| ¿Asociará la acción con el efecto? | Sí. Las opciones usan el vocabulario de la consigna; la pregunta escrita «estado de mi último pedido» se reconoce sin palabras exactas |
+| ¿Verá que progresa? | Sí. El indicador «Escribiendo…» y las respuestas en tarjetas; la del pedido nombra el número y el estado («Tu último pedido, PED-…, está…») |
+
+### 11.3 Qué cuesta cada forma de preguntar (KLM)
+
+| Tramo de T9 | Operadores | Tiempo |
+|---|---|---|
+| Cerrar la sesión del administrador e iniciar la de Ana | 5 pasos (los 4 de T1 más «Salir») | 20,2 s |
+| Abrir el asistente y leer el saludo | M P B B + M | 4,0 s |
+| **Opción rápida** «Costo de envío» y leer la respuesta | M P B B + M | **4,0 s** |
+| **Pregunta escrita** «estado de mi ultimo pedido», enviar y leer | M P B B H 26K + P B B + M | **13,4 s** |
+
+**Una opción rápida cuesta un tercio que la misma pregunta escrita.** Para un experto, el chat no es más rápido que la navegación: «Mis pedidos» en la cabecera son dos clics. Su valor está en otro lado:
+- responde preguntas que **no tienen pantalla**: envío, IVA, devoluciones, horario;
+- **encuentra** lo que el usuario no sabe dónde está.
+
+Por eso las opciones rápidas se ofrecen desde el primer mensaje y otra vez cuando el asistente no entiende.
+
+### 11.4 Hallazgos
+
+No aparecen hallazgos nuevos de severidad 2 o mayor. Las observaciones del recorrido:
+- **U-13 amplía su alcance.** Los textos del asistente tampoco llevan tildes, igual que el resto de la interfaz. Sigue con severidad 1.
+- **La tasa de acierto mide el lenguaje.** Su 91,7 % se mide con frases de prueba escritas por el equipo, no con usuarios reales ([`03-asistente-virtual.md`](../especificacion/03-asistente-virtual.md)). Las conversaciones reales guardan la intención y la confianza de cada turno, así que la prueba con evaluadores mostrará qué frases terminan en «no entendido».
+
+Pendiente de dato humano, como en la práctica: el SUS y la prueba con evaluadores (pensando en voz alta), ahora con T9 en la hoja de tareas. ⚠️ PENDIENTE: dato humano.
+
+### 11.5 Correcciones del Trabajo Final: U-07, U-08 y U-13
+
+Aprobadas por el equipo en la Fase 4. Se verificaron con el mismo recorrido ([`recorrido-tf-despues.json`](../evidencia/no-funcionales/usabilidad/recorrido-tf-despues.json), `ETIQUETA=tf-despues`).
+
+| ID | Antes | Cambio | Después |
+|---|---|---|---|
+| **U-07** (P2) | El aviso decía «SKU-TEC-111 agregado al carrito» y aparecía arriba de la página, fuera de la vista si el usuario había bajado | `App.jsx`: el nombre sale del carrito que devuelve el `POST`, lo que además ahorra una petición, y el aviso es flotante bajo la cabecera | «Portatil Andina Basico agregado al carrito.», visible sin desplazarse |
+| **U-08** (P2) | El cliente veía «Token de la pasarela (pruebas)», con opciones como «provoca timeout», y un texto técnico sobre la saga | `Carrito.jsx`: el selector solo existe en desarrollo y en la compilación de pruebas (`npm run build:web:pruebas`, `VITE_MODO_PRUEBAS=true`), dentro de un recuadro «Modo de pruebas» con opciones en lenguaje de cliente. El texto del pago explica qué pasa con el dinero | La compilación de producción (`build:web`) **no contiene** el selector: 0 apariciones de `token-pasarela` en el JavaScript generado, frente a 1 en la de pruebas |
+| **U-13** (P3) | Los textos visibles de la web y del asistente no llevaban tildes ni eñes | Un script reemplazó palabras solo en textos visibles (nodos de texto JSX y frases), sin tocar identificadores, rutas ni claves. Las formas ambiguas («está», «qué», «sé») se corrigieron a mano | Web: 6 archivos. Asistente: 31 respuestas y las 7 FAQ. «Tu carrito está vacío.», «La sesión expiró…», «Tu último pedido… está…» |
+
+**Medición.**
+- 9/9 tareas.
+- axe: 0 incumplimientos en 14 pantallas.
+- KLM sin cambios relevantes: T3 pasa de 11,8 a 11,2 s, por una petición menos tras agregar.
+- La regresión completa pasa ([`08-regresion-tf-fase4.txt`](../evidencia/no-funcionales/08-regresion-tf-fase4.txt)).
+
+**Residuos de U-13, fuera del alcance aprobado:**
+- **Mensajes que vienen de la API**: «Credenciales invalidas.» (E1), «Cupon no encontrado.» (E5), «El pedido ya esta en preparacion…» (E8). Forman parte del contrato que verifican `test:http` y `test:e2e`; corregirlos implica cambiar los servicios y esas suites a la vez.
+- **Los nombres de los productos** del catálogo (por ejemplo «Portatil Andina Basico»): son datos de `init-mongo.js`.
+- **Los estados de la tabla del administrador**, que se muestran a partir del código del estado (`en_preparacion` → «en preparacion»).

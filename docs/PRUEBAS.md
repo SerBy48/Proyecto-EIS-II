@@ -7,8 +7,8 @@ electrónico.
 | | |
 |---|---|
 | **Última ejecución** | 15 de noviembre de 2026 (servicios en contenedores, base poblada con `npm run sembrar:carga` y secretos propios en `.env`) |
-| **Casos ejecutados** | 314: 203 de integración (33 de concurrencia + 73 por HTTP + 51 extremo a extremo + 46 del asistente) y 111 unitarias. Además, 355 comprobaciones de cobertura de la especificación OpenAPI |
-| **Resultado** | 314 pasan, 0 fallan; las 355 comprobaciones de OpenAPI pasan. Asistente: 91,7 % de acierto de intenciones en el conjunto de evaluación |
+| **Casos ejecutados** | 316: 203 de integración (33 de concurrencia + 73 por HTTP + 51 extremo a extremo + 46 del asistente) y 113 unitarias. Además, 355 comprobaciones de cobertura de OpenAPI y 21 verificaciones de seguridad |
+| **Resultado** | 316 pasan, 0 fallan; las 355 comprobaciones de OpenAPI pasan; seguridad: 1 hallazgo de 21 (S-09, aceptado). Asistente: 91,7 % de acierto de intenciones. Regresión de la Fase 4: [`no-funcionales/08-regresion-tf-fase4.txt`](evidencia/no-funcionales/08-regresion-tf-fase4.txt) |
 | **Entorno** | Windows 11, Node 25, Docker: PostgreSQL 16 (puerto 5434 del host), MongoDB 7, Redis 7, RabbitMQ 3 y Mailpit 1.27. Infraestructura completa |
 | **Evidencia** | [`evidencia/`](evidencia/) — salida literal de cada suite |
 
@@ -788,6 +788,26 @@ No llegaron a integrarse, pero se documentan porque muestran qué detectó cada 
 | axe en el recorrido de la interfaz | Contraste insuficiente (`text-gray-400`) en el SKU y la fecha de las tarjetas | `text-gray-500` (4,8:1) |
 | `npm run test:seguridad` (V-05) | Falso positivo: un comentario mencionaba la API de HTML crudo de React | Se reformuló el comentario; la verificación no se tocó |
 
+### 4.29 Dependencias de producción vulnerables (S-12)
+
+Lo encontró la auditoría de dependencias de la Fase 4 (`npm audit --omit=dev`): `body-parser` y `follow-redirects` (altas) y `qs` (moderada), todas transitivas.
+
+**Corrección.** `npm audit fix`, que solo cambia el `package-lock.json`.
+
+**Verificación.** 0 vulnerabilidades de producción y la regresión completa en verde ([`calidad/SEGURIDAD.md`](calidad/SEGURIDAD.md), sección 10.3).
+
+### 4.30 El circuit breaker en semiabierto dejaba pasar todas las peticiones (R7)
+
+Lo encontró la carga con fallo inyectado: inventario detenido durante la búsqueda en el catálogo.
+
+**Síntoma.** En cada paso a semiabierto, las ~40 peticiones por segundo del catálogo iban contra inventario caído, y el p95 subía a 6,4 s.
+
+**Corrección.** Una sola llamada de prueba a la vez; las demás reciben la alternativa al instante.
+
+**Verificación.**
+- Pruebas unitarias en `circuit-breaker.test.ts`.
+- La misma carga con fallo: p99 de 6 373 a 76 ms, con 0 errores ([`calidad/RENDIMIENTO.md`](calidad/RENDIMIENTO.md), sección 9.6).
+
 ---
 
 ## 5. Lo que queda por probar
@@ -800,7 +820,8 @@ Quedan las pruebas que requieren provocar fallos a mano:
 | Sin verificar en ejecución | Cómo verificarlo |
 |---|---|
 | Caída y recuperación del broker | escenario 5.1 de [`../PLAN.md`](../PLAN.md) |
-| Circuit breaker abriéndose por fallos reales | escenario 5.3 de `PLAN.md` |
+
+El circuit breaker abriéndose por fallos reales ya está verificado, y bajo carga: la Fase 4 detuvo inventario y notificaciones en plena corrida ([`calidad/RENDIMIENTO.md`](calidad/RENDIMIENTO.md), secciones 9.3, 9.4 y 9.6).
 
 ### Limitación conocida: arranque antes que el broker
 

@@ -13,9 +13,9 @@ import { api, moneda } from '../servicios/api';
 const LONGITUD_MAXIMA = 500;
 
 const OPCIONES_INICIALES = [
-  { etiqueta: 'Costo de envio', texto: 'Cuanto cuesta el envio?' },
+  { etiqueta: 'Costo de envío', texto: 'Cuánto cuesta el envío?' },
   { etiqueta: 'Buscar un producto', texto: 'Quiero buscar un producto' },
-  { etiqueta: 'Mis pedidos', texto: 'Cual es el estado de mis pedidos?' },
+  { etiqueta: 'Mis pedidos', texto: 'Cuál es el estado de mis pedidos?' },
   { etiqueta: 'Hablar con un asesor', texto: 'Quiero hablar con un asesor' }
 ];
 
@@ -23,7 +23,7 @@ const bienvenida = () => ({
   id: 'bienvenida',
   de: 'asistente',
   respuestas: [
-    { tipo: 'texto', texto: 'Hola, soy el asistente de la tienda. Preguntame por envios, pagos, productos o tus pedidos.' },
+    { tipo: 'texto', texto: 'Hola, soy el asistente de la tienda. Pregúntame por envíos, pagos, productos o tus pedidos.' },
     { tipo: 'opciones', opciones: OPCIONES_INICIALES }
   ]
 });
@@ -31,7 +31,7 @@ const bienvenida = () => ({
 const ESTADOS = {
   creado: 'Creado',
   pagado: 'Pagado',
-  en_preparacion: 'En preparacion',
+  en_preparacion: 'En preparación',
   enviado: 'Enviado',
   entregado: 'Entregado',
   cancelado: 'Cancelado'
@@ -88,8 +88,8 @@ export default function Asistente({ usuario, alAgregar, onNavegar, onIniciarSesi
     } catch (e) {
       setError(
         e.estado === 429
-          ? 'Estas escribiendo muy rapido. Espera un momento.'
-          : 'El asistente no esta disponible en este momento. La tienda sigue funcionando con normalidad.'
+          ? 'Estás escribiendo muy rápido. Espera un momento.'
+          : 'El asistente no está disponible en este momento. La tienda sigue funcionando con normalidad.'
       );
     } finally {
       setEscribiendo(false);
@@ -147,7 +147,7 @@ export default function Asistente({ usuario, alAgregar, onNavegar, onIniciarSesi
               )
             )}
             {escribiendo && (
-              <p className="text-gray-500 italic" aria-label="El asistente esta escribiendo">
+              <p className="text-gray-500 italic" aria-label="El asistente está escribiendo">
                 Escribiendo…
               </p>
             )}
@@ -254,7 +254,7 @@ function Respuesta({ r, esCliente, alAgregar, alElegir, deshabilitado }) {
 
   if (r.tipo === 'opciones') {
     return (
-      <div className="flex flex-wrap gap-2" role="group" aria-label="Opciones rapidas">
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Opciones rápidas">
         {r.opciones.map((o) => (
           <button
             key={o.etiqueta}

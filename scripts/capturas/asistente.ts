@@ -38,7 +38,7 @@ const principal = async (): Promise<void> => {
   await pagina.getByRole('button', { name: '¿Necesitas ayuda?' }).click();
   const panel = pagina.getByRole('dialog', { name: 'Asistente virtual' });
   resultado.foco_en_el_campo = await pagina.getByLabel('Escribe tu pregunta').evaluate((e) => e === document.activeElement);
-  await pagina.getByRole('button', { name: 'Costo de envio' }).click();
+  await pagina.getByRole('button', { name: 'Costo de envío' }).click();
   await pagina.waitForSelector('text=/15\\.000/');
   await preguntar(pagina, 'tienen cafeteras?');
   await pagina.waitForSelector('[aria-label="Productos"]');
@@ -58,9 +58,9 @@ const principal = async (): Promise<void> => {
     .evaluate((e) => e === document.activeElement);
 
   // Cliente con sesion: estado de sus pedidos.
-  await pagina.getByRole('button', { name: 'Iniciar sesion' }).first().click();
+  await pagina.getByRole('button', { name: 'Iniciar sesión' }).first().click();
   await pagina.getByLabel('Correo').fill('ana@correo.co');
-  await pagina.getByLabel('Contrasena').fill('Password123');
+  await pagina.getByLabel('Contraseña').fill('Password123');
   await pagina.getByRole('button', { name: 'Ingresar' }).click();
   await pagina.waitForSelector('text=ana@correo.co');
   await pagina.getByRole('button', { name: '¿Necesitas ayuda?' }).click();

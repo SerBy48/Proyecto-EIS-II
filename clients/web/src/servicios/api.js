@@ -52,7 +52,7 @@ const renovarToken = async () => {
 
   renovacionEnCurso = (async () => {
     const refresh = sesion.refresh;
-    if (!refresh) throw new ErrorApi(401, 'Sesion expirada.', 'SIN_REFRESH');
+    if (!refresh) throw new ErrorApi(401, 'Sesión expirada.', 'SIN_REFRESH');
 
     const respuesta = await fetch(`${BASE}/auth/renovar`, {
       method: 'POST',
@@ -62,7 +62,7 @@ const renovarToken = async () => {
 
     if (!respuesta.ok) {
       sesion.limpiar();
-      throw new ErrorApi(401, 'La sesion expiro. Inicie sesion de nuevo.', 'SESION_EXPIRADA');
+      throw new ErrorApi(401, 'La sesión expiró. Inicie sesión de nuevo.', 'SESION_EXPIRADA');
     }
 
     const datos = await respuesta.json();

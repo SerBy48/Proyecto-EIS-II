@@ -1,0 +1,5 @@
+1794816157 2026-11-16T03:02:37-05:00 inicio de la carga (catalogo-busqueda, perfil carga)
+1794816258 2026-11-16T03:04:18-05:00 docker stop ecom_inventario
+1794816320 2026-11-16T03:05:20-05:00 docker start ecom_inventario
+1794816437 2026-11-16T03:07:17-05:00 fin de la carga (codigo de ejecutar.sh: 99)
+1794816438 2026-11-16T03:07:18-05:00 muestras: 107

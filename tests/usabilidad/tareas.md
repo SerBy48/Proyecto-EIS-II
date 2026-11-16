@@ -18,6 +18,7 @@ Las tareas se leen al evaluador **una por una**, tal como están en la columna "
 | T6 | "Revise el estado del pedido que acaba de hacer y cancélelo." | Cliente | El pedido aparece como cancelado en "Mis pedidos" | 60 s |
 | T7 | "Compre otro producto, ahora con la tarjeta que rechaza el pago, y cuénteme qué pasó con su compra." | Cliente | Explica con sus palabras que no se cobró y que el pedido quedó cancelado | 90 s |
 | T8 | "Entre como administrador, registre 10 unidades del producto SKU-HOG-002 y pase un pedido pagado a preparación." | Administrador | Ve el mensaje con las unidades nuevas y el pedido en "en preparación" | 90 s |
+| T9 | "Pregúntele al asistente de la tienda cuánto cuesta el envío y en qué estado está su último pedido." (Trabajo Final) | Cliente | Dice con sus palabras el costo del envío y el estado de su último pedido | 60 s |
 
 Preparación antes de cada sesión: el carrito de Ana vacío y SKU-HOG-002 por debajo del mínimo (`npm run sembrar:carga` deja los datos en ese estado).
 

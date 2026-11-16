@@ -61,8 +61,9 @@ npm run test:asistente      # asistente contra el gateway (ASISTENTE_PROBAR_DEGR
 npm run asistente:metricas  # tasa de acierto de intenciones y matriz de confusion (-- --guardar)
 npm run infra:asistente     # crea asistente_db en un volumen de Mongo que ya existe (idempotente)
 npm run infra:reset         # borra volúmenes y recrea desde cero
-npm run test:seguridad      # 16 verificaciones de seguridad (ver docs/calidad/SEGURIDAD.md)
-npm run usabilidad:recorrido # 8 tareas en Chromium: KLM, capturas y axe (requiere vite preview en 4173)
+npm run test:seguridad      # 21 verificaciones de seguridad, 5 del asistente (ver docs/calidad/SEGURIDAD.md)
+npm run usabilidad:recorrido # 9 tareas en Chromium: KLM, capturas y axe (vite preview en 4173 de build:web:pruebas)
+npm run build:web:pruebas   # build con los controles de la pasarela simulada (U-08); build:web los oculta
 npm run usabilidad:sus      # puntaje SUS; falla si no hay respuestas reales
 npm run informe:estrategias # informe .docx (libreria docx) y su indice actualizado con Word
 npm run docs:c4             # renderiza docs/c4/*.puml a PNG (Docker plantuml/plantuml)
@@ -171,7 +172,9 @@ petición queda colgada. Para los errores se usan los constructores de
 
 14. **Un circuit breaker cuenta solo errores de red, 5xx y timeouts**
     (`esFalloDelServicio()`). Si contara los 4xx, un cliente con seis SKU
-    inexistentes abriría el circuito para todos.
+    inexistentes abriría el circuito para todos. En semiabierto deja pasar
+    **una** llamada de prueba a la vez; las demás reciben la alternativa al
+    instante (hallazgo R7: con todas pasando, el catálogo daba ráfagas de 6 s).
 
 15. **El asistente consulta pedidos con el token del usuario, nunca como
     llamada interna.** `ClienteServicio` con la opción `autorizacion` reenvía
@@ -231,7 +234,7 @@ Tokens de la pasarela simulada (resultado determinista):
 
 **Verificado y funcionando** (ver `docs/PRUEBAS.md` para el detalle y la
 evidencia; última ejecución el 2026-11-15 con los servicios en contenedores y la
-base poblada con `npm run sembrar:carga`): 157 casos de integración y 111
+base poblada con `npm run sembrar:carga`): 157 casos de integración y 113
 unitarios, todos pasan; `test:openapi` pasa sus 355 comprobaciones y
 `test:asistente` sus 46. Los diez servicios compilan y arrancan sanos; la prueba
 de concurrencia pasa sus 33 comprobaciones (20 compradores simultáneos por 5

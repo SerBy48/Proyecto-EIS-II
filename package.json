@@ -53,7 +53,8 @@
     "test:unit:cobertura": "vitest run --coverage",
     "infra:asistente": "tsx scripts/infra-asistente.ts",
     "test:asistente": "tsx --env-file-if-exists=.env tests/asistente/integracion.ts",
-    "asistente:metricas": "tsx tests/asistente/metricas.ts"
+    "asistente:metricas": "tsx tests/asistente/metricas.ts",
+    "build:web:pruebas": "npm run build:pruebas -w @ecommerce/web"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.10.0",

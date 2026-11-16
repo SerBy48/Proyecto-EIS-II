@@ -5,7 +5,7 @@
 #   tests/rendimiento/ejecutar.sh <escenario> <perfil> [etiqueta]
 #   p. ej.: tests/rendimiento/ejecutar.sh checkout estres
 #
-# escenario: catalogo-busqueda | login | checkout | flujo-completo
+# escenario: catalogo-busqueda | login | checkout | flujo-completo | asistente
 # perfil:    humo | carga | estres | pico
 # etiqueta:  sufijo opcional del nombre (p. ej. "antes", "despues", "limites-normales")
 #

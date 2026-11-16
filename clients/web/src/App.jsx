@@ -40,12 +40,16 @@ export default function App() {
   const agregarAlCarrito = async (sku) => {
     if (!usuario?.cliente_id) return;
     try {
-      await api(`/carrito/${usuario.cliente_id}/items`, {
+      // La respuesta ya es el carrito actualizado: trae el nombre del producto
+      // y evita una segunda peticion.
+      const actualizado = await api(`/carrito/${usuario.cliente_id}/items`, {
         metodo: 'POST',
         cuerpo: { sku, cantidad: 1 }
       });
-      await recargarCarrito();
-      setAviso({ tipo: 'ok', texto: `${sku} agregado al carrito.` });
+      setCarrito(actualizado);
+      // U-07: el cliente reconoce el nombre, no el SKU interno.
+      const nombre = actualizado?.items?.find((i) => i.sku === sku)?.nombre ?? 'Producto';
+      setAviso({ tipo: 'ok', texto: `${nombre} agregado al carrito.` });
     } catch (e) {
       setAviso({ tipo: 'error', texto: e.message });
     }
@@ -78,12 +82,12 @@ export default function App() {
             onClick={() => setVista('catalogo')}
             className="font-bold text-lg text-indigo-700 whitespace-nowrap"
           >
-            Tienda en linea
+            Tienda en línea
           </button>
 
           <nav aria-label="Principal" className="order-last sm:order-none w-full sm:w-auto flex flex-wrap items-center gap-1 text-sm">
             <BotonNav activo={vista === 'catalogo'} onClick={() => setVista('catalogo')}>
-              Catalogo
+              Catálogo
             </BotonNav>
             {esCliente && (
               <>
@@ -97,7 +101,7 @@ export default function App() {
             )}
             {esInterno && (
               <BotonNav activo={vista === 'admin'} onClick={() => setVista('admin')}>
-                Administracion
+                Administración
               </BotonNav>
             )}
           </nav>
@@ -120,7 +124,7 @@ export default function App() {
                 onClick={() => setVista('login')}
                 className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 rounded-lg font-semibold"
               >
-                Iniciar sesion
+                Iniciar sesión
               </button>
             )}
           </div>
@@ -130,10 +134,16 @@ export default function App() {
       <main id="contenido" tabIndex={-1} className="pb-16 focus:outline-none">
         {/* La region viva existe siempre: si se montara junto con el texto, los
             lectores de pantalla no anunciarian el primer aviso. */}
-        <div role="status" aria-live="polite" className="max-w-7xl mx-auto px-4 sm:px-6">
+        {/* U-07: el aviso flota bajo la cabecera, visible aunque el usuario haya
+            bajado en la lista de productos. */}
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed top-20 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-md pointer-events-none"
+        >
           {aviso && (
             <div
-              className={`mt-4 text-sm rounded-lg p-3 ${
+              className={`text-sm rounded-lg p-3 shadow-lg ${
                 aviso.tipo === 'ok'
                   ? 'bg-green-50 border border-green-200 text-green-800'
                   : 'bg-red-50 border border-red-200 text-red-800'
@@ -214,7 +224,7 @@ function Login({ onIngreso }) {
   return (
     <div className="max-w-md mx-auto p-4 sm:p-6 mt-6 sm:mt-10">
       <form onSubmit={enviar} className="bg-white border border-gray-200 rounded-xl p-6 sm:p-8">
-        <h1 className="text-xl font-bold mb-6">Iniciar sesion</h1>
+        <h1 className="text-xl font-bold mb-6">Iniciar sesión</h1>
 
         {error && (
           <div role="alert" className="mb-4 bg-red-50 border border-red-200 text-red-800 rounded-lg p-3 text-sm">
@@ -237,7 +247,7 @@ function Login({ onIngreso }) {
         />
 
         <label htmlFor="login-password" className="block text-sm font-semibold text-gray-700 mb-1">
-          Contrasena
+          Contraseña
         </label>
         <input
           id="login-password"
@@ -262,7 +272,7 @@ function Login({ onIngreso }) {
         <details className="mt-6 text-sm text-gray-600">
           <summary className="cursor-pointer font-semibold text-gray-700">Cuentas de prueba</summary>
           <p className="mt-2">
-            Todas usan la contrasena <code>Password123</code>.
+            Todas usan la contraseña <code>Password123</code>.
           </p>
           <ul className="mt-2 space-y-1">
             {CUENTAS.map(([correo, etiqueta]) => (

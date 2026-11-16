@@ -85,7 +85,7 @@ export default function MisPedidos({ usuario }) {
       });
       await cargar();
       cerrarDetalle();
-      setAviso(`El pedido ${pedido.numero} fue cancelado. Si ya se habia cobrado, el reembolso se procesa automaticamente.`);
+      setAviso(`El pedido ${pedido.numero} fue cancelado. Si ya se había cobrado, el reembolso se procesa automaticamente.`);
     } catch (e) {
       // El error se muestra DENTRO del dialogo: antes quedaba detras del velo
       // y el usuario creia que no habia pasado nada. Ademas se recarga el
@@ -142,7 +142,7 @@ export default function MisPedidos({ usuario }) {
             <caption className="sr-only">Historial de pedidos</caption>
             <thead className="bg-gray-50 text-left text-xs uppercase text-gray-500">
               <tr>
-                <th className="px-4 py-3">Numero</th>
+                <th className="px-4 py-3">Número</th>
                 <th className="px-4 py-3">Fecha</th>
                 <th className="px-4 py-3">Items</th>
                 <th className="px-4 py-3">Total</th>
@@ -225,13 +225,13 @@ export default function MisPedidos({ usuario }) {
             <dl className="text-sm space-y-1 border-t pt-3">
               <div className="flex justify-between"><dt>Subtotal</dt><dd>{moneda(detalle.subtotal)}</dd></div>
               <div className="flex justify-between"><dt>IVA</dt><dd>{moneda(detalle.impuestos)}</dd></div>
-              <div className="flex justify-between"><dt>Envio</dt><dd>{moneda(detalle.envio)}</dd></div>
+              <div className="flex justify-between"><dt>Envío</dt><dd>{moneda(detalle.envio)}</dd></div>
               <div className="flex justify-between font-bold"><dt>Total</dt><dd>{moneda(detalle.total)}</dd></div>
             </dl>
 
             {detalle.direccion_envio && (
               <div className="mt-4 text-sm bg-gray-50 rounded-lg p-3">
-                <p className="font-semibold text-xs uppercase text-gray-500 mb-1">Direccion de envio</p>
+                <p className="font-semibold text-xs uppercase text-gray-500 mb-1">Dirección de envío</p>
                 <p>{detalle.direccion_envio.linea1}</p>
                 <p className="text-gray-600">
                   {detalle.direccion_envio.ciudad}, {detalle.direccion_envio.departamento}
