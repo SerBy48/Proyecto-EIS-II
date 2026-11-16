@@ -20,7 +20,7 @@ Deployment_Node(host, "Equipo anfitrion", "Windows/Linux + Docker Engine") {
       ContainerDb(mongo, "mongo:7", "", "Lab: 127.0.0.1:27017")
       ContainerDb(redis, "redis:7-alpine", "", "Lab: 127.0.0.1:6379")
       ContainerQueue(mq, "rabbitmq:3.13-management", "", "Lab: 127.0.0.1:5672 / 15672")
-      Container(mail, "axllent/mailpit", "", "SMTP 1025, UI 8025", $tags="planificado")
+      Container(mail, "axllent/mailpit:v1.27", "", "Lab: 127.0.0.1:1025 / 8025")
     }
   }
 }
@@ -35,6 +35,6 @@ Rel(ms, pg, "TCP 5432")
 Rel(ms, mongo, "TCP 27017")
 Rel(ms, redis, "TCP 6379")
 Rel(ms, mq, "AMQP 5672")
-Rel(ms, mail, "SMTP 1025", $tags="planificado")
+Rel(ms, mail, "SMTP 1025 (notificaciones)")
 SHOW_LEGEND()
 @enduml

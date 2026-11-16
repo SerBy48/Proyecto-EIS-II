@@ -11,7 +11,7 @@ Documento de especificación de la arquitectura del Trabajo Final. Integra, sin 
 | Decisiones registradas | [`docs/adr/`](../adr/) |
 | Requisitos y escenarios de calidad | [`01-escenario-requisitos.md`](01-escenario-requisitos.md) |
 
-Los diagramas están en [`docs/c4/`](../c4/). Las fuentes son C4-PlantUML con las librerías v2.10.0 copiadas en `docs/c4/lib/`, y los PNG se regeneran con `npm run docs:c4` (imagen Docker `plantuml/plantuml:1.2024.7`). En los diagramas, **el borde discontinuo marca lo planificado**: elementos de las Fases 2, 3 y 5 que todavía no existen en el código.
+Los diagramas están en [`docs/c4/`](../c4/). Las fuentes son C4-PlantUML con las librerías v2.10.0 copiadas en `docs/c4/lib/`, y los PNG se regeneran con `npm run docs:c4` (imagen Docker `plantuml/plantuml:1.2024.7`). En los diagramas, **el borde discontinuo marca lo planificado**: elementos de las Fases 3 y 5 que todavía no existen en el código.
 
 ---
 
@@ -156,6 +156,8 @@ Verificado el 2026-11-15 contra `docker-compose.yml`, `DESTINOS` y `RUTAS_PUBLIC
 | Orden de los middlewares del gateway | ✅ | helmet/CORS → saneamiento → `request_id` → limitadores → JWT → proxy |
 | `carrito.abandonado` | ⚠️ **Declarado y consumido, pero nadie lo publica.** `COMUNICACION.md` atribuye la publicación a carrito; el código no la tiene. Queda como punto de extensión (detección de carritos inactivos) y se corrige la tabla de `COMUNICACION.md` | `tipos.ts`, `notificaciones/controlador.ts` |
 | Pasarela de pagos como sistema externo | ⚠️ Simulada **en proceso** dentro de pagos-service, no como sistema separado. Se dibuja externa porque así es en producción (adaptador) | `pagos-service/src/pasarela.ts` |
-| asistente-service, Mailpit, web en nginx, Swagger UI, túnel, proveedor de IA | 🔜 Planificados (borde discontinuo): Fases 2, 3 y 5 | — |
+| Mailpit (SMTP :1025, UI :8025) y notificaciones → Mailpit | ✅ (Fase 2) | `docker-compose.yml` (`mailpit`), `notificaciones-service/src/canales.ts` |
+| Swagger UI en `/api/docs` | ✅ (Fase 2) | `api-gateway/src/documentacion.ts`; `test:openapi` |
+| asistente-service, web en nginx, túnel, proveedor de IA | 🔜 Planificados (borde discontinuo): Fases 3 y 5 | — |
 
 En sentido inverso, todo contenedor, puerto, cola y exchange del código aparece en el diagrama de contenedores o en el de despliegue.

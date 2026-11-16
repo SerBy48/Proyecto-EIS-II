@@ -1,6 +1,6 @@
 # ADR-0008: Documentación OpenAPI centralizada en el gateway
 
-**Estado:** Aceptada. Se implementa en la Fase 2.
+**Estado:** Aceptada. Implementada en la Fase 2: 36 rutas publicas (43 operaciones) y 9 internas; `test:openapi` hace 313 comprobaciones.
 
 ## Contexto
 

@@ -7,9 +7,9 @@ electrónico.
 | | |
 |---|---|
 | **Última ejecución** | 15 de noviembre de 2026 (servicios en contenedores, base poblada con `npm run sembrar:carga` y secretos propios en `.env`) |
-| **Casos ejecutados** | 155 (33 de concurrencia + 73 por HTTP + 49 extremo a extremo) |
-| **Resultado** | 155 pasan, 0 fallan |
-| **Entorno** | Windows 11, Node 25, Docker: PostgreSQL 16 (puerto 5434 del host), MongoDB 7, Redis 7, RabbitMQ 3. Infraestructura completa |
+| **Casos ejecutados** | 251: 157 de integración (33 de concurrencia + 73 por HTTP + 51 extremo a extremo) y 94 unitarias. Además, 313 comprobaciones de cobertura de la especificación OpenAPI |
+| **Resultado** | 251 pasan, 0 fallan; las 313 comprobaciones de OpenAPI pasan. Cobertura unitaria: 71,2 % de las líneas |
+| **Entorno** | Windows 11, Node 25, Docker: PostgreSQL 16 (puerto 5434 del host), MongoDB 7, Redis 7, RabbitMQ 3 y Mailpit 1.27. Infraestructura completa |
 | **Evidencia** | [`evidencia/`](evidencia/) — salida literal de cada suite |
 
 ---
@@ -25,7 +25,9 @@ los siguientes no aportan información útil.
 | 2. Salud | Que los nueve servicios respondan | `npm run test:salud` | infraestructura + servicios |
 | 3. Concurrencia | Que no haya sobreventa | `npm run test:concurrencia` | PostgreSQL |
 | 4. Contrato HTTP | Códigos de estado, RBAC, idempotencia, aislamiento | `npm run test:http` | infraestructura + servicios |
-| 5. Integración E2E | El flujo de compra completo de 15 pasos | `npm run test:e2e` | **infraestructura completa** |
+| 5. Integración E2E | El flujo de compra completo de 15 pasos, incluido el correo real en Mailpit | `npm run test:e2e` | **infraestructura completa** |
+| 0. Unitarias | Lógica aislada: circuit breaker, reintentos, JWT y RBAC, bus de eventos, totales del carrito, plantillas, esquema del ORM | `npm run test:unit` | nada |
+| 0. Documentación | La especificación OpenAPI cubre exactamente las rutas y los roles del código | `npm run test:openapi` | nada |
 
 El nivel 3 es el central del laboratorio: verifica la pregunta 5 del análisis
 atacando directamente la función `reservar_stock` de PostgreSQL, sin pasar por la
@@ -134,17 +136,38 @@ Escenario 2: veinte compradores, cinco unidades
 
 ### Nivel 5 — Integración extremo a extremo
 
-`npm run test:e2e` → **49 comprobaciones, 49 pasan**
+`npm run test:e2e` → **51 comprobaciones, 51 pasan**
 ([`evidencia/04-e2e-compra.txt`](evidencia/04-e2e-compra.txt)).
 
 | Escenario | Qué recorre |
 |---|---|
-| A | Compra exitosa: los 15 pasos del flujo, bitácora de la saga y notificación asíncrona por RabbitMQ |
+| A | Compra exitosa: los 15 pasos del flujo, bitácora de la saga, notificación asíncrona por RabbitMQ y correo de confirmación recibido en Mailpit |
 | B | Pago rechazado: la saga compensa y el stock se libera |
 | C | Dos clientes disputan la última unidad: un solo ganador |
 | D | Doble clic en «Pagar»: un solo pedido (idempotencia del checkout) |
 | E | Cancelación de un pedido pagado: reembolso y devolución de stock |
 | F | Controles de seguridad |
+
+### Pruebas unitarias y de documentación (Trabajo Final, Fase 2)
+
+`npm run test:unit` → **94 pruebas en 10 archivos, 94 pasan**
+([`evidencia/05-pruebas-unitarias.txt`](evidencia/05-pruebas-unitarias.txt); cobertura en [`evidencia/05-cobertura-unitarias.txt`](evidencia/05-cobertura-unitarias.txt)).
+No necesitan Docker.
+
+| Archivo | Qué fija |
+|---|---|
+| `circuit-breaker.test.ts` | Transiciones cerrado → abierto → semiabierto → cerrado; los 4xx no cuentan (invariante 14) |
+| `cliente-servicio.test.ts` | Reintentos solo ante red y 5xx, nunca 409 (invariante 7); el cobro sin reintentos; timeout → 504; cabeceras de la llamada interna |
+| `autenticacion.test.ts` | Token manipulado, forjado o expirado; secretos (invariante 13); RBAC; llamada interna con dos condiciones (invariante 11) |
+| `bus-eventos.test.ts` | Publicar nunca lanza (invariante 12); reintento en la propia cola; DLQ al agotar los intentos |
+| `errores.test.ts`, `utilidades.test.ts` | Traducción de errores de PostgreSQL (también envueltos por Drizzle), inyección NoSQL |
+| `totales.test.ts` | IVA tras el descuento, envío gratis, cupones y cuadre del total |
+| `plantillas.test.ts` | Escape de HTML en el correo (S-11) y canales de envío |
+| `esquema.test.ts` (auth y clientes) | El esquema de Drizzle refleja columna por columna el SQL de `infra/postgres` |
+
+La cobertura es del 71,2 % de las líneas. Lo que queda fuera es el arranque de los servicios y la conexión a los motores (`servicio.ts`, `postgres.ts`), que ejercitan las suites de integración.
+
+`npm run test:openapi` → **313 comprobaciones, 313 pasan** ([`evidencia/06-openapi-cobertura.txt`](evidencia/06-openapi-cobertura.txt)). Cada una de las 52 rutas del código está documentada una sola vez, con los mismos roles y el mismo carácter público, y el empaquetado que sirve el gateway corresponde a las fuentes.
 
 ---
 
@@ -711,6 +734,29 @@ Encontrado con la evaluación heurística (U-01 de [`calidad/USABILIDAD.md`](cal
 **Corrección.** Confirmación en dos pasos, aviso de éxito y error dentro del diálogo, con foco y desplazamiento (U-03 y U-04).
 
 **Verificación.** T6 y E8: el error queda visible y completo, y el detalle muestra el estado real.
+
+### 4.26 Un correo que fallaba se perdía en el reintento — **grave**
+
+Lo encontró el diseño del envío real por SMTP (Trabajo Final, Fase 2).
+
+**Síntoma.** Si el envío fallaba, el bus reintentaba el evento. Pero el segundo intento chocaba con el índice único de `clave_dedupe` y `procesarEvento` lo trataba como un duplicado del broker. El mensaje quedaba `pendiente` para siempre, sin correo y sin llegar a la DLQ.
+
+Con el envío simulado no se veía, porque nunca fallaba.
+
+**Corrección.** Ante el duplicado se consulta el estado: solo se ignora si ya está `enviado`. Un fallo de envío se registra (`fallido`, `intentos`, `ultimo_error`) y se relanza para que el bus reintente.
+
+**Verificación.**
+- Con Mailpit detenido, una compra se confirma igual.
+- El aviso queda `fallido` tras 3 intentos y llega a `notificaciones.envio.fallidos`.
+- Notificaciones sigue sano, con la dependencia `correo` caída marcada como no crítica.
+
+### 4.27 El reintento de un evento llegaba también a otros consumidores
+
+**Síntoma.** El bus reencolaba un evento fallido publicándolo **otra vez en el exchange**. El reintento de notificaciones le llegaba también a `clientes.historial`, que lo procesaba de nuevo. Era inocuo solo porque esa proyección es idempotente.
+
+**Corrección.** El reintento va directo a la cola del consumidor que falló (`sendToQueue`).
+
+**Verificación.** Prueba unitaria `bus-eventos.test.ts`: el reintento usa `sendToQueue` hacia su propia cola y nunca `publish`.
 
 ---
 

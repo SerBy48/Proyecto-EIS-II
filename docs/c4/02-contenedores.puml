@@ -12,7 +12,7 @@ System_Ext(ia, "Proveedor de IA", "Opcional", $tags="planificado")
 System_Boundary(plataforma, "Plataforma e-commerce (red Docker 'interna')") {
   Container(web, "Web", "React + Vite + Tailwind", "Tienda y panel de administracion. Hoy: vite dev :5173 / preview :4173. F5: nginx que hace proxy de /api")
   Container(movil, "App movil", "Flutter", "Tienda para clientes")
-  Container(gateway, "API Gateway", "Node.js, Express, http-proxy", ":8080 (unico puerto publico). Sanea cabeceras, request_id, rate limit, valida JWT, proxy y /api/health agregado")
+  Container(gateway, "API Gateway", "Node.js, Express, http-proxy", ":8080 (unico puerto publico). Sanea cabeceras, request_id, rate limit, valida JWT, proxy, /api/health agregado y Swagger UI en /api/docs")
 
   Container(auth, "auth-service", "Node.js/TS", ":3001 Registro, login, refresh rotatorio, usuarios internos")
   Container(clientes, "clientes-service", "Node.js/TS", ":3002 Perfiles, direcciones, historial")
@@ -28,7 +28,7 @@ System_Boundary(plataforma, "Plataforma e-commerce (red Docker 'interna')") {
   ContainerDb(mongo, "MongoDB 7", "Documental", "catalogo_db, notificaciones_db (+ asistente_db en F3)")
   ContainerDb(redis, "Redis 7", "Clave-valor con TTL", "Carritos")
   ContainerQueue(rabbit, "RabbitMQ 3.13", "Exchange topic ecommerce.eventos + ecommerce.eventos.dlq", "Eventos de dominio")
-  Container(mailpit, "Mailpit", "SMTP :1025, UI :8025", "Servidor de correo de pruebas", $tags="planificado")
+  Container(mailpit, "Mailpit", "SMTP :1025, UI :8025", "Servidor de correo de pruebas")
 }
 
 Rel(cliente, web, "Usa", "HTTPS")
@@ -78,7 +78,7 @@ Rel(inventario, rabbit, "inventario.stock_minimo, inventario.reserva_expirada", 
 Rel(rabbit, notif, "cola notificaciones.envio: pedido.*, pago.rechazado, inventario.stock_minimo, carrito.abandonado", "AMQP", $tags="asincrono")
 Rel(rabbit, clientes, "cola clientes.historial: pedido.confirmado, pedido.cancelado", "AMQP", $tags="asincrono")
 Rel(asistente, rabbit, "asistente.escalamiento", "AMQP", $tags="planificado")
-Rel(notif, mailpit, "Correo", "SMTP", $tags="planificado")
+Rel(notif, mailpit, "Correo (nodemailer, CANAL_CORREO=smtp)", "SMTP")
 
 SHOW_LEGEND()
 @enduml
