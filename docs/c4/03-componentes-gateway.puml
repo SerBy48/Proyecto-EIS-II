@@ -5,7 +5,6 @@ title N3 - Componentes del API Gateway (services/api-gateway/src/index.ts)
 
 Container(web, "Web / App movil", "Cliente")
 Container(servicios, "Microservicios", "8 destinos (DESTINOS); +asistente en F3")
-Container(swagger, "Swagger UI", "/api/docs", $tags="planificado")
 
 Container_Boundary(gw, "API Gateway :8080") {
   Component(seg, "Seguridad de transporte", "helmet + CORS", "Origenes de CORS_ORIGENES; rechazo -> 403 ORIGEN_NO_PERMITIDO")
@@ -14,6 +13,7 @@ Container_Boundary(gw, "API Gateway :8080") {
   Component(rl, "Rate limiters", "express-rate-limit", "general (1 min), login (15 min), checkout (1 min)")
   Component(jwt, "Validacion JWT", "esPublica() + RUTAS_PUBLICAS", "Lista blanca de rutas publicas; el resto exige Bearer; escribe x-usuario-id/rol/cliente")
   Component(proxy, "Proxy", "http-proxy-middleware + http.Agent keep-alive", "proxyTimeout -> 504 TIEMPO_AGOTADO")
+  Component(swagger, "Documentacion", "swagger-ui-express (documentacion.ts)", "Swagger UI en /api/docs y openapi.json; EXPONER_DOCS=false la apaga")
   Component(salud, "Salud agregada", "GET /api/health", "Consulta /health de cada destino en paralelo (2 s)")
 }
 
@@ -25,6 +25,6 @@ Rel(rl, jwt, "")
 Rel(jwt, proxy, "peticion autenticada")
 Rel(proxy, servicios, "REST/JSON")
 Rel(salud, servicios, "/health")
-Rel(seg, swagger, "antes de la validacion JWT", $tags="planificado")
+Rel(rl, swagger, "publica, antes de la validacion JWT")
 SHOW_LEGEND()
 @enduml

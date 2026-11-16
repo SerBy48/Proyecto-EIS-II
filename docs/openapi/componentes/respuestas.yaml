@@ -1,0 +1,47 @@
+# Respuestas de error comunes. Todas usan el formato uniforme { mensaje, codigo }.
+SolicitudInvalida:
+  description: Datos faltantes o invalidos (SOLICITUD_INVALIDA, VALOR_INVALIDO, JSON_INVALIDO).
+  content:
+    application/json:
+      schema: { $ref: 'esquemas.yaml#/Error' }
+      example: { mensaje: 'Campos obligatorios: email', codigo: SOLICITUD_INVALIDA }
+NoAutenticado:
+  description: Falta el token, es invalido o expiro (NO_AUTENTICADO, TOKEN_INVALIDO, TOKEN_EXPIRADO).
+  content:
+    application/json:
+      schema: { $ref: 'esquemas.yaml#/Error' }
+      example: { mensaje: Se requiere autenticacion., codigo: NO_AUTENTICADO }
+Prohibido:
+  description: El rol no tiene permiso o el recurso es de otro cliente (PROHIBIDO).
+  content:
+    application/json:
+      schema: { $ref: 'esquemas.yaml#/Error' }
+      example: { mensaje: Solo puede consultar su propia informacion., codigo: PROHIBIDO }
+NoEncontrado:
+  description: El recurso no existe, o no es del usuario (NO_ENCONTRADO).
+  content:
+    application/json:
+      schema: { $ref: 'esquemas.yaml#/Error' }
+      example: { mensaje: Pedido no encontrado., codigo: NO_ENCONTRADO }
+Conflicto:
+  description: Conflicto de negocio (CONFLICTO, STOCK_INSUFICIENTE).
+  content:
+    application/json:
+      schema: { $ref: 'esquemas.yaml#/Error' }
+      example: { mensaje: El correo ya se encuentra registrado., codigo: CONFLICTO }
+LimiteExcedido:
+  description: Rate limit del gateway (LIMITE_EXCEDIDO, LIMITE_LOGIN, LIMITE_CHECKOUT) o cuenta bloqueada (CUENTA_BLOQUEADA).
+  headers:
+    RateLimit:
+      description: Estado del limite (draft-7 de express-rate-limit).
+      schema: { type: string }
+  content:
+    application/json:
+      schema: { $ref: 'esquemas.yaml#/Error' }
+      example: { mensaje: Demasiadas peticiones. Intente de nuevo en un momento., codigo: LIMITE_EXCEDIDO }
+NoDisponible:
+  description: Un servicio dependiente esta caido o su circuito esta abierto (SERVICIO_NO_DISPONIBLE, SERVICIO_SATURADO).
+  content:
+    application/json:
+      schema: { $ref: 'esquemas.yaml#/Error' }
+      example: { mensaje: El servicio de inventario no esta disponible en este momento., codigo: SERVICIO_NO_DISPONIBLE }

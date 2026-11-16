@@ -66,15 +66,44 @@ const ERRORES_DE_ENTRADA_PG: Record<string, string> = {
  * de la tabla anterior. Devuelve null si el error es del servidor.
  */
 export const traducirErrorDeEntrada = (error: unknown): ErrorApp | null => {
-  const e = error as { type?: string; code?: string };
+  const e = error as { type?: string };
   if (e?.type === 'entity.parse.failed') {
     return new ErrorApp(400, 'El cuerpo de la peticion no es un JSON valido.', 'JSON_INVALIDO');
   }
   if (e?.type === 'entity.too.large') {
     return new ErrorApp(413, 'El cuerpo de la peticion es demasiado grande.', 'CUERPO_DEMASIADO_GRANDE');
   }
-  const mensaje = typeof e?.code === 'string' ? ERRORES_DE_ENTRADA_PG[e.code] : undefined;
+  const codigo = errorDePostgres(error)?.code;
+  const mensaje = codigo ? ERRORES_DE_ENTRADA_PG[codigo] : undefined;
   return mensaje ? new ErrorApp(400, mensaje, 'VALOR_INVALIDO') : null;
+};
+
+/** Lo que interesa de un error del driver de PostgreSQL. */
+export interface ErrorPostgres {
+  code: string;
+  constraint?: string;
+}
+
+/**
+ * Devuelve el error de PostgreSQL, venga directo del driver `pg` o envuelto
+ * por el ORM.
+ *
+ * Drizzle envuelve los errores del driver en un DrizzleQueryError y deja el
+ * original en `cause`. Sin desenvolverlo, un correo duplicado (23505) o un
+ * valor demasiado largo (22001) dejarian de traducirse a 409 o 400 y llegarian
+ * al cliente como 500 (docs/adr/0006-estrategia-orm.md).
+ */
+export const errorDePostgres = (error: unknown): ErrorPostgres | null => {
+  for (let actual = error, nivel = 0; actual && nivel < 3; nivel++) {
+    const e = actual as { code?: unknown; constraint?: string; cause?: unknown };
+    // Los codigos SQLSTATE tienen 5 caracteres; asi no se confunden con los
+    // de Node (ECONNREFUSED) ni con los de ErrorApp.
+    if (typeof e.code === 'string' && /^[0-9A-Z]{5}$/.test(e.code)) {
+      return { code: e.code, constraint: e.constraint };
+    }
+    actual = e.cause;
+  }
+  return null;
 };
 
 /**

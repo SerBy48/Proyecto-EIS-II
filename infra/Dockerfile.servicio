@@ -8,9 +8,6 @@
 # ============================================================================
 FROM node:22-alpine
 
-ARG SERVICIO
-ENV SERVICIO=${SERVICIO}
-
 WORKDIR /app
 
 # Se copian primero los manifiestos para aprovechar la cache de capas: si no
@@ -35,6 +32,12 @@ RUN npm install --ignore-scripts
 
 COPY packages ./packages
 COPY services ./services
+
+# El argumento va DESPUES de la instalacion: si se declarara antes, cada uno de
+# los nueve servicios invalidaria la cache y repetiria el npm install completo
+# (nueve instalaciones en paralelo en cada build). Asi comparten una sola capa.
+ARG SERVICIO
+ENV SERVICIO=${SERVICIO}
 
 # Usuario sin privilegios: un proceso comprometido no debe ser root.
 USER node

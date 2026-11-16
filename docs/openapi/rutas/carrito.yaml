@@ -1,0 +1,146 @@
+# carrito-service (prefijo /api/carrito). Un cliente solo opera su propio carrito.
+carrito:
+  parameters: [{ $ref: '../componentes/parametros.yaml#/ClienteId' }]
+  get:
+    tags: [carrito]
+    summary: Ver el carrito con sus totales
+    operationId: obtenerCarrito
+    x-roles: [sesion]
+    responses:
+      '200':
+        description: Carrito (vacio si no existe o expiro tras 7 dias sin cambios).
+        content:
+          application/json:
+            schema: { $ref: '../componentes/esquemas.yaml#/Carrito' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+  delete:
+    tags: [carrito]
+    summary: Vaciar el carrito
+    operationId: vaciarCarrito
+    x-roles: [sesion]
+    responses:
+      '200':
+        description: Carrito vaciado.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mensaje: { type: string, example: Carrito vaciado. }
+                cliente_id: { type: integer }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+
+items:
+  parameters: [{ $ref: '../componentes/parametros.yaml#/ClienteId' }]
+  post:
+    tags: [carrito]
+    summary: Agregar un producto
+    description: El precio no se acepta del cliente; se lee del catalogo (invariante 2). Si el SKU ya estaba, suma la cantidad.
+    operationId: agregarItem
+    x-roles: [sesion]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [sku, cantidad]
+            properties:
+              sku: { type: string, example: SKU-HOG-001 }
+              cantidad: { type: integer, minimum: 1, example: 1 }
+    responses:
+      '200':
+        description: Carrito actualizado.
+        content:
+          application/json:
+            schema: { $ref: '../componentes/esquemas.yaml#/Carrito' }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+      '404': { $ref: '../componentes/respuestas.yaml#/NoEncontrado' }
+      '503': { $ref: '../componentes/respuestas.yaml#/NoDisponible' }
+
+item:
+  parameters:
+    - { $ref: '../componentes/parametros.yaml#/ClienteId' }
+    - { $ref: '../componentes/parametros.yaml#/Sku' }
+  patch:
+    tags: [carrito]
+    summary: Cambiar la cantidad de un producto
+    operationId: cambiarCantidad
+    x-roles: [sesion]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [cantidad]
+            properties:
+              cantidad: { type: integer, minimum: 0, description: 0 quita el producto., example: 2 }
+    responses:
+      '200':
+        description: Carrito actualizado.
+        content:
+          application/json:
+            schema: { $ref: '../componentes/esquemas.yaml#/Carrito' }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+      '404': { $ref: '../componentes/respuestas.yaml#/NoEncontrado' }
+  delete:
+    tags: [carrito]
+    summary: Quitar un producto
+    operationId: quitarItem
+    x-roles: [sesion]
+    responses:
+      '200':
+        description: Carrito actualizado.
+        content:
+          application/json:
+            schema: { $ref: '../componentes/esquemas.yaml#/Carrito' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+
+cupon:
+  parameters: [{ $ref: '../componentes/parametros.yaml#/ClienteId' }]
+  post:
+    tags: [carrito]
+    summary: Aplicar un cupon
+    description: El catalogo valida el cupon. El descuento se aplica antes del IVA.
+    operationId: aplicarCupon
+    x-roles: [sesion]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [codigo]
+            properties:
+              codigo: { type: string, example: BIENVENIDA10 }
+    responses:
+      '200':
+        description: Carrito con el cupon aplicado.
+        content:
+          application/json:
+            schema: { $ref: '../componentes/esquemas.yaml#/Carrito' }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+      '404': { $ref: '../componentes/respuestas.yaml#/NoEncontrado' }
+  delete:
+    tags: [carrito]
+    summary: Quitar el cupon
+    operationId: quitarCupon
+    x-roles: [sesion]
+    responses:
+      '200':
+        description: Carrito sin cupon.
+        content:
+          application/json:
+            schema: { $ref: '../componentes/esquemas.yaml#/Carrito' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }

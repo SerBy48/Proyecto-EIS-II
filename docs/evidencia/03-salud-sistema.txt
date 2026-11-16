@@ -1,8 +1,4 @@
 
-> ecommerce-distribuido@1.0.0 test:salud
-> tsx --env-file-if-exists=.env tests/salud.ts
-
-
 Salud del sistema  http://localhost:8080
 
   OK   auth             ok
@@ -26,6 +22,7 @@ Salud del sistema  http://localhost:8080
   OK   notificaciones   ok
          └─ mongo:notificaciones_db conectado
          └─ rabbitmq             conectado
+         └─ correo               conectado
 
 Los nueve servicios responden. El sistema esta listo.
 Siguiente paso: npm run test:e2e

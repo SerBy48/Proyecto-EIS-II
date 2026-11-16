@@ -34,6 +34,7 @@ docs/                   Arquitectura, flujo, comunicación, análisis, api.http
 | pagos-service | 3007 | PostgreSQL `pagos_db` |
 | notificaciones-service | 3008 | MongoDB `notificaciones_db` |
 | web | 5173 | — |
+| Mailpit (correo de pruebas) | 8025 (web y API), 1025 (SMTP) | — |
 
 Infraestructura: PostgreSQL 5432 (o `POSTGRES_PUERTO_HOST`), MongoDB 27017, Redis 6379,
 RabbitMQ 5672 (consola 15672).
@@ -51,7 +52,10 @@ npm run dev:web             # cliente web
 npm run typecheck           # tipos de todos los paquetes
 npm run test:salud          # los nueve servicios responden
 npm run test:concurrencia   # no hay sobreventa
-npm run test:e2e            # flujo de compra completo
+npm run test:e2e            # flujo de compra completo (incluye el correo en Mailpit)
+npm run test:unit           # pruebas unitarias con Vitest (sin Docker); :cobertura para el reporte
+npm run test:openapi        # la especificacion OpenAPI cubre exactamente las rutas del codigo
+npm run docs:openapi        # valida (Redocly) y empaqueta docs/openapi para el gateway
 npm run infra:reset         # borra volúmenes y recrea desde cero
 npm run test:seguridad      # 16 verificaciones de seguridad (ver docs/calidad/SEGURIDAD.md)
 npm run usabilidad:recorrido # 8 tareas en Chromium: KLM, capturas y axe (requiere vite preview en 4173)
@@ -79,6 +83,20 @@ servicios.
 extiende `tsconfig.base.json`, y `src/index.ts` que llama a `crearServicio()`.
 Hay que registrarlo además en la tabla `DESTINOS` del gateway, en
 `docker-compose.yml` y en los scripts `dev:*` de la raíz.
+
+**Acceso a datos.** auth y clientes usan Drizzle ORM a traves de
+`src/repositorio.ts`; inventario, pedidos y pagos usan SQL nativo parametrizado
+(ADR-0006). El esquema lo definen SOLO los scripts de `infra/postgres`:
+`esquema.ts` los refleja y no se usa `drizzle-kit push`. Si cambias un
+`CREATE TABLE`, cambia tambien `esquema.ts` (`test:unit` detecta la diferencia).
+Para leer el codigo de PostgreSQL de un error usa `errorDePostgres()`: Drizzle
+envuelve el error del driver.
+
+**Documentacion de la API.** Se escribe en `docs/openapi/` (dividida por
+servicio; las rutas de la saga en `openapi-interna.yaml`) y `npm run
+docs:openapi` la empaqueta en `services/api-gateway/especificacion/openapi.json`,
+que el gateway sirve en `/api/docs`. Una ruta nueva sin documentar, o con
+`x-roles` distinto de su `requiereRol()`, hace fallar `test:openapi`.
 
 **Controladores.** Se envuelven siempre en `asincrono()` al montarlos en el
 router; sin eso, una promesa rechazada no llega al middleware de errores y la
@@ -136,7 +154,9 @@ petición queda colgada. Para los errores se usan los constructores de
     control de rol.
 
 12. **Publicar un evento nunca debe tumbar la operación principal.**
-    `bus.publicar()` registra el fallo y devuelve `false`.
+    `bus.publicar()` registra el fallo y devuelve `false`. Del lado del
+    consumidor, un fallo de envío (SMTP caído) se relanza: el bus lo reintenta
+    en la propia cola y, al tercer intento, lo deja en la DLQ. Nunca se pierde.
 
 13. **Los secretos no tienen valor por defecto.** `JWT_SECRET`,
     `JWT_REFRESH_SECRET` e `INTERNAL_TOKEN` se definen en `.env` (generados con
@@ -165,6 +185,11 @@ petición queda colgada. Para los errores se usan los constructores de
 | Enrutamiento, rate limiting y saneamiento | `services/api-gateway/src/index.ts` |
 | Pasarela de pagos simulada | `services/pagos-service/src/pasarela.ts` |
 | Timeouts por dependencia | `services/pedidos-service/src/dependencias.ts` |
+| Repositorios con Drizzle | `services/{auth,clientes}-service/src/repositorio.ts` y `esquema.ts` |
+| Canales de envío (SMTP / registro) | `services/notificaciones-service/src/canales.ts` |
+| Swagger UI | `services/api-gateway/src/documentacion.ts` → `/api/docs` |
+| Totales del carrito (IVA, envío, cupón) | `services/carrito-service/src/totales.ts` |
+| Scripts de base de datos | `infra/README.md` |
 | Especificación, C4 y ADR del Trabajo Final | `docs/especificacion/`, `docs/c4/`, `docs/adr/` |
 
 ---
@@ -194,14 +219,16 @@ Tokens de la pasarela simulada (resultado determinista):
 
 **Verificado y funcionando** (ver `docs/PRUEBAS.md` para el detalle y la
 evidencia; última ejecución el 2026-11-15 con los servicios en contenedores y la
-base poblada con `npm run sembrar:carga`): 155 casos ejecutados, 155 pasan. Los nueve servicios compilan y arrancan sanos; la prueba
+base poblada con `npm run sembrar:carga`): 157 casos de integración y 94
+unitarios, todos pasan; `test:openapi` pasa sus 313 comprobaciones. Los nueve servicios compilan y arrancan sanos; la prueba
 de concurrencia pasa sus 33 comprobaciones (20 compradores simultáneos por 5
 unidades → exactamente 5 ganan); `test:http` pasa sus 73 casos sobre
 autenticación, RBAC, aislamiento entre clientes, idempotencia, los cuatro
 desenlaces de la pasarela, el ciclo de vida de los pedidos, rate limiting,
-PCI-DSS y aislamiento de las bases; `test:e2e` pasa sus 49 comprobaciones
+PCI-DSS y aislamiento de las bases; `test:e2e` pasa sus 51 comprobaciones
 (compra, pago rechazado con compensación, última unidad, doble clic, cancelación
-y seguridad), incluido el consumo de eventos por notificaciones. El cliente web
+y seguridad), incluido el consumo de eventos por notificaciones y el correo real
+en Mailpit. El cliente web
 compila y `flutter analyze` no reporta problemas.
 
 **Puerto de PostgreSQL en el host:** `POSTGRES_PUERTO_HOST` en `.env` (5432 por
@@ -242,7 +269,6 @@ cola se vacíe antes de cada corrida.
   en cookie `HttpOnly` para la web, almacenamiento seguro en la app móvil y
   protección CSRF. Hoy el token vive en `localStorage`, mitigado por la CSP.
 
-- Pruebas unitarias con Jest o Vitest. Solo hay pruebas de integración.
 - Caché del catálogo en Redis (el motor ya está desplegado para el carrito).
 - Métricas para Prometheus y trazas distribuidas. Hoy hay `request_id` propagado
   y `/health` agregado, que es el mínimo.

@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # ============================================================================
 # Escaneo ACTIVO y autenticado de la API con zap-api-scan.py, a partir de la
-# especificacion OpenAPI (docs/openapi/openapi.yaml).
+# especificacion OpenAPI: la publica y la interna empaquetadas por
+# npm run docs:openapi, unidas en un solo archivo. Las rutas internas tambien
+# se escanean: a traves del gateway las alcanza el personal interno.
 #
 #   tests/seguridad/zap-api.sh [cliente|administrador] [etiqueta]
 #
@@ -26,7 +28,13 @@ case "$ROL" in
   *) echo "rol desconocido: $ROL (cliente|administrador)"; exit 2 ;;
 esac
 
-cp "$RAIZ/docs/openapi/openapi.yaml" "$DESTINO/openapi.yaml"
+node -e '
+const [publica, interna, salida] = process.argv.slice(1);
+const p = require(publica), i = require(interna);
+p.paths = { ...p.paths, ...i.paths };
+p.servers = [{ url: "http://localhost:8080" }];
+require("fs").writeFileSync(salida, JSON.stringify(p, null, 2));
+' "$RAIZ/services/api-gateway/especificacion/openapi.json" "$RAIZ/docs/openapi/generado/openapi-interna.json" "$DESTINO/openapi.json"
 TOKEN="$(token_de "$CUENTA")"
 if [ "${#TOKEN}" -lt 100 ]; then
   echo "No se pudo obtener el token de $CUENTA: $TOKEN"; exit 2
@@ -36,7 +44,7 @@ export ZAP_TOKEN="$TOKEN"
 
 echo "== zap-api-scan.py como $ROL ($CUENTA) contra http://$HOST_EQUIPO:8080"
 zap zap-api-scan.py \
-  -t openapi.yaml -f openapi \
+  -t openapi.json -f openapi \
   -O "http://$HOST_EQUIPO:8080" \
   -c zap-reglas.tsv \
   -r "$NOMBRE.html" -J "$NOMBRE.json" -w "$NOMBRE.md" \

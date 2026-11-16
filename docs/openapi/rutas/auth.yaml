@@ -1,0 +1,185 @@
+# auth-service (prefijo /api/auth). x-roles: publica | sesion | <roles>.
+salud:
+  get:
+    tags: [plataforma]
+    summary: Salud agregada de todos los servicios
+    description: Consulta el /health de cada servicio en paralelo (2 s de espera por servicio).
+    operationId: saludAgregada
+    security: []
+    x-roles: [publica]
+    responses:
+      '200':
+        description: Estado de cada servicio y de sus dependencias.
+        content:
+          application/json:
+            schema: { $ref: '../componentes/esquemas.yaml#/Salud' }
+      '429': { $ref: '../componentes/respuestas.yaml#/LimiteExcedido' }
+      '503':
+        description: Algun servicio esta caido.
+        content:
+          application/json:
+            schema: { $ref: '../componentes/esquemas.yaml#/Salud' }
+
+registro:
+  post:
+    tags: [auth]
+    summary: Registrar una cuenta de cliente
+    description: |
+      El rol `cliente` es el unico que se puede autoasignar. Si se envia `cliente_id`,
+      clientes-service confirma que existe, que su correo es el mismo y que no tiene
+      ya una cuenta (hallazgo S-01).
+    operationId: registrar
+    security: []
+    x-roles: [publica]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../componentes/esquemas.yaml#/Registro' }
+    responses:
+      '201':
+        description: Cuenta creada.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mensaje: { type: string, example: Usuario registrado. }
+                usuario: { $ref: '../componentes/esquemas.yaml#/Usuario' }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+      '409': { $ref: '../componentes/respuestas.yaml#/Conflicto' }
+      '503': { $ref: '../componentes/respuestas.yaml#/NoDisponible' }
+
+login:
+  post:
+    tags: [auth]
+    summary: Iniciar sesion
+    description: |
+      Devuelve un JWT de 15 minutos y un refresh token rotatorio de 7 dias. El mensaje de
+      error es el mismo para un correo inexistente y una contrasena incorrecta (evita
+      enumerar cuentas). Tras 5 intentos fallidos la cuenta se bloquea 15 minutos. El
+      gateway limita a 10 intentos cada 15 minutos por IP.
+    operationId: iniciarSesion
+    security: []
+    x-roles: [publica]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../componentes/esquemas.yaml#/Credenciales' }
+    responses:
+      '200':
+        description: Sesion iniciada.
+        content:
+          application/json:
+            schema: { $ref: '../componentes/esquemas.yaml#/Sesion' }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '429': { $ref: '../componentes/respuestas.yaml#/LimiteExcedido' }
+      '503': { $ref: '../componentes/respuestas.yaml#/NoDisponible' }
+
+renovar:
+  post:
+    tags: [auth]
+    summary: Renovar la sesion con el refresh token
+    description: El refresh usado queda revocado y se emite otro (rotacion); reutilizarlo responde 401.
+    operationId: renovarSesion
+    security: []
+    x-roles: [publica]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [refresh_token]
+            properties:
+              refresh_token: { type: string }
+    responses:
+      '200':
+        description: Nuevo par de tokens.
+        content:
+          application/json:
+            schema: { $ref: '../componentes/esquemas.yaml#/Renovacion' }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+
+logout:
+  post:
+    tags: [auth]
+    summary: Cerrar sesion
+    description: Revoca todos los refresh tokens del usuario. El JWT de acceso vale hasta que expire (15 min).
+    operationId: cerrarSesion
+    x-roles: [sesion]
+    responses:
+      '200':
+        description: Sesion cerrada.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mensaje: { type: string, example: Sesion cerrada. }
+                tokens_revocados: { type: integer, example: 1 }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+
+perfil:
+  get:
+    tags: [auth]
+    summary: Perfil del usuario autenticado
+    operationId: obtenerPerfil
+    x-roles: [sesion]
+    responses:
+      '200':
+        description: Datos de la cuenta.
+        content:
+          application/json:
+            schema: { $ref: '../componentes/esquemas.yaml#/Perfil' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+
+verificar:
+  post:
+    tags: [auth]
+    summary: Verificar el token actual
+    description: Devuelve los claims del JWT. Permite a otros sistemas validar un token sin conocer el secreto.
+    operationId: verificarToken
+    x-roles: [sesion]
+    responses:
+      '200':
+        description: Token valido.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                valido: { type: boolean, example: true }
+                usuario: { type: object, additionalProperties: true }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+
+usuarios:
+  post:
+    tags: [auth]
+    summary: Crear un usuario interno
+    description: Alta de vendedores y administradores.
+    operationId: crearUsuarioInterno
+    x-roles: [administrador]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../componentes/esquemas.yaml#/UsuarioInterno' }
+    responses:
+      '201':
+        description: Usuario creado.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mensaje: { type: string, example: Usuario creado. }
+                usuario: { $ref: '../componentes/esquemas.yaml#/Usuario' }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+      '409': { $ref: '../componentes/respuestas.yaml#/Conflicto' }

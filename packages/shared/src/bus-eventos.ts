@@ -177,9 +177,14 @@ export class BusEventos {
           error: mensajeError
         });
 
+        // Se reencola directo en la cola de ESTE consumidor. Antes se publicaba
+        // de nuevo en el exchange, y el reintento llegaba tambien a las demas
+        // colas ligadas al evento (clientes.historial lo procesaba otra vez).
         canal.ack(mensaje);
-        canal.publish(EXCHANGE, mensaje.fields.routingKey, mensaje.content, {
+        canal.sendToQueue(opciones.cola, mensaje.content, {
           persistent: true,
+          contentType: mensaje.properties.contentType,
+          messageId: mensaje.properties.messageId,
           headers: { ...mensaje.properties.headers, 'x-intentos': intentos }
         });
       }

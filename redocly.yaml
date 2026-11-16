@@ -1,0 +1,8 @@
+# Configuracion de Redocly para docs/openapi.
+extends:
+  - recommended
+rules:
+  # Proyecto academico sin licencia publicada.
+  info-license: off
+  # Los servidores en localhost son intencionales: el entorno es local.
+  no-server-example.com: off

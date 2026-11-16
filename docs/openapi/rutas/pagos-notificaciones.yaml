@@ -1,0 +1,96 @@
+# pagos-service (/api/pagos) y notificaciones-service (/api/notificaciones).
+transacciones:
+  get:
+    tags: [pagos]
+    summary: Listar transacciones
+    description: Un cliente ve las suyas; el personal interno ve todas y puede filtrar por cliente.
+    operationId: listarTransacciones
+    x-roles: [sesion]
+    parameters: [{ $ref: '../componentes/parametros.yaml#/FiltroClienteId' }]
+    responses:
+      '200':
+        description: Transacciones, sin datos de tarjeta (PCI-DSS).
+        content:
+          application/json:
+            schema: { type: array, items: { $ref: '../componentes/esquemas.yaml#/Transaccion' } }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+
+transaccion:
+  parameters: [{ $ref: '../componentes/parametros.yaml#/Referencia' }]
+  get:
+    tags: [pagos]
+    summary: Detalle de una transaccion
+    description: Una transaccion de otro cliente responde 404, como si no existiera.
+    operationId: obtenerTransaccion
+    x-roles: [sesion]
+    responses:
+      '200':
+        description: Transaccion.
+        content:
+          application/json:
+            schema: { $ref: '../componentes/esquemas.yaml#/Transaccion' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '404': { $ref: '../componentes/respuestas.yaml#/NoEncontrado' }
+
+mensajes:
+  get:
+    tags: [notificaciones]
+    summary: Notificaciones enviadas
+    description: Un cliente ve las suyas (por su correo); el personal interno ve todas.
+    operationId: listarMensajes
+    x-roles: [sesion]
+    parameters:
+      - { name: evento, in: query, schema: { type: string, example: pedido.confirmado } }
+      - { name: estado, in: query, schema: { type: string, enum: [pendiente, enviado, fallido] } }
+      - { name: destinatario, in: query, description: Solo personal interno; para un cliente se usa su correo., schema: { type: string } }
+      - { name: limite, in: query, schema: { type: integer, minimum: 1, maximum: 200, default: 50 } }
+    responses:
+      '200':
+        description: Notificaciones, de la mas reciente a la mas antigua.
+        content:
+          application/json:
+            schema: { type: array, items: { $ref: '../componentes/esquemas.yaml#/Notificacion' } }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+
+plantillas:
+  get:
+    tags: [notificaciones]
+    summary: Plantillas de notificacion
+    operationId: listarPlantillas
+    x-roles: [administrador]
+    responses:
+      '200':
+        description: Plantillas por evento.
+        content:
+          application/json:
+            schema: { type: array, items: { $ref: '../componentes/esquemas.yaml#/Plantilla' } }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+
+plantilla:
+  patch:
+    tags: [notificaciones]
+    summary: Editar una plantilla
+    description: Los datos del usuario se escapan como HTML al renderizar en el canal de correo (hallazgo S-11).
+    operationId: actualizarPlantilla
+    x-roles: [administrador]
+    parameters:
+      - { name: clave, in: path, required: true, schema: { type: string, example: pedido.confirmado } }
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../componentes/esquemas.yaml#/CambiosPlantilla' }
+    responses:
+      '200':
+        description: Plantilla actualizada.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mensaje: { type: string, example: Plantilla actualizada. }
+                plantilla: { $ref: '../componentes/esquemas.yaml#/Plantilla' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+      '404': { $ref: '../componentes/respuestas.yaml#/NoEncontrado' }

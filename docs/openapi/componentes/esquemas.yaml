@@ -1,0 +1,501 @@
+# Esquemas de datos de la API publica. Se tomaron de respuestas reales del
+# gateway (2026-11-15) y de los controladores: los NUMERIC de PostgreSQL llegan
+# como texto ("26900.00"); los precios del catalogo y del carrito, como numero.
+
+Error:
+  type: object
+  description: Formato uniforme del middleware central de errores (shared/src/errores.ts).
+  required: [mensaje, codigo]
+  properties:
+    mensaje: { type: string, example: Solo puede consultar su propia informacion. }
+    codigo: { type: string, example: PROHIBIDO }
+    detalle: { description: Datos adicionales segun el error (p. ej. discrepancias de precio). }
+
+Mensaje:
+  type: object
+  properties:
+    mensaje: { type: string }
+
+Rol:
+  type: string
+  enum: [cliente, vendedor, administrador]
+
+Dinero:
+  type: string
+  pattern: '^\d+\.\d{2}$'
+  description: Valor NUMERIC(12,2) de PostgreSQL, serializado como texto.
+  example: '26900.00'
+
+# --------------------------------------------------------------------- auth
+Credenciales:
+  type: object
+  required: [email, password]
+  properties:
+    email: { type: string, format: email, maxLength: 150, example: ana@correo.co }
+    password: { type: string, minLength: 8, example: Password123 }
+
+Registro:
+  type: object
+  required: [email, password]
+  properties:
+    email: { type: string, format: email, maxLength: 150, example: nuevo@correo.co }
+    password: { type: string, minLength: 8, example: Password123 }
+    cliente_id:
+      type: integer
+      description: Perfil de clientes-service. Debe existir, tener el mismo correo y no tener cuenta (hallazgo S-01).
+      example: 4
+
+UsuarioInterno:
+  type: object
+  required: [email, password, rol]
+  properties:
+    email: { type: string, format: email, example: vendedor2@tienda.co }
+    password: { type: string, minLength: 8, example: Password123 }
+    rol: { $ref: '#/Rol' }
+
+Usuario:
+  type: object
+  properties:
+    id: { type: integer, example: 3 }
+    email: { type: string, format: email, example: ana@correo.co }
+    rol: { $ref: '#/Rol' }
+    cliente_id: { type: integer, nullable: true, example: 1 }
+    activo: { type: boolean, example: true }
+
+Perfil:
+  allOf:
+    - $ref: '#/Usuario'
+    - type: object
+      properties:
+        ultimo_acceso: { type: string, nullable: true, format: date-time }
+        creado_en: { type: string, format: date-time }
+
+Sesion:
+  type: object
+  properties:
+    mensaje: { type: string, example: Autenticacion exitosa. }
+    token: { type: string, description: JWT de acceso (15 min). }
+    refresh_token: { type: string, description: 'Refresh token rotatorio (7 dias): "<jwt>.<aleatorio>".' }
+    expira_en: { type: string, example: 15m }
+    usuario:
+      type: object
+      properties:
+        id: { type: integer }
+        email: { type: string }
+        rol: { $ref: '#/Rol' }
+        cliente_id: { type: integer, nullable: true }
+
+Renovacion:
+  type: object
+  properties:
+    token: { type: string }
+    refresh_token: { type: string }
+    expira_en: { type: string, example: 15m }
+
+# ----------------------------------------------------------------- clientes
+ClienteNuevo:
+  type: object
+  required: [nombre, apellido, email]
+  properties:
+    nombre: { type: string, maxLength: 100, example: Diana }
+    apellido: { type: string, maxLength: 100, example: Perdomo }
+    email: { type: string, format: email, maxLength: 150, example: diana@correo.co }
+    telefono: { type: string, maxLength: 30, example: '3005556677' }
+    documento: { type: string, maxLength: 30, example: '1075000111' }
+    tipo_documento: { type: string, enum: [CC, CE, NIT, PAS], default: CC }
+
+Cliente:
+  type: object
+  properties:
+    id: { type: integer, example: 1 }
+    nombre: { type: string, example: Ana }
+    apellido: { type: string, example: Restrepo }
+    email: { type: string, format: email }
+    telefono: { type: string, nullable: true }
+    documento: { type: string, nullable: true }
+    tipo_documento: { type: string, enum: [CC, CE, NIT, PAS] }
+    activo: { type: boolean }
+    creado_en: { type: string, format: date-time }
+
+CambiosCliente:
+  type: object
+  description: Al menos uno. El correo y el documento no se cambian por esta via.
+  minProperties: 1
+  properties:
+    nombre: { type: string, maxLength: 100 }
+    apellido: { type: string, maxLength: 100 }
+    telefono: { type: string, maxLength: 30 }
+
+DireccionNueva:
+  type: object
+  required: [linea1, ciudad]
+  properties:
+    tipo: { type: string, enum: [envio, facturacion], default: envio }
+    etiqueta: { type: string, maxLength: 50, example: Casa }
+    linea1: { type: string, maxLength: 200, example: 'Calle 10 # 5-20' }
+    linea2: { type: string, maxLength: 200 }
+    ciudad: { type: string, maxLength: 100, example: Neiva }
+    departamento: { type: string, maxLength: 100, example: Huila }
+    pais: { type: string, maxLength: 60, default: Colombia }
+    codigo_postal: { type: string, maxLength: 20, example: '410001' }
+    predeterminada: { type: boolean, default: false, description: 'Si es true, quita la marca a la anterior del mismo tipo.' }
+
+Direccion:
+  type: object
+  properties:
+    id: { type: integer, example: 1 }
+    tipo: { type: string, enum: [envio, facturacion] }
+    etiqueta: { type: string, nullable: true }
+    linea1: { type: string }
+    linea2: { type: string, nullable: true }
+    ciudad: { type: string }
+    departamento: { type: string, nullable: true }
+    pais: { type: string }
+    codigo_postal: { type: string, nullable: true }
+    predeterminada: { type: boolean }
+
+CompraHistorica:
+  type: object
+  description: Proyeccion alimentada por los eventos pedido.confirmado y pedido.cancelado (consistencia eventual).
+  properties:
+    pedido_id: { type: integer }
+    numero_pedido: { type: string, example: PED-202611-001105 }
+    total: { $ref: '#/Dinero' }
+    estado: { type: string }
+    items: { type: integer }
+    fecha: { type: string, format: date-time }
+
+# ----------------------------------------------------------------- catalogo
+Producto:
+  type: object
+  properties:
+    sku: { type: string, example: SKU-TEC-001 }
+    nombre: { type: string, example: Portatil Aurora 14 pulgadas }
+    descripcion: { type: string }
+    categoria: { type: string, example: tecnologia }
+    marca: { type: string, example: Aurora }
+    precio: { type: number, example: 3499000 }
+    descuento_porcentaje: { type: number, example: 10 }
+    precio_final: { type: number, example: 3149100 }
+    imagenes: { type: array, items: { type: string } }
+    atributos: { type: object, additionalProperties: true }
+    disponible:
+      type: integer
+      nullable: true
+      description: Unidades disponibles segun inventario; null si inventario no responde (degradacion elegante).
+      example: 50
+    hay_stock: { type: boolean, nullable: true }
+
+ProductoNuevo:
+  type: object
+  required: [sku, nombre, categoria, precio]
+  properties:
+    sku: { type: string, example: SKU-TEC-099 }
+    nombre: { type: string, example: Monitor Andino 27 }
+    descripcion: { type: string }
+    categoria: { type: string, example: tecnologia }
+    marca: { type: string, example: Andina }
+    precio: { type: number, minimum: 0, example: 1200000 }
+    descuento_porcentaje: { type: number, minimum: 0, maximum: 100, example: 0 }
+    imagenes: { type: array, items: { type: string } }
+    atributos: { type: object, additionalProperties: true }
+
+CambiosProducto:
+  type: object
+  minProperties: 1
+  properties:
+    nombre: { type: string }
+    marca: { type: string }
+    descripcion: { type: string }
+    precio: { type: number, minimum: 0 }
+    descuento_porcentaje: { type: number, minimum: 0, maximum: 100 }
+    imagenes: { type: array, items: { type: string } }
+    atributos: { type: object, additionalProperties: true }
+    activo: { type: boolean }
+
+PaginaProductos:
+  type: object
+  properties:
+    total: { type: integer, example: 71 }
+    pagina: { type: integer, example: 1 }
+    por_pagina: { type: integer, example: 20 }
+    productos: { type: array, items: { $ref: '#/Producto' } }
+
+Categoria:
+  type: object
+  properties:
+    categoria: { type: string, example: tecnologia }
+    productos: { type: integer, example: 25 }
+    precio_min: { type: number, example: 120000 }
+
+Promocion:
+  type: object
+  properties:
+    codigo: { type: string, example: BIENVENIDA10 }
+    descripcion: { type: string }
+    tipo: { type: string, enum: [porcentaje, monto_fijo, envio_gratis] }
+    valor: { type: number, example: 10 }
+    minimo_compra: { type: number, example: 100000 }
+    vigente_hasta: { type: string, format: date-time }
+
+# --------------------------------------------------------------- inventario
+Disponibilidad:
+  type: object
+  properties:
+    sku: { type: string }
+    disponible: { type: integer }
+    reservado: { type: integer }
+    hay_stock: { type: boolean }
+    stock_minimo: { type: integer }
+
+StockBodega:
+  type: object
+  properties:
+    sku: { type: string }
+    bodega: { type: string, example: BOG-01 }
+    ciudad: { type: string, example: Bogota }
+    cantidad_disponible: { type: integer }
+    cantidad_reservada: { type: integer }
+    stock_minimo: { type: integer }
+    version: { type: integer, description: Version para el bloqueo optimista. }
+    actualizado_en: { type: string, format: date-time }
+
+Movimiento:
+  type: object
+  properties:
+    tipo: { type: string, enum: [entrada, salida, reserva, liberacion, ajuste] }
+    cantidad: { type: integer }
+    saldo_despues: { type: integer }
+    referencia: { type: string }
+    creado_en: { type: string, format: date-time }
+
+AlertaStock:
+  type: object
+  properties:
+    sku: { type: string }
+    bodega: { type: string }
+    cantidad_disponible: { type: integer }
+    stock_minimo: { type: integer }
+
+EntradaStock:
+  type: object
+  required: [cantidad]
+  properties:
+    cantidad: { type: integer, minimum: 1, example: 10 }
+    bodega_id: { type: integer, example: 1 }
+
+# ------------------------------------------------------------------ carrito
+ItemCarrito:
+  type: object
+  properties:
+    sku: { type: string }
+    nombre: { type: string }
+    cantidad: { type: integer }
+    precio_unitario: { type: number, description: Precio vigente leido del catalogo (invariante 2). }
+
+Carrito:
+  type: object
+  properties:
+    cliente_id: { type: integer }
+    items: { type: array, items: { $ref: '#/ItemCarrito' } }
+    cupon: { type: string, nullable: true, example: BIENVENIDA10 }
+    totales:
+      type: object
+      description: El descuento se aplica antes del IVA (19 %); envio de $15.000, gratis desde $500.000.
+      properties:
+        subtotal: { type: number }
+        descuento: { type: number }
+        impuestos: { type: number }
+        envio: { type: number }
+        total: { type: number }
+        cupon_aplicado: { type: string }
+    cantidad_items: { type: integer }
+    actualizado_en: { type: string, format: date-time }
+
+# ------------------------------------------------------------------ pedidos
+EstadoPedido:
+  type: string
+  enum: [creado, pagado, en_preparacion, enviado, entregado, cancelado]
+
+SolicitudCheckout:
+  type: object
+  required: [medio_pago, token_medio_pago]
+  properties:
+    medio_pago: { type: string, enum: [tarjeta_credito, tarjeta_debito, pse, efecty], example: tarjeta_credito }
+    token_medio_pago:
+      type: string
+      description: 'Token de la pasarela; nunca el numero de tarjeta (PCI-DSS). En el laboratorio: tok_ok_*, tok_rechazo_*, tok_error_*, tok_lento_*.'
+      example: tok_ok_4242
+    direccion_id: { type: integer, example: 1 }
+    cliente_id: { type: integer, description: Solo personal interno (venta telefonica). Un cliente compra siempre como si mismo (invariante 1). }
+
+ResultadoCheckout:
+  type: object
+  properties:
+    mensaje: { type: string, example: Compra confirmada. }
+    idempotente: { type: boolean, description: true si es la replica de una compra ya hecha con la misma clave. }
+    pedido:
+      type: object
+      properties:
+        id: { type: integer }
+        numero: { type: string }
+        estado: { $ref: '#/EstadoPedido' }
+        subtotal: { $ref: '#/Dinero' }
+        impuestos: { $ref: '#/Dinero' }
+        envio: { $ref: '#/Dinero' }
+        descuento: { $ref: '#/Dinero' }
+        total: { $ref: '#/Dinero' }
+        creado_en: { type: string, format: date-time }
+    items: { type: array, items: { $ref: '#/ItemCarrito' } }
+    pago:
+      type: object
+      properties:
+        referencia: { type: string, example: TRX-7942F14B-FE1 }
+        estado: { type: string, example: aprobada }
+
+PedidoResumen:
+  type: object
+  properties:
+    id: { type: integer }
+    numero: { type: string, example: PED-202611-001105 }
+    cliente_id: { type: integer }
+    estado: { $ref: '#/EstadoPedido' }
+    total: { $ref: '#/Dinero' }
+    creado_en: { type: string, format: date-time }
+    cantidad_items: { type: integer }
+
+Pedido:
+  type: object
+  properties:
+    id: { type: integer }
+    numero: { type: string }
+    cliente_id: { type: integer }
+    direccion_envio: { $ref: '#/Direccion' }
+    estado: { $ref: '#/EstadoPedido' }
+    subtotal: { $ref: '#/Dinero' }
+    impuestos: { $ref: '#/Dinero' }
+    envio: { $ref: '#/Dinero' }
+    descuento: { $ref: '#/Dinero' }
+    total: { $ref: '#/Dinero' }
+    transaccion_pago_id: { type: string, nullable: true }
+    motivo_cancelacion: { type: string, nullable: true }
+    creado_en: { type: string, format: date-time }
+    actualizado_en: { type: string, format: date-time }
+    items:
+      type: array
+      items:
+        type: object
+        properties:
+          sku: { type: string }
+          nombre: { type: string }
+          cantidad: { type: integer }
+          precio_unitario: { $ref: '#/Dinero' }
+          subtotal: { $ref: '#/Dinero' }
+          reserva_id: { type: string, nullable: true }
+    historial:
+      type: array
+      items:
+        type: object
+        properties:
+          estado_anterior: { type: string, nullable: true }
+          estado_nuevo: { type: string }
+          motivo: { type: string, nullable: true }
+          creado_en: { type: string, format: date-time }
+
+ResultadoCancelacion:
+  type: object
+  properties:
+    mensaje: { type: string, example: Pedido cancelado. }
+    pedido:
+      type: object
+      properties:
+        id: { type: integer }
+        numero: { type: string }
+        estado: { $ref: '#/EstadoPedido' }
+    compensaciones:
+      type: array
+      items: { type: string }
+      example: [reembolso_procesado, 'stock_devuelto:SKU-HOG-001']
+
+PasoSaga:
+  type: object
+  properties:
+    paso: { type: string, example: reservar_stock }
+    estado: { type: string, enum: [iniciado, completado, fallido, compensado] }
+    detalle: { type: object, nullable: true, additionalProperties: true }
+    creado_en: { type: string, format: date-time }
+
+# -------------------------------------------------------------------- pagos
+Transaccion:
+  type: object
+  description: Sin numero de tarjeta, CVV ni vencimiento (invariante 9, PCI-DSS).
+  properties:
+    referencia: { type: string, example: TRX-4B2CB23F-814 }
+    pedido_id: { type: integer }
+    numero_pedido: { type: string }
+    monto: { $ref: '#/Dinero' }
+    medio_pago: { type: string }
+    estado: { type: string, enum: [iniciada, aprobada, rechazada, reembolsada] }
+    ultimos_cuatro: { type: string, nullable: true, example: '4242' }
+    marca: { type: string, nullable: true, example: VISA }
+    creado_en: { type: string, format: date-time }
+
+# ----------------------------------------------------------- notificaciones
+Notificacion:
+  type: object
+  properties:
+    _id: { type: string }
+    evento: { type: string, example: pedido.confirmado }
+    canal: { type: string, enum: [email, sms, push] }
+    destinatario: { type: string }
+    asunto: { type: string }
+    cuerpo: { type: string }
+    estado: { type: string, enum: [pendiente, enviado, fallido] }
+    clave_dedupe: { type: string, description: Evita enviar dos veces el mismo aviso (entrega al menos una vez). }
+    request_id: { type: string }
+    creado_en: { type: string, format: date-time }
+    enviado_en: { type: string, nullable: true, format: date-time }
+    proveedor: { type: string }
+
+Plantilla:
+  type: object
+  properties:
+    _id: { type: string }
+    clave: { type: string, example: pedido.confirmado }
+    canal: { type: string, enum: [email, sms, push] }
+    asunto: { type: string }
+    cuerpo: { type: string, description: 'Texto con variables {{nombre}}, {{numero}}...' }
+    activo: { type: boolean }
+
+CambiosPlantilla:
+  type: object
+  minProperties: 1
+  properties:
+    canal: { type: string, enum: [email, sms, push] }
+    asunto: { type: string }
+    cuerpo: { type: string }
+    activo: { type: boolean }
+
+# -------------------------------------------------------------------- salud
+Salud:
+  type: object
+  properties:
+    gateway: { type: string, example: ok }
+    hora: { type: string, format: date-time }
+    servicios_caidos: { type: array, items: { type: string } }
+    servicios:
+      type: array
+      items:
+        type: object
+        properties:
+          servicio: { type: string, example: auth }
+          ok: { type: boolean }
+          estado: { type: string, example: ok }
+          dependencias:
+            type: array
+            items:
+              type: object
+              properties:
+                nombre: { type: string, example: 'postgres:auth_db' }
+                ok: { type: boolean }
+                critica: { type: boolean }

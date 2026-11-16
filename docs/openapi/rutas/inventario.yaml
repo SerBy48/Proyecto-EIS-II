@@ -1,0 +1,94 @@
+# inventario-service (prefijo /api/inventario). Unico duenio del stock (invariante 3).
+disponibilidad:
+  get:
+    tags: [inventario]
+    summary: Disponibilidad de varios SKU
+    operationId: consultarDisponibilidad
+    x-roles: [sesion]
+    parameters:
+      - name: skus
+        in: query
+        required: true
+        description: SKU separados por coma.
+        schema: { type: string, example: 'SKU-TEC-001,SKU-TEC-004' }
+    responses:
+      '200':
+        description: Disponibilidad agregada de todas las bodegas.
+        content:
+          application/json:
+            schema: { type: array, items: { $ref: '../componentes/esquemas.yaml#/Disponibilidad' } }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+
+stock:
+  parameters: [{ $ref: '../componentes/parametros.yaml#/Sku' }]
+  get:
+    tags: [inventario]
+    summary: Stock de un SKU por bodega
+    operationId: consultarStock
+    x-roles: [sesion]
+    responses:
+      '200':
+        description: Una fila por bodega.
+        content:
+          application/json:
+            schema: { type: array, items: { $ref: '../componentes/esquemas.yaml#/StockBodega' } }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+
+entrada:
+  parameters: [{ $ref: '../componentes/parametros.yaml#/Sku' }]
+  post:
+    tags: [inventario]
+    summary: Registrar una entrada de mercancia
+    description: Suma unidades y deja el movimiento en el libro. Si el SKU no tenia stock en la bodega, crea la fila.
+    operationId: registrarEntrada
+    x-roles: [administrador, vendedor]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../componentes/esquemas.yaml#/EntradaStock' }
+    responses:
+      '200':
+        description: Entrada registrada.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mensaje: { type: string, example: Entrada registrada. }
+                stock: { type: object, additionalProperties: true }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+
+movimientos:
+  parameters: [{ $ref: '../componentes/parametros.yaml#/Sku' }]
+  get:
+    tags: [inventario]
+    summary: Libro de movimientos de un SKU
+    operationId: listarMovimientos
+    x-roles: [administrador, vendedor]
+    responses:
+      '200':
+        description: Movimientos, del mas reciente al mas antiguo.
+        content:
+          application/json:
+            schema: { type: array, items: { $ref: '../componentes/esquemas.yaml#/Movimiento' } }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+
+alertas:
+  get:
+    tags: [inventario]
+    summary: SKU por debajo del stock minimo
+    operationId: listarAlertas
+    x-roles: [administrador, vendedor]
+    responses:
+      '200':
+        description: Alertas de reposicion.
+        content:
+          application/json:
+            schema: { type: array, items: { $ref: '../componentes/esquemas.yaml#/AlertaStock' } }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }

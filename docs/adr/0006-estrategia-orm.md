@@ -1,6 +1,6 @@
 # ADR-0006: ORM parcial con Drizzle; SQL nativo donde hay concurrencia
 
-**Estado:** Aceptada por el equipo el 2026-11-15, opción (a) del plan. Se implementa en la Fase 2.
+**Estado:** Aceptada por el equipo el 2026-11-15, opción (a) del plan. Implementada en la Fase 2: `esquema.ts` y `repositorio.ts` en auth y clientes, y `errorDePostgres()` en shared, porque Drizzle envuelve los errores del driver.
 
 ## Contexto
 
