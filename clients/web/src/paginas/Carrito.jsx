@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { api, moneda, nuevaClaveIdempotencia } from '../servicios/api';
+import FormularioDireccion, { describirDireccion } from '../componentes/FormularioDireccion.jsx';
 
 /** Controles para ensayar la pasarela simulada: solo en desarrollo y en builds de prueba (U-08). */
 const MODO_PRUEBAS = import.meta.env.DEV || import.meta.env.VITE_MODO_PRUEBAS === 'true';
@@ -26,9 +27,33 @@ export default function Carrito({ usuario, carrito, recargarCarrito }) {
   const [error, setError] = useState(null);
   const [clave, setClave] = useState(nuevaClaveIdempotencia());
   const [cupon, setCupon] = useState(carrito?.cupon ?? '');
+  // Direccion de envio: la predeterminada viene marcada; se puede elegir otra
+  // o agregar una nueva sin salir del carrito.
+  const [direcciones, setDirecciones] = useState(null);
+  const [direccionId, setDireccionId] = useState(null);
+  const [agregandoDireccion, setAgregandoDireccion] = useState(false);
 
   const items = carrito?.items ?? [];
   const totales = carrito?.totales ?? {};
+
+  useEffect(() => {
+    api(`/clientes/${usuario.cliente_id}/direcciones`)
+      .then((lista) => {
+        const deEnvio = lista.filter((d) => d.tipo === 'envio');
+        setDirecciones(deEnvio);
+        setDireccionId((deEnvio.find((d) => d.predeterminada) ?? deEnvio[0])?.id ?? null);
+        if (!deEnvio.length) setAgregandoDireccion(true);
+      })
+      .catch(() => setDirecciones([]));
+  }, [usuario.cliente_id]);
+
+  const direccionNueva = (direccion) => {
+    setDirecciones((lista) => [...(lista ?? []), direccion]);
+    setDireccionId(direccion.id);
+    setAgregandoDireccion(false);
+  };
+
+  const direccionElegida = direcciones?.find((d) => d.id === direccionId);
 
   const cambiarCantidad = async (sku, cantidad) => {
     setError(null);
@@ -72,7 +97,7 @@ export default function Carrito({ usuario, carrito, recargarCarrito }) {
       const datos = await api('/pedidos/checkout', {
         metodo: 'POST',
         headers: { 'Idempotency-Key': clave },
-        cuerpo: { medio_pago: medioPago, token_medio_pago: tokenTarjeta }
+        cuerpo: { medio_pago: medioPago, token_medio_pago: tokenTarjeta, ...(direccionId ? { direccion_id: direccionId } : {}) }
       });
 
       setResultado({ tipo: 'exito', datos });
@@ -113,13 +138,16 @@ export default function Carrito({ usuario, carrito, recargarCarrito }) {
             Tu pedido <strong>{p.numero}</strong> quedo registrado por{' '}
             <strong>{moneda(p.total)}</strong>.
           </p>
+          {p.direccion_envio && (
+            <p className="text-sm text-green-800 mt-2">Se enviará a: {describirDireccion(p.direccion_envio)}</p>
+          )}
           <p className="text-sm text-green-700 mt-3">
-            Recibirás la confirmación por correo. El envío de esa notificación es asincrono,
+            Recibirás la confirmación por correo. El envío de esa notificación es asíncrono,
             así que puede tardar unos segundos en llegar.
           </p>
           <button
             onClick={() => setResultado(null)}
-            className="mt-6 bg-green-700 hover:bg-green-800 text-white font-semibold px-6 py-2 rounded-lg"
+            className="mt-6 btn-primario px-6 py-2 rounded-lg"
           >
             Seguir comprando
           </button>
@@ -137,7 +165,7 @@ export default function Carrito({ usuario, carrito, recargarCarrito }) {
             No pudimos procesar el pago
           </h1>
           <p className="text-amber-800 text-center">{resultado.mensaje}</p>
-          <div className="mt-5 bg-white border border-amber-200 rounded-lg p-4 text-sm text-gray-700">
+          <div className="mt-5 bg-superficie border border-amber-200 rounded-lg p-4 text-sm text-gray-700">
             <p className="font-semibold mb-2">Qué ocurrió con tu compra:</p>
             <ul className="space-y-1 list-disc list-inside">
               <li>
@@ -151,7 +179,7 @@ export default function Carrito({ usuario, carrito, recargarCarrito }) {
           </div>
           <button
             onClick={() => setResultado(null)}
-            className="mt-6 w-full bg-amber-700 hover:bg-amber-800 text-white font-semibold py-2 rounded-lg"
+            className="mt-6 w-full btn-advertencia py-2 rounded-lg"
           >
             Volver al carrito
           </button>
@@ -172,11 +200,11 @@ export default function Carrito({ usuario, carrito, recargarCarrito }) {
         )}
 
         {items.length === 0 ? (
-          <div className="bg-white border border-gray-200 rounded-xl p-10 text-center text-gray-500">
+          <div className="bg-superficie border border-gray-200 rounded-xl p-10 text-center text-gray-500">
             Tu carrito está vacío.
           </div>
         ) : (
-          <ul className="bg-white border border-gray-200 rounded-xl divide-y">
+          <ul className="bg-superficie border border-gray-200 rounded-xl divide-y">
             {items.map((i) => (
               <li key={i.sku} className="p-4 flex flex-wrap sm:flex-nowrap items-center gap-x-4 gap-y-3">
                 <div
@@ -229,7 +257,7 @@ export default function Carrito({ usuario, carrito, recargarCarrito }) {
         )}
       </section>
 
-      <aside aria-labelledby="titulo-resumen" className="bg-white border border-gray-200 rounded-xl p-5 h-fit">
+      <aside aria-labelledby="titulo-resumen" className="bg-superficie border border-gray-200 rounded-xl p-5 h-fit">
         <h2 id="titulo-resumen" className="font-bold text-gray-900 mb-4">Resumen</h2>
 
         <dl className="space-y-2 text-sm">
@@ -272,12 +300,64 @@ export default function Carrito({ usuario, carrito, recargarCarrito }) {
             <button
               onClick={() => aplicarCupon(cupon.trim())}
               disabled={!cupon.trim()}
-              className="bg-gray-800 hover:bg-gray-900 disabled:bg-gray-300 text-white text-sm px-3 rounded"
+              className="btn-oscuro text-sm px-3 rounded"
             >
               Aplicar
             </button>
           </div>
         </div>
+
+        <fieldset className="mt-5">
+          <legend className="block text-xs font-semibold text-gray-700 mb-2">Dirección de envío</legend>
+          {direcciones === null ? (
+            <p className="text-sm text-gray-500">Cargando tus direcciones…</p>
+          ) : (
+            <div className="space-y-2">
+              {direcciones.map((d) => (
+                <label
+                  key={d.id}
+                  className={`flex gap-2 items-start rounded-lg border p-2 text-sm cursor-pointer ${
+                    d.id === direccionId ? 'border-marca-600 bg-marca-50' : 'border-gray-300'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="direccion-envio"
+                    value={d.id}
+                    checked={d.id === direccionId}
+                    onChange={() => setDireccionId(d.id)}
+                    className="mt-1 accent-[#047857]"
+                  />
+                  <span>
+                    <span className="font-semibold text-gray-900">{d.etiqueta || 'Dirección'}</span>
+                    {d.predeterminada && <span className="text-xs text-gray-500"> · predeterminada</span>}
+                    <br />
+                    <span className="text-gray-700">{describirDireccion(d)}</span>
+                  </span>
+                </label>
+              ))}
+              {agregandoDireccion ? (
+                <div className="border border-gray-300 rounded-lg p-3">
+                  <p className="text-sm font-semibold text-gray-900 mb-2">Nueva dirección</p>
+                  <FormularioDireccion
+                    clienteId={usuario.cliente_id}
+                    alGuardar={direccionNueva}
+                    alCancelar={direcciones.length ? () => setAgregandoDireccion(false) : undefined}
+                    textoGuardar="Usar esta dirección"
+                  />
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setAgregandoDireccion(true)}
+                  className="text-sm text-marca-700 font-semibold hover:underline"
+                >
+                  + Agregar otra dirección
+                </button>
+              )}
+            </div>
+          )}
+        </fieldset>
 
         <div className="mt-5">
           <label htmlFor="medio-pago" className="block text-xs font-semibold text-gray-700 mb-1">
@@ -309,7 +389,7 @@ export default function Carrito({ usuario, carrito, recargarCarrito }) {
                 id="token-pasarela"
                 value={tokenTarjeta}
                 onChange={(e) => setTokenTarjeta(e.target.value)}
-                className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm bg-white"
+                className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm bg-superficie"
               >
                 <option value="tok_ok_4242">Pago aprobado</option>
                 <option value="tok_rechazo_1111">Pago rechazado (fondos insuficientes)</option>
@@ -322,8 +402,8 @@ export default function Carrito({ usuario, carrito, recargarCarrito }) {
 
         <button
           onClick={pagar}
-          disabled={procesando || items.length === 0}
-          className="mt-5 w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 text-white font-semibold py-2.5 rounded-lg transition"
+          disabled={procesando || items.length === 0 || !direccionElegida}
+          className="mt-5 w-full btn-primario py-2.5 rounded-lg transition"
         >
           {procesando ? 'Procesando la compra...' : `Pagar ${moneda(totales.total)}`}
         </button>

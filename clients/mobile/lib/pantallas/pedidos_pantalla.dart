@@ -19,7 +19,7 @@ class _PedidosPantallaState extends State<PedidosPantalla> {
     'creado': Colors.grey,
     'pagado': Colors.blue,
     'en_preparacion': Colors.orange,
-    'enviado': Colors.indigo,
+    'enviado': Color(0xFF047857),
     'entregado': Colors.green,
     'cancelado': Colors.red,
   };
@@ -73,7 +73,7 @@ class _PedidosPantallaState extends State<PedidosPantalla> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Mis pedidos'),
-        backgroundColor: Colors.indigo,
+        backgroundColor: const Color(0xFF047857),
         foregroundColor: Colors.white,
         actions: [IconButton(icon: const Icon(Icons.refresh), onPressed: _cargar)],
       ),

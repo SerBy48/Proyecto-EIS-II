@@ -177,7 +177,7 @@ class _CarritoPantallaState extends State<CarritoPantalla> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Mi carrito'),
-        backgroundColor: Colors.indigo,
+        backgroundColor: const Color(0xFF047857),
         foregroundColor: Colors.white,
       ),
       body: _cargando
@@ -292,7 +292,7 @@ class _CarritoPantallaState extends State<CarritoPantalla> {
               child: ElevatedButton(
                 onPressed: _procesando ? null : _pagar,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.indigo,
+                  backgroundColor: const Color(0xFF047857),
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
