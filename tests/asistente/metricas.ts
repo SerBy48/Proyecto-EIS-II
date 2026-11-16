@@ -9,9 +9,11 @@
  */
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { Intencion, Pendiente, clasificar } from '../../services/asistente-service/src/motor';
+import { Intencion, Pendiente, Vocabulario, clasificar } from '../../services/asistente-service/src/motor';
 import datos from '../../services/asistente-service/src/datos/intenciones.json';
 import frases from './frases.json';
+import serbytek from './frases-serbytek.json';
+import { vocabularioDelCatalogo } from './vocabulario';
 
 export interface Caso {
   frase: string;
@@ -27,11 +29,12 @@ export interface Medicion {
   confusion: Map<string, Map<string, number>>;
 }
 
-export const medir = (casos: Caso[], intenciones = datos.intenciones as Intencion[]): Medicion => {
+/** El motor se mide con el vocabulario del catalogo, como en produccion. */
+export const medir = (casos: Caso[], intenciones = datos.intenciones as Intencion[], vocabulario: Vocabulario = vocabularioDelCatalogo()): Medicion => {
   const confusion = new Map<string, Map<string, number>>();
   const errores: Medicion['errores'] = [];
   for (const caso of casos) {
-    const obtenida = clasificar(caso.frase, intenciones, caso.contexto).intencion;
+    const obtenida = clasificar(caso.frase, intenciones, caso.contexto, vocabulario).intencion;
     const fila = confusion.get(caso.esperada) ?? new Map<string, number>();
     fila.set(obtenida, (fila.get(obtenida) ?? 0) + 1);
     confusion.set(caso.esperada, fila);
@@ -61,29 +64,33 @@ const matriz = (m: Medicion): string => {
 const principal = (): void => {
   const desarrollo = medir(frases.desarrollo as Caso[]);
   const evaluacion = medir(frases.evaluacion as Caso[]);
-  const total = medir([...frases.desarrollo, ...frases.evaluacion] as Caso[]);
+  const tienda = medir(serbytek.evaluacion as Caso[]);
+  const total = medir([...frases.desarrollo, ...frases.evaluacion, ...serbytek.evaluacion] as Caso[]);
 
   const lineas = [
     '# Asistente virtual: tasa de acierto de intenciones',
     '',
-    `Generado con \`npm run asistente:metricas -- --guardar\` el ${new Date().toISOString().slice(0, 10)}. Motor de reglas con las intenciones iniciales; sin IA.`,
+    `Generado con \`npm run asistente:metricas -- --guardar\` el ${new Date().toISOString().slice(0, 10)}. Motor de reglas con las intenciones de \`intenciones.json\` y el vocabulario del catalogo; sin IA.`,
     '',
     '| Conjunto | Frases | Aciertos | Tasa de acierto |',
     '|---|---:|---:|---:|',
     `| Desarrollo (se usa para ajustar los terminos) | ${desarrollo.total} | ${desarrollo.aciertos} | ${porcentaje(desarrollo.tasa)} |`,
-    `| **Evaluacion (no se ajusta; es la cifra que se reporta)** | ${evaluacion.total} | ${evaluacion.aciertos} | **${porcentaje(evaluacion.tasa)}** |`,
+    `| Evaluacion de la Fase 3 (no se ajusta) | ${evaluacion.total} | ${evaluacion.aciertos} | ${porcentaje(evaluacion.tasa)} |`,
+    `| **Evaluacion SerByTek (escrita antes del motor nuevo; es la cifra que se reporta)** | ${tienda.total} | ${tienda.aciertos} | **${porcentaje(tienda.tasa)}** |`,
     `| Total | ${total.total} | ${total.aciertos} | ${porcentaje(total.tasa)} |`,
     '',
-    '## Matriz de confusion (conjunto de evaluacion)',
+    'Primera medicion del conjunto SerByTek (2026-11-16): 49 de 50 (98,0 %). La frase fallida, "Hay audífonos disponibles?", revelo un defecto en `singular()` ("disponibles" -> "disponibl"); se corrigio la regla del plural, no los terminos, y la cifra de arriba es la medicion posterior (docs/PRUEBAS.md, 4.33).',
+    '',
+    '## Matriz de confusion (evaluacion SerByTek)',
     '',
     'Filas: intencion esperada. Columnas: intencion que dio el motor. La diagonal en negrita son aciertos; ⚠ marca confusiones.',
     '',
-    matriz(evaluacion),
+    matriz(tienda),
     '',
     '## Errores',
     '',
     ...(total.errores.length
-      ? ['| Conjunto | Frase | Esperada | Obtenida |', '|---|---|---|---|', ...total.errores.map((e) => `| ${frases.desarrollo.some((d) => d.frase === e.frase) ? 'desarrollo' : 'evaluacion'} | ${e.frase} | ${e.esperada} | ${e.obtenida} |`)]
+      ? ['| Conjunto | Frase | Esperada | Obtenida |', '|---|---|---|---|', ...total.errores.map((e) => `| ${frases.desarrollo.some((d) => d.frase === e.frase) ? 'desarrollo' : serbytek.evaluacion.some((d) => d.frase === e.frase) ? 'SerByTek' : 'evaluacion F3'} | ${e.frase} | ${e.esperada} | ${e.obtenida} |`)]
       : ['Ninguno.'])
   ];
   const informe = lineas.join('\n') + '\n';
