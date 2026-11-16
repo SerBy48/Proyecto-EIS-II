@@ -23,7 +23,10 @@ Salud del sistema  http://localhost:8080
          └─ mongo:notificaciones_db conectado
          └─ rabbitmq             conectado
          └─ correo               conectado
+  OK   asistente        ok
+         └─ mongo:asistente_db   conectado
+         └─ rabbitmq             conectado
 
-Los nueve servicios responden. El sistema esta listo.
+Los 10 servicios (gateway incluido) responden. El sistema esta listo.
 Siguiente paso: npm run test:e2e
 

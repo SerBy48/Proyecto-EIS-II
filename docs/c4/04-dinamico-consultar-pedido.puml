@@ -1,0 +1,36 @@
+@startuml 04-dinamico-consultar-pedido
+!include lib/C4_Sequence.puml
+!include estilo.puml
+title Dinamico - "Consultar mi pedido" por el asistente (dos turnos, con aislamiento)
+
+Person(cliente, "Cliente (Ana)")
+Container(web, "Web", "Asistente.jsx")
+Container(gw, "API Gateway")
+Container(asis, "asistente-service")
+ContainerDb(mongo, "asistente_db")
+Container(ped, "pedidos-service")
+
+Rel(cliente, web, "«cual es el estado de mis pedidos?»")
+Rel(web, gw, "POST /api/asistente/mensajes + Authorization: Bearer <JWT de Ana>")
+Rel(gw, asis, "ruta publica; limite 30/min")
+Rel(asis, asis, "identidadOpcional: verifica el JWT; motor -> estado_pedido")
+Rel(asis, ped, "GET / con el MISMO Authorization (sin x-llamada-interna)")
+note right of ped: pedidos aplica requiereRol() y\nfiltra por el cliente_id DEL TOKEN (invariante 1)
+Rel(ped, asis, "solo los pedidos de Ana")
+Rel(asis, mongo, "guarda el turno (enmascarado) y pendiente = {estado_pedido, espera: pedido}")
+Rel(asis, web, "texto + tarjetas de pedidos + «escribe su numero»")
+Rel(cliente, web, "«el 106»")
+Rel(web, gw, "POST /mensajes {conversacion_id, texto}")
+Rel(gw, asis, "")
+Rel(asis, mongo, "lee la conversacion: es de Ana y espera un pedido")
+Rel(asis, ped, "GET /106 con el JWT de Ana")
+alt el pedido es de Ana
+  Rel(ped, asis, "200 pedido")
+  Rel(asis, web, "«Tu pedido PED-... esta pagado» + tarjeta")
+else el pedido es de otra persona
+  Rel(ped, asis, "404 (como en la API)")
+  Rel(asis, web, "«No encontre el pedido 106 entre tus pedidos»")
+else pedidos-service caido
+  Rel(asis, web, "«No puedo consultar tus pedidos en este momento» (circuit breaker)")
+end
+@enduml

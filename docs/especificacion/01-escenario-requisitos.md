@@ -3,7 +3,7 @@
 Primer documento de la especificación del Trabajo Final. Consolida el problema de negocio, los actores, los requisitos funcionales y los atributos de calidad. Los requisitos funcionales salen de los routers reales (`services/*/src/index.ts`). Los atributos de calidad se escriben como escenarios medibles: son los criterios que la Fase 4 mide con k6, ZAP y las pruebas de usabilidad.
 
 Marcas usadas:
-- 🆕 requisito nuevo del Trabajo Final, todavía no implementado (Fase 2 o 3).
+- 🆕 requisito nuevo del Trabajo Final. Los de las Fases 2 y 3 ya están implementados: RF-35 (correo SMTP) y RF-37 (Swagger UI) en la Fase 2, y RF-ASIS-01 a 10 en la Fase 3 ([`03-asistente-virtual.md`](03-asistente-virtual.md)). RNF-11 y RNF-23 (despliegue en frío y CI) quedan para la Fase 5.
 - Los demás requisitos ya están implementados y cubiertos por `test:http`, `test:e2e` o `test:concurrencia`.
 
 ---

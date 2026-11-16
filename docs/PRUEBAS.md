@@ -7,8 +7,8 @@ electrónico.
 | | |
 |---|---|
 | **Última ejecución** | 15 de noviembre de 2026 (servicios en contenedores, base poblada con `npm run sembrar:carga` y secretos propios en `.env`) |
-| **Casos ejecutados** | 251: 157 de integración (33 de concurrencia + 73 por HTTP + 51 extremo a extremo) y 94 unitarias. Además, 313 comprobaciones de cobertura de la especificación OpenAPI |
-| **Resultado** | 251 pasan, 0 fallan; las 313 comprobaciones de OpenAPI pasan. Cobertura unitaria: 71,2 % de las líneas |
+| **Casos ejecutados** | 314: 203 de integración (33 de concurrencia + 73 por HTTP + 51 extremo a extremo + 46 del asistente) y 111 unitarias. Además, 355 comprobaciones de cobertura de la especificación OpenAPI |
+| **Resultado** | 314 pasan, 0 fallan; las 355 comprobaciones de OpenAPI pasan. Asistente: 91,7 % de acierto de intenciones en el conjunto de evaluación |
 | **Entorno** | Windows 11, Node 25, Docker: PostgreSQL 16 (puerto 5434 del host), MongoDB 7, Redis 7, RabbitMQ 3 y Mailpit 1.27. Infraestructura completa |
 | **Evidencia** | [`evidencia/`](evidencia/) — salida literal de cada suite |
 
@@ -28,6 +28,7 @@ los siguientes no aportan información útil.
 | 5. Integración E2E | El flujo de compra completo de 15 pasos, incluido el correo real en Mailpit | `npm run test:e2e` | **infraestructura completa** |
 | 0. Unitarias | Lógica aislada: circuit breaker, reintentos, JWT y RBAC, bus de eventos, totales del carrito, plantillas, esquema del ORM | `npm run test:unit` | nada |
 | 0. Documentación | La especificación OpenAPI cubre exactamente las rutas y los roles del código | `npm run test:openapi` | nada |
+| 6. Asistente | Intenciones, contexto, aislamiento entre clientes, escalamiento, degradación | `npm run test:asistente` | **infraestructura completa** |
 
 El nivel 3 es el central del laboratorio: verifica la pregunta 5 del análisis
 atacando directamente la función `reservar_stock` de PostgreSQL, sin pasar por la
@@ -364,6 +365,14 @@ pedidos          ok=True
 pagos            ok=True
 notificaciones   ok=False  estado=inalcanzable
 ```
+
+---
+
+### Nivel 6 — Asistente virtual (Trabajo Final, Fase 3)
+
+`npm run test:asistente` → **46 comprobaciones, 46 pasan**, con la degradación activada
+([`evidencia/07-asistente.txt`](evidencia/07-asistente.txt)). El detalle y la tasa de acierto
+del motor están en [`especificacion/03-asistente-virtual.md`](especificacion/03-asistente-virtual.md).
 
 ---
 
@@ -757,6 +766,27 @@ Con el envío simulado no se veía, porque nunca fallaba.
 **Corrección.** El reintento va directo a la cola del consumidor que falló (`sendToQueue`).
 
 **Verificación.** Prueba unitaria `bus-eventos.test.ts`: el reintento usa `sendToQueue` hacia su propia cola y nunca `publish`.
+
+### 4.28 Todos los escalamientos de visitantes compartían la misma clave de deduplicación
+
+Lo encontró el diseño del escalamiento del asistente (Fase 3).
+
+**Síntoma.** Notificaciones arma `clave_dedupe` con el evento y el primer identificador disponible (`pedido_id`, `sku` o `cliente_id`). Un escalamiento de un visitante no trae ninguno, así que su clave era siempre `asistente.escalamiento::`. Solo se avisaba a operaciones del **primero**; los siguientes se descartaban como duplicados.
+
+**Corrección.** El número de ticket entra en la clave.
+
+**Verificación.** `test:asistente`, sección 4: el correo de cada ticket llega a Mailpit.
+
+### Defectos del código nuevo que encontraron sus propias pruebas
+
+No llegaron a integrarse, pero se documentan porque muestran qué detectó cada prueba:
+
+| Prueba | Defecto | Corrección |
+|---|---|---|
+| Frases de desarrollo (`asistente:metricas`) | Un número de pedido suelto, como respuesta a «¿cuál quieres ver?», se clasificaba como cancelación: los refuerzos por entidad contaban como palabras | El contexto solo mira los términos |
+| Unitaria del enmascarado | `PED-202611-001105` se ocultaba como si fuera una tarjeta | El patrón excluye los números precedidos de letras y guion |
+| axe en el recorrido de la interfaz | Contraste insuficiente (`text-gray-400`) en el SKU y la fecha de las tarjetas | `text-gray-500` (4,8:1) |
+| `npm run test:seguridad` (V-05) | Falso positivo: un comentario mencionaba la API de HTML crudo de React | Se reformuló el comentario; la verificación no se tocó |
 
 ---
 

@@ -8,8 +8,8 @@ Plataforma de comercio electrónico con arquitectura de microservicios
 ## Estructura
 
 ```
-packages/shared/        Librería transversal. La usan los nueve servicios.
-services/               9 servicios: api-gateway + 8 microservicios
+packages/shared/        Librería transversal. La usan los diez servicios.
+services/               10 servicios: api-gateway + 9 microservicios (incluido el asistente)
 clients/web/            React + Vite + Tailwind (tienda y panel admin)
 clients/mobile/         Flutter. SOLO lib/ y pubspec.yaml
 infra/postgres/         Esquemas SQL, se ejecutan por orden alfabético
@@ -33,6 +33,7 @@ docs/                   Arquitectura, flujo, comunicación, análisis, api.http
 | pedidos-service | 3006 | PostgreSQL `pedidos_db` |
 | pagos-service | 3007 | PostgreSQL `pagos_db` |
 | notificaciones-service | 3008 | MongoDB `notificaciones_db` |
+| asistente-service | 3009 | MongoDB `asistente_db` |
 | web | 5173 | — |
 | Mailpit (correo de pruebas) | 8025 (web y API), 1025 (SMTP) | — |
 
@@ -46,16 +47,19 @@ RabbitMQ 5672 (consola 15672).
 ```bash
 npm install                 # instala todos los workspaces de una vez
 npm run infra:up            # motores de datos en Docker
-npm run dev                 # los nueve servicios con recarga
+npm run dev                 # los diez servicios con recarga
 npm run dev:pedidos         # uno solo
 npm run dev:web             # cliente web
 npm run typecheck           # tipos de todos los paquetes
-npm run test:salud          # los nueve servicios responden
+npm run test:salud          # todos los servicios responden
 npm run test:concurrencia   # no hay sobreventa
 npm run test:e2e            # flujo de compra completo (incluye el correo en Mailpit)
 npm run test:unit           # pruebas unitarias con Vitest (sin Docker); :cobertura para el reporte
 npm run test:openapi        # la especificacion OpenAPI cubre exactamente las rutas del codigo
 npm run docs:openapi        # valida (Redocly) y empaqueta docs/openapi para el gateway
+npm run test:asistente      # asistente contra el gateway (ASISTENTE_PROBAR_DEGRADACION=1: detiene pedidos)
+npm run asistente:metricas  # tasa de acierto de intenciones y matriz de confusion (-- --guardar)
+npm run infra:asistente     # crea asistente_db en un volumen de Mongo que ya existe (idempotente)
 npm run infra:reset         # borra volúmenes y recrea desde cero
 npm run test:seguridad      # 16 verificaciones de seguridad (ver docs/calidad/SEGURIDAD.md)
 npm run usabilidad:recorrido # 8 tareas en Chromium: KLM, capturas y axe (requiere vite preview en 4173)
@@ -169,6 +173,12 @@ petición queda colgada. Para los errores se usan los constructores de
     (`esFalloDelServicio()`). Si contara los 4xx, un cliente con seis SKU
     inexistentes abriría el circuito para todos.
 
+15. **El asistente consulta pedidos con el token del usuario, nunca como
+    llamada interna.** `ClienteServicio` con la opción `autorizacion` reenvía
+    el `Authorization` sin `x-llamada-interna`, y pedidos-service aplica su
+    RBAC y su autorización por dato. Con una llamada interna, cualquiera vería
+    por el chat los pedidos de otro cliente (`test:asistente` lo verifica).
+
 ---
 
 ## Dónde está cada cosa
@@ -190,6 +200,8 @@ petición queda colgada. Para los errores se usan los constructores de
 | Swagger UI | `services/api-gateway/src/documentacion.ts` → `/api/docs` |
 | Totales del carrito (IVA, envío, cupón) | `services/carrito-service/src/totales.ts` |
 | Scripts de base de datos | `infra/README.md` |
+| Asistente: motor, diálogo, intenciones y FAQ | `services/asistente-service/src/{motor,dialogo}.ts`, `src/datos/*.json` |
+| Chat de la web | `clients/web/src/componentes/Asistente.jsx` |
 | Especificación, C4 y ADR del Trabajo Final | `docs/especificacion/`, `docs/c4/`, `docs/adr/` |
 
 ---
@@ -219,8 +231,9 @@ Tokens de la pasarela simulada (resultado determinista):
 
 **Verificado y funcionando** (ver `docs/PRUEBAS.md` para el detalle y la
 evidencia; última ejecución el 2026-11-15 con los servicios en contenedores y la
-base poblada con `npm run sembrar:carga`): 157 casos de integración y 94
-unitarios, todos pasan; `test:openapi` pasa sus 313 comprobaciones. Los nueve servicios compilan y arrancan sanos; la prueba
+base poblada con `npm run sembrar:carga`): 157 casos de integración y 111
+unitarios, todos pasan; `test:openapi` pasa sus 355 comprobaciones y
+`test:asistente` sus 46. Los diez servicios compilan y arrancan sanos; la prueba
 de concurrencia pasa sus 33 comprobaciones (20 compradores simultáneos por 5
 unidades → exactamente 5 ganan); `test:http` pasa sus 73 casos sobre
 autenticación, RBAC, aislamiento entre clientes, idempotencia, los cuatro
