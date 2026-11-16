@@ -1,0 +1,59 @@
+
+
+  █ THRESHOLDS 
+
+    checks
+    ✓ 'rate>0.99' rate=100.00%
+
+    http_req_duration{endpoint:catalogo_busqueda}
+    ✓ 'p(95)<500' p(95)=23.57ms
+
+    http_req_duration{endpoint:checkout}
+    ✓ 'p(95)<1500' p(95)=392.2ms
+
+    http_req_duration{endpoint:login}
+    ✓ 'p(95)<1000' p(95)=233.21ms
+
+    http_req_duration{endpoint:mis_pedidos}
+    ✓ 'p(95)<500' p(95)=27.67ms
+
+    http_req_failed
+    ✓ 'rate<0.01' rate=0.00%
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 12299   44.839414/s
+    checks_succeeded...: 100.00% 12299 out of 12299
+    checks_failed......: 0.00%   0 out of 12299
+
+    ✓ login 200
+    ✓ catalogo 200
+    ✓ detalle 200
+    ✓ carrito 200
+    ✓ checkout 201/200
+    ✓ pedido queda pagado
+    ✓ mis pedidos 200
+
+    HTTP
+    http_req_duration..................: avg=80.96ms  min=2.51ms   med=11.78ms  p(90)=267.84ms p(95)=292.69ms p(99)=389.67ms max=990.7ms 
+      { endpoint:catalogo_busqueda }...: avg=10.2ms   min=2.51ms   med=7.67ms   p(90)=17.41ms  p(95)=23.57ms  p(99)=51.03ms  max=170.04ms
+      { endpoint:checkout }............: avg=292.3ms  min=222.07ms med=272.11ms p(90)=346.08ms p(95)=392.2ms  p(99)=654.97ms max=990.7ms 
+      { endpoint:login }...............: avg=148.87ms min=89.07ms  med=135.12ms p(90)=193.29ms p(95)=233.21ms p(99)=372.59ms max=616.12ms
+      { endpoint:mis_pedidos }.........: avg=12.85ms  min=5.44ms   med=9.74ms   p(90)=21.98ms  p(95)=27.67ms  p(99)=57.62ms  max=225.29ms
+      { expected_response:true }.......: avg=80.96ms  min=2.51ms   med=11.78ms  p(90)=267.84ms p(95)=292.69ms p(99)=389.67ms max=990.7ms 
+    http_req_failed....................: 0.00%  0 out of 10592
+    http_reqs..........................: 10592  38.616072/s
+
+    EXECUTION
+    iteration_duration.................: avg=6.49s    min=6.36s    med=6.46s    p(90)=6.59s    p(95)=6.69s    p(99)=6.96s    max=7.31s   
+    iterations.........................: 1757   6.405631/s
+    vus................................: 1      min=0          max=50
+    vus_max............................: 50     min=50         max=50
+
+    NETWORK
+    data_received......................: 40 MB  146 kB/s
+    data_sent..........................: 3.0 MB 11 kB/s
+
+
+

@@ -1,0 +1,416 @@
+== 2026-11-16T03:00:49-05:00 reintento tras el arranque en frio fallido (RabbitMQ unhealthy)
+ Image ecommerce-distribuido-auth-service Building 
+ Image ecommerce-distribuido-carrito-service Building 
+ Image ecommerce-distribuido-clientes-service Building 
+ Image ecommerce-distribuido-catalogo-service Building 
+ Image ecommerce-distribuido-api-gateway Building 
+ Image ecommerce-distribuido-asistente-service Building 
+ Image ecommerce-distribuido-pagos-service Building 
+ Image ecommerce-distribuido-inventario-service Building 
+ Image ecommerce-distribuido-notificaciones-service Building 
+ Image ecommerce-distribuido-pedidos-service Building 
+#1 [internal] load local bake definitions
+#1 reading from stdin 6.12kB 0.1s done
+#1 DONE 0.1s
+
+#2 [notificaciones-service internal] load build definition from Dockerfile.servicio
+#2 transferring dockerfile: 39B 0.1s
+#2 transferring dockerfile: 2.69kB 0.1s done
+#2 DONE 0.3s
+
+#2 [api-gateway internal] load build definition from Dockerfile.servicio
+#2 DONE 0.3s
+
+#3 [pagos-service internal] load metadata for docker.io/library/node:22-alpine
+#3 DONE 1.1s
+
+#4 [asistente-service internal] load .dockerignore
+#4 transferring context: 128B 0.0s done
+#4 DONE 0.0s
+
+#5 [notificaciones-service internal] load build context
+#5 transferring context: 7.17kB 0.1s done
+#5 DONE 0.1s
+
+#6 [notificaciones-service  1/18] FROM docker.io/library/node:22-alpine@sha256:1314fb30ec37592d5845e5a160d522c0e680972aa534549940b8d73bde88481a
+#6 resolve docker.io/library/node:22-alpine@sha256:1314fb30ec37592d5845e5a160d522c0e680972aa534549940b8d73bde88481a 0.1s done
+#6 DONE 0.1s
+
+#7 [pedidos-service  9/18] COPY services/inventario-service/package.json ./services/inventario-service/
+#7 CACHED
+
+#8 [pedidos-service  5/18] COPY services/api-gateway/package.json ./services/api-gateway/
+#8 CACHED
+
+#9 [pedidos-service 15/18] COPY clients/web/package.json ./clients/web/
+#9 CACHED
+
+#10 [pedidos-service 13/18] COPY services/notificaciones-service/package.json ./services/notificaciones-service/
+#10 CACHED
+
+#11 [pedidos-service 10/18] COPY services/carrito-service/package.json ./services/carrito-service/
+#11 CACHED
+
+#12 [pedidos-service  8/18] COPY services/catalogo-service/package.json ./services/catalogo-service/
+#12 CACHED
+
+#13 [pedidos-service 17/18] COPY packages ./packages
+#13 CACHED
+
+#14 [pedidos-service  7/18] COPY services/clientes-service/package.json ./services/clientes-service/
+#14 CACHED
+
+#15 [pedidos-service  2/18] WORKDIR /app
+#15 CACHED
+
+#16 [pedidos-service  4/18] COPY packages/shared/package.json ./packages/shared/
+#16 CACHED
+
+#17 [pedidos-service  6/18] COPY services/auth-service/package.json ./services/auth-service/
+#17 CACHED
+
+#18 [pedidos-service 11/18] COPY services/pedidos-service/package.json ./services/pedidos-service/
+#18 CACHED
+
+#19 [pedidos-service 12/18] COPY services/pagos-service/package.json ./services/pagos-service/
+#19 CACHED
+
+#20 [pedidos-service  3/18] COPY package.json package-lock.json* tsconfig.base.json ./
+#20 CACHED
+
+#21 [pedidos-service 16/18] RUN npm install --ignore-scripts
+#21 CACHED
+
+#22 [pedidos-service 14/18] COPY services/asistente-service/package.json ./services/asistente-service/
+#22 CACHED
+
+#23 [pedidos-service 18/18] COPY services ./services
+#23 CACHED
+
+#17 [auth-service  6/18] COPY services/auth-service/package.json ./services/auth-service/
+#17 CACHED
+
+#15 [auth-service  2/18] WORKDIR /app
+#15 CACHED
+
+#16 [auth-service  4/18] COPY packages/shared/package.json ./packages/shared/
+#16 CACHED
+
+#20 [auth-service  3/18] COPY package.json package-lock.json* tsconfig.base.json ./
+#20 CACHED
+
+#13 [auth-service 17/18] COPY packages ./packages
+#13 CACHED
+
+#11 [auth-service 10/18] COPY services/carrito-service/package.json ./services/carrito-service/
+#11 CACHED
+
+#14 [auth-service  7/18] COPY services/clientes-service/package.json ./services/clientes-service/
+#14 CACHED
+
+#22 [auth-service 14/18] COPY services/asistente-service/package.json ./services/asistente-service/
+#22 CACHED
+
+#19 [auth-service 12/18] COPY services/pagos-service/package.json ./services/pagos-service/
+#19 CACHED
+
+#8 [auth-service  5/18] COPY services/api-gateway/package.json ./services/api-gateway/
+#8 CACHED
+
+#9 [auth-service 15/18] COPY clients/web/package.json ./clients/web/
+#9 CACHED
+
+#10 [auth-service 13/18] COPY services/notificaciones-service/package.json ./services/notificaciones-service/
+#10 CACHED
+
+#21 [auth-service 16/18] RUN npm install --ignore-scripts
+#21 CACHED
+
+#18 [auth-service 11/18] COPY services/pedidos-service/package.json ./services/pedidos-service/
+#18 CACHED
+
+#12 [auth-service  8/18] COPY services/catalogo-service/package.json ./services/catalogo-service/
+#12 CACHED
+
+#7 [auth-service  9/18] COPY services/inventario-service/package.json ./services/inventario-service/
+#7 CACHED
+
+#24 [asistente-service] exporting to image
+#24 exporting layers 0.0s done
+#24 exporting manifest sha256:f77e6392be0534ce5df99c5884a22992af4d5d0e3015661cf7b9948b117cb96b
+#24 exporting manifest sha256:f77e6392be0534ce5df99c5884a22992af4d5d0e3015661cf7b9948b117cb96b done
+#24 exporting config sha256:15a5ade19474cc112deb34dfcf1e145d9ebd63f237938b54ff6ecbd8166e0272 0.1s done
+#24 exporting attestation manifest sha256:1fe5055dacb2a95ef799faa9f717e88bba15554319d86d5365efb262bd2a4f95
+#24 exporting attestation manifest sha256:1fe5055dacb2a95ef799faa9f717e88bba15554319d86d5365efb262bd2a4f95 0.6s done
+#24 exporting manifest list sha256:a08ab93ab23b46e8908b0f703309bceb88a3a8558a4809cd69ba66530b457f03
+#24 exporting manifest list sha256:a08ab93ab23b46e8908b0f703309bceb88a3a8558a4809cd69ba66530b457f03 0.3s done
+#24 naming to docker.io/library/ecommerce-distribuido-asistente-service:latest
+#24 naming to docker.io/library/ecommerce-distribuido-asistente-service:latest 0.1s done
+#24 unpacking to docker.io/library/ecommerce-distribuido-asistente-service:latest
+#24 unpacking to docker.io/library/ecommerce-distribuido-asistente-service:latest 0.1s done
+#24 ...
+
+#25 [clientes-service] exporting to image
+#25 exporting layers 0.0s done
+#25 exporting manifest sha256:181977ca81138390ae1f6df87834ba06f0985199bb06080f048af6b871e8524b 0.0s done
+#25 exporting config sha256:0302f0e8e694b59d8b7e3939395841ba15c71d0ff09fea489f5176a3ff87aa1b 0.0s done
+#25 exporting attestation manifest sha256:27bfe8086244226c253c02cd7b2f21174409c04d0672e39f90061a4fd18d149e 0.6s done
+#25 exporting manifest list sha256:2b5de77fd2c56b96d0a0f3d4306134dcbc15d8fa3f2387d8f27ae7349836a9aa 0.3s done
+#25 naming to docker.io/library/ecommerce-distribuido-clientes-service:latest 0.1s done
+#25 unpacking to docker.io/library/ecommerce-distribuido-clientes-service:latest 0.1s done
+#25 DONE 1.7s
+
+#26 [notificaciones-service] exporting to image
+#26 exporting layers 0.0s done
+#26 exporting manifest sha256:f6bb789b5b838ffbe6fa612601de92dfe0122463420c1ca4414ce4b7780aead5 0.0s done
+#26 exporting config sha256:a27181dec4d6d4c1a97c07f00ccfc6ca1a217848833cf59bc03b77c517d005ac 0.0s done
+#26 exporting attestation manifest sha256:3dc8d7c535efc5ddc10fcb95f615539aaa3d4ac58fb05f86d66f47e14fcb9a77 0.6s done
+#26 exporting manifest list sha256:205bb3eb5a6aeacd6e629449825b60a2590208ba816383170a248ab17af0324d 0.3s done
+#26 naming to docker.io/library/ecommerce-distribuido-notificaciones-service:latest 0.1s done
+#26 unpacking to docker.io/library/ecommerce-distribuido-notificaciones-service:latest 0.1s done
+#26 DONE 1.7s
+
+#27 [inventario-service] exporting to image
+#27 exporting layers 0.0s done
+#27 exporting manifest sha256:bc54a16cbcef6914c3e9492bfa75c72a8a35874946461e7b03f11db3c50fdd25 0.0s done
+#27 exporting config sha256:d601247fcf8e2e1a31fa01bb373c2f7860a6e393770086413977f5cca43465fa 0.0s done
+#27 exporting attestation manifest sha256:26249f5836a8fb8c3079c2115b1020f570f75c941148495e3f35c7d5f8fc9222 0.6s done
+#27 exporting manifest list sha256:cefd160066b56674e6d922945e9eed1d98b566258d7d45285e0100c71ba439d8 0.3s done
+#27 naming to docker.io/library/ecommerce-distribuido-inventario-service:latest 0.1s done
+#27 unpacking to docker.io/library/ecommerce-distribuido-inventario-service:latest 0.1s done
+#27 DONE 1.8s
+
+#28 [pagos-service] exporting to image
+#28 exporting layers 0.0s done
+#28 exporting manifest sha256:1eb85547b8af9c55d1601f0e27e132f405695c0fad9c12f30339dead866e7e0f 0.0s done
+#28 exporting config sha256:7c21587212cd1627c69447a166e4f28f94908a941ddef373e96d2f2dd17bf260 0.0s done
+#28 exporting attestation manifest sha256:b51725aaccb790660b142054d56a2b1a123529928a3feffa4e61b341c9ceb603 0.6s done
+#28 exporting manifest list sha256:59c90fd445d5863eda3444d7e3678bbb8b0b37058e4ec505e25779ab949f02e5 0.3s done
+#28 naming to docker.io/library/ecommerce-distribuido-pagos-service:latest 0.1s done
+#28 unpacking to docker.io/library/ecommerce-distribuido-pagos-service:latest 0.1s done
+#28 DONE 1.8s
+
+#24 [asistente-service] exporting to image
+#24 DONE 1.8s
+
+#29 [pedidos-service] exporting to image
+#29 exporting layers 0.0s done
+#29 exporting manifest sha256:10c013d0bb59ade67813034adb4fc27b8455239405e0ee48f57849c5c76fb78c 0.1s done
+#29 exporting config sha256:250aef2eac8a639e05a95386538c7e63618ed2fa45fa2d8c88e3099f94c6d74a 0.1s done
+#29 exporting attestation manifest sha256:3004426735e3f92370b59262675093bb2d217bd67af2f793dc4398feeaf34708 0.6s done
+#29 exporting manifest list sha256:4179e139ef80f854e76cbde34a0b12d2105121b19af85dc23bf815d82fc3b938 0.2s done
+#29 naming to docker.io/library/ecommerce-distribuido-pedidos-service:latest 0.1s done
+#29 unpacking to docker.io/library/ecommerce-distribuido-pedidos-service:latest 0.1s done
+#29 DONE 1.8s
+
+#30 [catalogo-service] exporting to image
+#30 exporting layers 0.0s done
+#30 exporting manifest sha256:f08761d28df69d62ea6b69a04bee5e1f9017c55eb92cbc78cbd905ebcb97685d 0.0s done
+#30 exporting config sha256:cc652dbd8b8636c6609e2e0f9a2126f461b6ce2728192fc6fff8901c525b1ac9 0.1s done
+#30 exporting attestation manifest sha256:00bafc99bad45643579875536a294dd07077069eb29928deb4a7e90c98dadc24 0.6s done
+#30 exporting manifest list sha256:a716cbdbd54331fbaf695b7cae664f3a8206f303a871607747658e40a9bb41d1 0.3s done
+#30 naming to docker.io/library/ecommerce-distribuido-catalogo-service:latest 0.1s done
+#30 unpacking to docker.io/library/ecommerce-distribuido-catalogo-service:latest 0.1s done
+#30 DONE 1.8s
+
+#31 [carrito-service] exporting to image
+#31 exporting layers 0.0s done
+#31 exporting manifest sha256:78f93bbac5088478318f907af4fe5af01f1e765e80f4983a567ba590941ef6d8 0.0s done
+#31 exporting config sha256:d9f176578bd83161103a3fa87e7a2ff6520e983760086da9cb8b786ded7a86cc 0.1s done
+#31 exporting attestation manifest sha256:73065469ba2920f6217f0936e1ac3561ee0a1663ec523081f3ed628ae3522fa0 0.6s done
+#31 exporting manifest list sha256:07cdd4b5cf0bde627be005ef2fc6449017652f059dbc0fc6392b499389756770 0.3s done
+#31 naming to docker.io/library/ecommerce-distribuido-carrito-service:latest 0.1s done
+#31 unpacking to docker.io/library/ecommerce-distribuido-carrito-service:latest 0.1s done
+#31 DONE 1.8s
+
+#32 [auth-service] exporting to image
+#32 exporting layers 0.0s done
+#32 exporting manifest sha256:fba44b29fedcb409b96b86dba388f833200cdf87b04bbc554ebd2719c63757de 0.0s done
+#32 exporting config sha256:e5eb574ba95875c780e1e6fbc6bdaa5d0763c98cb567c469878e93d29a5b0927 0.1s done
+#32 exporting attestation manifest sha256:4d1abe2d45743db4490cf63b1e00af241ab0c261583c91212cbc5a7c47f6c5d0 0.6s done
+#32 exporting manifest list sha256:b6dc6ca775a1b7734cae12a52792c8d74617f23c66f00e9b0bc36e6482c10caf 0.3s done
+#32 naming to docker.io/library/ecommerce-distribuido-auth-service:latest 0.1s done
+#32 unpacking to docker.io/library/ecommerce-distribuido-auth-service:latest 0.1s done
+#32 DONE 1.8s
+
+#33 [api-gateway] exporting to image
+#33 exporting layers 0.0s done
+#33 exporting manifest sha256:3fd58eddfd6a0a303b8397e4302d2ee79fbdbf818904e2d2657e124cbb6442cf 0.0s done
+#33 exporting config sha256:460923fc0bc9bff116c1af138fe372cb3af4e8e186cc64ad0c904ea5dc673c96 0.1s done
+#33 exporting attestation manifest sha256:53741b2106b10e42f88ad2ca02c1a5090743bb5c0dc91d1cff7b6aacbd4b42c6 0.6s done
+#33 exporting manifest list sha256:55abbcc26d71422ffc95a24e52670e57526bca726f05b96d0b7b20708c5fc1f0 0.3s done
+#33 naming to docker.io/library/ecommerce-distribuido-api-gateway:latest 0.1s done
+#33 unpacking to docker.io/library/ecommerce-distribuido-api-gateway:latest 0.1s done
+#33 DONE 1.9s
+
+#34 [clientes-service] resolving provenance for metadata file
+#34 DONE 1.0s
+
+#35 [pagos-service] resolving provenance for metadata file
+#35 DONE 0.8s
+
+#36 [pedidos-service] resolving provenance for metadata file
+#36 DONE 0.2s
+
+#37 [carrito-service] resolving provenance for metadata file
+#37 DONE 0.3s
+
+#38 [catalogo-service] resolving provenance for metadata file
+#38 DONE 0.7s
+
+#39 [auth-service] resolving provenance for metadata file
+#39 DONE 0.5s
+
+#40 [inventario-service] resolving provenance for metadata file
+#40 DONE 0.4s
+
+#41 [notificaciones-service] resolving provenance for metadata file
+#41 DONE 1.0s
+
+#42 [asistente-service] resolving provenance for metadata file
+#42 DONE 0.6s
+
+#43 [api-gateway] resolving provenance for metadata file
+#43 DONE 0.0s
+ Image ecommerce-distribuido-pedidos-service Built 
+ Image ecommerce-distribuido-asistente-service Built 
+ Image ecommerce-distribuido-carrito-service Built 
+ Image ecommerce-distribuido-auth-service Built 
+ Image ecommerce-distribuido-inventario-service Built 
+ Image ecommerce-distribuido-clientes-service Built 
+ Image ecommerce-distribuido-pagos-service Built 
+ Image ecommerce-distribuido-notificaciones-service Built 
+ Image ecommerce-distribuido-catalogo-service Built 
+ Image ecommerce-distribuido-api-gateway Built 
+ Container ecom_postgres Running 
+ Container ecom_mongo Running 
+ Container ecom_mailpit Running 
+ Container ecom_redis Running 
+ Container ecom_rabbitmq Running 
+ Container ecom_carrito Recreate 
+ Container ecom_inventario Recreate 
+ Container ecom_pedidos Recreate 
+ Container ecom_clientes Recreate 
+ Container ecom_catalogo Recreate 
+ Container ecom_pagos Recreate 
+ Container ecom_auth Recreate 
+ Container ecom_asistente Recreate 
+ Container ecom_notificaciones Recreate 
+ Container ecom_notificaciones Recreated 
+ Container ecom_carrito Recreated 
+ Container ecom_inventario Recreated 
+ Container ecom_clientes Recreated 
+ Container ecom_auth Recreated 
+ Container ecom_pagos Recreated 
+ Container ecom_catalogo Recreated 
+ Container ecom_asistente Recreated 
+ Container ecom_pedidos Recreated 
+ Container ecom_gateway Recreate 
+ Container ecom_gateway Recreated 
+ Container ecom_rabbitmq Waiting 
+ Container ecom_postgres Waiting 
+ Container ecom_mongo Waiting 
+ Container ecom_postgres Waiting 
+ Container ecom_rabbitmq Waiting 
+ Container ecom_mongo Waiting 
+ Container ecom_mailpit Waiting 
+ Container ecom_rabbitmq Waiting 
+ Container ecom_postgres Waiting 
+ Container ecom_rabbitmq Waiting 
+ Container ecom_redis Waiting 
+ Container ecom_postgres Waiting 
+ Container ecom_postgres Waiting 
+ Container ecom_mongo Waiting 
+ Container ecom_rabbitmq Waiting 
+ Container ecom_rabbitmq Waiting 
+ Container ecom_mongo Healthy 
+ Container ecom_catalogo Starting 
+ Container ecom_rabbitmq Healthy 
+ Container ecom_rabbitmq Healthy 
+ Container ecom_postgres Healthy 
+ Container ecom_pedidos Starting 
+ Container ecom_postgres Healthy 
+ Container ecom_rabbitmq Healthy 
+ Container ecom_rabbitmq Healthy 
+ Container ecom_mailpit Healthy 
+ Container ecom_redis Healthy 
+ Container ecom_carrito Starting 
+ Container ecom_mongo Healthy 
+ Container ecom_mongo Healthy 
+ Container ecom_postgres Healthy 
+ Container ecom_asistente Starting 
+ Container ecom_inventario Starting 
+ Container ecom_rabbitmq Healthy 
+ Container ecom_clientes Starting 
+ Container ecom_postgres Healthy 
+ Container ecom_pagos Starting 
+ Container ecom_postgres Healthy 
+ Container ecom_auth Starting 
+ Container ecom_rabbitmq Healthy 
+ Container ecom_notificaciones Starting 
+ Container ecom_catalogo Started 
+ Container ecom_carrito Started 
+ Container ecom_inventario Started 
+ Container ecom_clientes Started 
+ Container ecom_pagos Started 
+ Container ecom_auth Started 
+ Container ecom_asistente Started 
+ Container ecom_notificaciones Started 
+ Container ecom_pedidos Started 
+ Container ecom_gateway Starting 
+ Container ecom_gateway Started 
+ Container ecom_auth Waiting 
+ Container ecom_mongo Waiting 
+ Container ecom_carrito Waiting 
+ Container ecom_rabbitmq Waiting 
+ Container ecom_catalogo Waiting 
+ Container ecom_redis Waiting 
+ Container ecom_inventario Waiting 
+ Container ecom_mailpit Waiting 
+ Container ecom_gateway Waiting 
+ Container ecom_pedidos Waiting 
+ Container ecom_clientes Waiting 
+ Container ecom_postgres Waiting 
+ Container ecom_notificaciones Waiting 
+ Container ecom_pagos Waiting 
+ Container ecom_asistente Waiting 
+ Container ecom_mailpit Healthy 
+ Container ecom_rabbitmq Healthy 
+ Container ecom_mongo Healthy 
+ Container ecom_postgres Healthy 
+ Container ecom_redis Healthy 
+ Container ecom_inventario Healthy 
+ Container ecom_carrito Healthy 
+ Container ecom_catalogo Healthy 
+ Container ecom_clientes Healthy 
+ Container ecom_notificaciones Healthy 
+ Container ecom_auth Healthy 
+ Container ecom_pedidos Healthy 
+ Container ecom_pagos Healthy 
+ Container ecom_asistente Healthy 
+ Container ecom_gateway Healthy 
+infra:carga 0
+ecom_asistente Up 20 seconds (healthy)
+ecom_auth Up 20 seconds (healthy)
+ecom_carrito Up 21 seconds (healthy)
+ecom_catalogo Up 21 seconds (healthy)
+ecom_clientes Up 20 seconds (healthy)
+ecom_gateway Up 19 seconds (healthy)
+ecom_inventario Up 21 seconds (healthy)
+ecom_mailpit Up 7 minutes (healthy)
+ecom_mongo Up 7 minutes (healthy)
+ecom_notificaciones Up 20 seconds (healthy)
+ecom_pagos Up 20 seconds (healthy)
+ecom_pedidos Up 21 seconds (healthy)
+ecom_postgres Up 7 minutes (healthy)
+ecom_rabbitmq Up 6 minutes (healthy)
+ecom_redis Up 7 minutes (healthy)
+  "skus_sin_registro_de_inventario": [],
+  "detalle_errores": []
+}
+1794816157 2026-11-16T03:02:37-05:00 inicio de la carga (catalogo-busqueda, perfil carga)
+1794816258 2026-11-16T03:04:18-05:00 docker stop ecom_inventario
+1794816320 2026-11-16T03:05:20-05:00 docker start ecom_inventario
+1794816437 2026-11-16T03:07:17-05:00 fin de la carga (codigo de ejecutar.sh: 99)
+1794816438 2026-11-16T03:07:18-05:00 muestras: 107
+== fin 2026-11-16T03:07:18-05:00

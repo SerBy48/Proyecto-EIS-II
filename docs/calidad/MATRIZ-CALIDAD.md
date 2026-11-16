@@ -108,4 +108,68 @@ Estado: ✅ cumple · ⚠️ parcial · ❌ no cumple · ⏳ pendiente de dato h
 
 **Usabilidad.** La tienda es accesible (sin incumplimientos de WCAG 2.2 AA), se adapta a móvil y es honesta con el estado del sistema en sus flujos centrales: el pago rechazado es su mejor pantalla. Sus fallas estaban en los bordes, y eran graves: solo cuatro cuentas de demostración podían entrar, el 72 % del catálogo era inalcanzable navegando y cancelar un pedido era irreversible con un clic y con el error escondido. Las cuatro están corregidas; quedan 12 hallazgos menores y cosméticos. **Falta la voz de los usuarios:** el SUS y la prueba con evaluadores están listos pero pendientes de dato humano.
 
-**En una frase:** el sistema es correcto bajo carga y seguro por diseño; sus problemas eran de capacidad en un punto (el login), de configuración (los secretos) y de acabado en los bordes de la interfaz. Los seis problemas críticos están corregidos y verificados con la misma prueba que los detectó.
+**En una frase (práctica):** el sistema es correcto bajo carga y seguro por diseño; sus problemas eran de capacidad en un punto (el login), de configuración (los secretos) y de acabado en los bordes de la interfaz. Los seis problemas críticos están corregidos y verificados con la misma prueba que los detectó.
+
+---
+
+## 4. Trabajo Final: versión final con el asistente (Fase 4)
+
+Se volvieron a ejecutar las tres dimensiones sobre la versión final (ORM, correo SMTP y asistente virtual), con el alcance ampliado del Trabajo Final:
+- el asistente como endpoint crítico;
+- la carga con un servicio detenido;
+- el cuello de botella entre servicios;
+- la tabla de controles del OWASP Top 10 ([`OWASP-CONTROLES.md`](OWASP-CONTROLES.md)).
+
+Detalle: [`RENDIMIENTO.md`](RENDIMIENTO.md) sección 9, [`SEGURIDAD.md`](SEGURIDAD.md) sección 10 y [`USABILIDAD.md`](USABILIDAD.md) sección 11.
+
+### 4.1 Re-medición
+
+| Dimensión | Criterio | Meta | Práctica (después) | Trabajo Final | Estado |
+|---|---|---|---|---|---|
+| Rendimiento | p95 del login, 50 VU (RNF-03) | < 1 000 ms | 1 280 ms | **981 ms** | ✅ en el límite (R1) |
+| Rendimiento | p95 del checkout, 50 VU (RNF-02) | < 1 500 ms | 734 ms | 621 ms | ✅ |
+| Rendimiento | p95 del checkout, 100 VU | < 1 500 ms | 2 116 ms (antes) | 1 414 ms (escalón de 1 min) | ✅ en el límite (R5) |
+| Rendimiento | p95 del catálogo, 50 VU (RNF-01) | < 500 ms | 146 ms | 74 ms | ✅ |
+| Rendimiento | p95 del asistente, 50 VU 🆕 | < 500 ms | — | **36 ms** (FAQ: 22 ms) | ✅ |
+| Rendimiento | Inventario detenido 61 s durante la carga (RNF-07) 🆕 | 0 errores; recuperación < 30 s | — | 0 errores; tras corregir R7, p99 de 76 ms (antes 6 373) y cierre a los 7 s | ✅ R7 corregido |
+| Rendimiento | Notificaciones detenido 62 s durante el checkout (RNF-08) 🆕 | 0 compras fallidas | — | 7 429 compras, 0 errores; cola máxima 2 233, vacía en 84 s | ✅ |
+| Rendimiento | Consumo de la cola de notificaciones | ≥ ritmo de producción | ~10 eventos/s | **~50 eventos/s** (SMTP real en lugar de 100 ms simulados) | ✅ (R6 rebajado) |
+| Rendimiento | Primer servicio en saturarse (estrés) | — | auth | **auth** (237 % de CPU); los errores con 300 VU son 503 de su cola acotada | — |
+| Seguridad | Verificaciones manuales | 0 hallazgos | 1 de 16 (S-09) | **1 de 21** (S-09); las 5 del asistente (V-17 a V-21) seguras | ✅ |
+| Seguridad | Dependencias de producción (`npm audit`) 🆕 | 0 altas | — | 2 altas y 1 moderada → **0** tras `npm audit fix` | ✅ S-12 corregido |
+| Seguridad | Escaneo activo de ZAP sobre la API, con el asistente | 0 FAIL; solo falsos positivos | 151 URL, 0 FAIL, 1 advertencia (FP-2) | **174 URL**, 0 FAIL, 1 advertencia (FP-2) | ✅ |
+| Usabilidad | Tareas completadas | Todas | 8/8 | **9/9** (T9: asistente) | ✅ |
+| Usabilidad | KLM de T9 frente al esperado | ≤ 60 s | — | 43,4 s | ✅ |
+| Usabilidad | Accesibilidad (WCAG 2.2 AA) | 0 incumplimientos | 0 en 13 pantallas | 0 en 14 (con el panel del asistente) | ✅ |
+| Usabilidad | Tasa de acierto de intenciones (RNF-20) 🆕 | ≥ 85 % | — | 91,7 % (conjunto de evaluación) | ✅ |
+| Usabilidad | SUS y prueba con evaluadores | — | ⚠️ PENDIENTE: dato humano | ⚠️ PENDIENTE: dato humano | ⏳ |
+
+### 4.2 Hallazgos nuevos y re-priorizados
+
+| ID | Hallazgo | Severidad × Alcance | Prioridad | Estado |
+|---|---|---|---|---|
+| **S-12** | Dependencias transitivas de producción con vulnerabilidades conocidas: `body-parser` < 1.20.9, DoS con un cuerpo comprimido, en los diez servicios (vía Express); `follow-redirects` 1.16.0, fuga de cabeceras de credenciales en redirecciones, en el gateway (vía http-proxy); `qs` ≤ 6.16.0, DoS (moderada) | 3 × 3 | **P1 (9)** | ✅ Corregido: `npm audit fix` (solo el lockfile); 0 vulnerabilidades de producción. Residual: 3 en herramientas de desarrollo (SEGURIDAD.md 10.3) |
+| **R7** | El circuit breaker en semiabierto deja pasar todas las peticiones contra la dependencia caída: ráfagas de p95 = 6,4 s en el catálogo cada ~22 s mientras inventario está caído | 2 × 3 | **P2 (6)** | ✅ Corregido: una sola llamada de prueba en semiabierto. p99 con inventario caído: de 6 373 a 76 ms; 0 errores (RENDIMIENTO.md 9.6) |
+| R6 | Consumo de la cola de notificaciones | 1 × 2 (antes 2 × 2) | P4 (2) | Re-medido: ~50 eventos/s con SMTP real; vuelve si el proveedor es lento, porque el `prefetch(1)` sigue igual |
+| R1 | Login con 50 VU | 2 × 3 (antes 4 × 3) | P2 (6) | Cumple la meta, pero en el límite (981 ms) |
+| R5 | Checkout desde 100 VU | 2 × 3 | P2 (6) | Sin cambios de código; en el límite con 100 VU |
+| U-13 | Textos sin tildes | 1 × 3 | P3 (3) | ✅ Corregido en la web y el asistente; residuos: mensajes de la API, nombres de productos y estados del panel (USABILIDAD.md 11.5) |
+| U-07 | El aviso de «agregado» muestra el SKU y puede quedar fuera de la vista | 2 × 3 | P2 (6) | ✅ Corregido: nombre del producto en un aviso flotante |
+| U-08 | Controles de prueba de la pasarela visibles al cliente | 2 × 3 | P2 (6) | ✅ Corregido: solo en desarrollo y en la compilación de pruebas; la de producción no los contiene |
+| — | Arranque en frío: RabbitMQ supera la ventana de su healthcheck con un volumen nuevo y Compose deja servicios sin arrancar | 2 × 3 | P2 (6) | Detectado al reiniciar el entorno; se corrige en la Fase 5 (RNF-11) |
+
+### 4.3 Resumen tras el Trabajo Final
+
+| Dimensión | Hallazgos | Corregidos | Aceptados | Pendientes |
+|---|---|---|---|---|
+| Rendimiento | 7 (R1-R7) | 5 (R1-R4, **R7**) | 0 | 2 (R5, R6), y el arranque en frío para la Fase 5 |
+| Seguridad | 12 (S-01 a S-12) | 11 (incluido **S-12**) | 1 (S-09) | 0 |
+| Usabilidad | 17 (U-01 a U-17) | 8 (U-01 a U-04, **U-07**, **U-08**, **U-13**, U-16) | 0 | 9 (U-05, U-06, U-09 a U-12, U-14, U-15, U-17) |
+| **Total** | **36** | **24** | **1** | **11** |
+
+**No queda ningún hallazgo P1 abierto.** En el Trabajo Final apareció uno nuevo, S-12, y se corrigió en la misma fase. De los P2:
+- se corrigieron 7: R2, S-04, U-03 y U-04 en la práctica, y R7, U-07 y U-08 en esta fase;
+- S-09 sigue aceptado con argumentos;
+- quedan R1 y R5 (capacidad: cumplen, pero en el límite) y U-11 (detalle del producto).
+
+**En una frase (Trabajo Final):** la versión final, con el asistente, conserva las propiedades de la práctica, que son la corrección bajo carga y la seguridad por diseño. Ahora además están **demostradas frente a fallos reales**: con inventario o notificaciones detenidos en plena carga no se perdió ni una compra ni un evento. La prueba de fallo encontró un defecto que la carga normal no podía ver (R7). Lo que queda abierto es capacidad (auth y el checkout desde 100 usuarios) y la voz de los usuarios (SUS, ⚠️ PENDIENTE: dato humano).

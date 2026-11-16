@@ -1,0 +1,64 @@
+== inicio 2026-11-16T01:41:09-05:00
+== catalogo-busqueda-carga-tf contra http://localhost:8080
+    checks_succeeded...: 100.00% 21974 out of 21974
+    http_req_duration..................: avg=22.05ms min=2.71ms med=10.86ms p(90)=44.29ms p(95)=73.93ms p(99)=186.54ms max=647.67ms
+    http_req_failed....................: 0.00%  0 out of 10987
+    http_reqs..........................: 10987  40.608958/s
+    vus_max............................: 50     min=50         max=50
+== catalogo-busqueda-carga-tf terminado: codigo k6 0 (99 = algun umbral no se cumplio), lineas 5xx en el gateway: 0
+== login-carga-tf contra http://localhost:8080
+    checks_succeeded...: 100.00% 13786 out of 13786
+    http_req_duration..............: avg=633.31ms min=85.13ms med=665.32ms p(90)=901.06ms p(95)=981.37ms p(99)=1.39s max=1.58s
+    http_req_failed................: 0.00%  0 out of 6893
+    http_reqs......................: 6893   25.494915/s
+    vus_max........................: 50     min=50        max=50
+== login-carga-tf terminado: codigo k6 0 (99 = algun umbral no se cumplio), lineas 5xx en el gateway: 0
+-- reponiendo stock antes de checkout-carga
+== checkout-carga-tf contra http://localhost:8080
+    checks_succeeded...: 100.00% 24275 out of 24275
+    http_req_duration................: avg=195.76ms min=3.08ms   med=109.05ms p(90)=438.2ms  p(95)=517.44ms p(99)=746.24ms max=1.21s   
+    http_req_failed..................: 0.00%  0 out of 16250
+    http_reqs........................: 16250  60.124661/s
+    vus_max..........................: 50     min=50         max=50
+== checkout-carga-tf terminado: codigo k6 0 (99 = algun umbral no se cumplio), lineas 5xx en el gateway: 0
+-- reponiendo stock antes de flujo-completo-carga
+== flujo-completo-carga-tf contra http://localhost:8080
+    checks_succeeded...: 100.00% 12299 out of 12299
+    http_req_duration..................: avg=80.96ms  min=2.51ms   med=11.78ms  p(90)=267.84ms p(95)=292.69ms p(99)=389.67ms max=990.7ms 
+    http_req_failed....................: 0.00%  0 out of 10592
+    http_reqs..........................: 10592  38.616072/s
+    vus_max............................: 50     min=50         max=50
+== flujo-completo-carga-tf terminado: codigo k6 0 (99 = algun umbral no se cumplio), lineas 5xx en el gateway: 0
+== asistente-carga-tf contra http://localhost:8080
+    checks_succeeded...: 100.00% 25871 out of 25871
+    http_req_duration...................: avg=15.46ms min=2.51ms med=12.4ms  p(90)=28.16ms p(95)=35.74ms p(99)=55.17ms max=154.58ms
+    http_req_failed.....................: 0.00%  0 out of 11132
+    http_reqs...........................: 11132  40.989728/s
+    vus_max.............................: 50     min=50         max=50
+== asistente-carga-tf terminado: codigo k6 0 (99 = algun umbral no se cumplio), lineas 5xx en el gateway: 0
+== bateria terminada 2026-11-16T02:07:28-05:00
+-- reponiendo stock para el estres
+== flujo-completo-estres-tf contra http://localhost:8080
+    ✗ 'rate>0.99' rate=83.92%
+    ✗ 'p(95)<1500' p(95)=1.84s
+    ✗ 'p(95)<1000' p(95)=8.65s
+    ✗ 'rate<0.01' rate=18.08%
+    checks_succeeded...: 83.92% 28980 out of 34529
+    ✗ login 200
+      ↳  42% — ✓ 4141 / ✗ 5549
+    http_req_duration..................: avg=813.36ms min=2.87ms   med=134.74ms p(90)=1.46s    p(95)=6.29s    p(99)=9.06s    max=11.22s
+    http_req_failed....................: 18.08% 5549 out of 30688
+    http_reqs..........................: 30688  86.15616/s
+== flujo-completo-estres-tf terminado: codigo k6 99 (99 = algun umbral no se cumplio), lineas 5xx en el gateway: 5549
+1794813316 2026-11-16T02:15:16-05:00 inicio de la carga (catalogo-busqueda, perfil carga)
+1794813418 2026-11-16T02:16:58-05:00 docker stop ecom_inventario
+1794813479 2026-11-16T02:17:59-05:00 docker start ecom_inventario
+1794813592 2026-11-16T02:19:52-05:00 fin de la carga (codigo de ejecutar.sh: 99)
+1794813594 2026-11-16T02:19:54-05:00 muestras: 113
+1794813671 2026-11-16T02:21:11-05:00 inicio de la carga (checkout, perfil carga)
+1794813773 2026-11-16T02:22:53-05:00 docker stop ecom_notificaciones
+1794813835 2026-11-16T02:23:55-05:00 docker start ecom_notificaciones
+1794813947 2026-11-16T02:25:47-05:00 fin de la carga (codigo de ejecutar.sh: 0)
+1794813948 2026-11-16T02:25:48-05:00 cola notificaciones.envio vacia: 0 mensajes
+1794813949 2026-11-16T02:25:49-05:00 muestras: 106
+== fin 2026-11-16T02:25:49-05:00

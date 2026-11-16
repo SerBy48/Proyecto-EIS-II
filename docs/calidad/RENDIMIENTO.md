@@ -363,3 +363,140 @@ La corrección natural es subir el `prefetch` para procesar varios envíos en pa
 - **Deriva del entorno.** Una laptop bajo carga sostenida durante horas no rinde igual al principio que al final (sección 7.3). Por eso la atribución de la mejora del checkout se basa en la prueba A/B intercalada, y no en la comparación con la batería original.
 - **Una sola corrida por condición.** No se repitió cada corrida varias veces para estimar la varianza. Las diferencias de R1 a R4 (×2,6, ×4,7, del 14 % al 0 % de errores, la mitad del p95) superan con holgura la variación observada entre repeticiones; diferencias menores al 20 % no deberían interpretarse.
 - **Modelo cerrado.** Con `ramping-vus`, cuando el sistema se ralentiza los VU también envían menos peticiones. Con usuarios reales (modelo abierto) la cola de auth crecería todavía más rápido.
+
+---
+
+## 9. Trabajo Final: nueva versión, asistente y fallos inyectados
+
+Fase 4 del Trabajo Final. Se volvieron a ejecutar los scripts de k6 sobre la versión final, que incluye el ORM, el correo SMTP y el asistente, y se amplió el alcance en tres frentes:
+- un escenario nuevo para el asistente;
+- la carga con un servicio detenido a mitad de la corrida;
+- la identificación del cuello de botella entre servicios.
+
+Mismo equipo y mismo perfil de entorno (`.env.carga`, al que se agregó `LIMITE_ASISTENTE`). Registro completo: [`00-bateria-tf-log.txt`](../evidencia/no-funcionales/rendimiento/00-bateria-tf-log.txt); las corridas llevan la etiqueta `-tf`.
+
+### 9.1 Carga sostenida (50 VU)
+
+| Escenario | Endpoint | p50 | p95 | p99 | rps | Errores | Práctica, después (p95) |
+|---|---|---|---|---|---|---|---|
+| Catálogo | `GET /catalogo/productos?q=` | 11 | **74** | 187 | 40,6 | 0 % | 146 (antes de las correcciones) |
+| Login | `POST /auth/login` | 665 | **981** | 1 396 | 25,5 | 0 % | 1 280 |
+| Checkout | `POST /pedidos/checkout` | 342 | **621** | 862 | 60,1 | 0 % | 735 |
+| Checkout | `POST /carrito/items` | 13 | 40 | 73 | | | 55 |
+| Flujo completo | `POST /pedidos/checkout` | 272 | 392 | 655 | 38,6 | 0 % | — |
+| Flujo completo | `GET /pedidos` | 10 | 28 | 58 | | | — |
+| **Asistente** 🆕 | `POST /asistente/mensajes` | 12 | **36** | 55 | 41,0 | 0 % | — |
+| Asistente, solo FAQ | ídem | 7 | 22 | 33 | | | — |
+
+- **Todos los escenarios cumplen sus umbrales**, incluido el del login (p95 < 1 000 ms), que en la práctica no se alcanzaba. Por muy poco: 981 ms. Con el criterio de la sección 8 (diferencias menores al 20 % no se interpretan), la conclusión prudente es que **el login quedó en el límite**, no que lo supere con holgura.
+- **El ORM no empeoró el login.** Antes de Drizzle, la meseta daba 1 280 ms; ahora, 981 ms. La consulta adicional no pesa frente a bcrypt.
+- **El asistente es el endpoint más barato del sistema** después de las consultas directas.
+  - Las FAQ no salen del servicio: p95 de 22 ms.
+  - La búsqueda y los pedidos suman una llamada al catálogo o a pedidos: p95 de 36 ms.
+  - Las 25 871 comprobaciones pasaron: la intención reconocida siempre fue la esperada, un cliente con sesión nunca recibió «inicia sesión» y el segundo turno resolvió el pedido correcto.
+
+![Asistente con 50 VU](../evidencia/no-funcionales/graficas/serie-asistente-carga-tf.png)
+
+### 9.2 Cuello de botella entre servicios (estrés del flujo completo)
+
+`flujo-completo` en estrés, con escalones de 1 minuto (`ESCALON=1m`) y `docker stats` cada ~2 s. Los escalones de la práctica eran de 2 minutos: con mesetas más cortas, las colas tienen menos tiempo de crecer, así que las cifras de 200 y 300 VU **no son comparables uno a uno** con la sección 7.2.
+
+| VU | rps | p95 del checkout | Errores |
+|---|---|---|---|
+| 50 | 44,4 | 718 | 0 % |
+| 100 | 79,2 | 1 414 | 0 % |
+| 200 | 90,4 | 1 647 | 0,3 % |
+| 300 | 142,6 | 3 271 | 48,3 % |
+
+| Contenedor | CPU promedio | CPU máxima |
+|---|---|---|
+| **auth** | **237 %** | 442 % |
+| postgres | 49 % | 119 % |
+| pedidos | 35 % | 83 % |
+| gateway | 31 % | 73 % |
+| rabbitmq | 28 % | 143 % |
+| mongo | 26 % | 109 % |
+
+**El primer servicio que se satura sigue siendo auth.** bcrypt es caro a propósito, y el pool de hilos (R1) ocupa varios núcleos. Los 5 549 errores del escalón de 300 VU son **todos** `503` de `POST /auth/login` ([`flujo-completo-estres-tf-gateway-5xx.log`](../evidencia/no-funcionales/rendimiento/flujo-completo-estres-tf-gateway-5xx.log)): es la cola acotada de R2 descartando carga a propósito, no conexiones cortadas.
+
+Detrás de auth está el camino del checkout: PostgreSQL y pedidos (R5). El asistente no aparece entre los consumidores relevantes. La respuesta para más capacidad de login es escalar auth horizontalmente; no se hizo, por la limitación de la sección 8 (un solo equipo).
+
+![CPU por contenedor](../evidencia/no-funcionales/graficas/cpu-tiempo-flujo-completo-estres-tf.png)
+
+### 9.3 Fallo inyectado: inventario detenido durante la búsqueda en el catálogo
+
+`tests/rendimiento/fallo-inyectado.sh inventario`:
+- carga de 50 VU sobre el catálogo;
+- `docker stop ecom_inventario` a los 102 s y `docker start` a los 163 s (61 s caído);
+- el circuit breaker de catálogo → inventario se muestrea cada 2 s.
+
+![Inventario detenido](../evidencia/no-funcionales/graficas/fallo-inventario.png)
+
+| Momento | Qué pasó |
+|---|---|
+| +2 s tras el `stop` | El circuito se **abre** (15 fallos consecutivos) |
+| Cada ~22 s | Pasa a semiabierto, la prueba falla y se vuelve a abrir |
+| +12 s tras el `start` | El circuito se **cierra** (RNF-07: recuperación < 30 s ✅) |
+| Toda la corrida | **10 287 respuestas 200, 0 errores**; con el circuito abierto, el catálogo responde sin datos de stock (degradación elegante) |
+
+**Hallazgo nuevo R7: el estado semiabierto deja pasar todas las peticiones.**
+- **El efecto.** El p95 del catálogo salta a **6,4 s** tres veces: al caer inventario y en cada paso a semiabierto.
+- **La causa.** En semiabierto, `CircuitBreaker.ejecutar()` no limita las llamadas de prueba. Las ~40 peticiones por segundo del catálogo van todas contra inventario caído, y cada una espera la falla de conexión (la resolución del nombre del contenedor detenido en la red de Docker, o el timeout de 2 s) y dos reintentos con espera exponencial (`HTTP_REINTENTOS=2`).
+- **El impacto.** Un minuto de caída se traduce en tres ráfagas de ~5 s en las que el catálogo tarda 6 s, cuando un circuito abierto existe precisamente para no esperar.
+- **La corrección propuesta.** Una sola llamada de prueba en semiabierto, y las demás con la alternativa.
+
+Nota sobre la medición: el panel de disponibilidad no baja a 0 % porque las búsquedas sin resultados pasan la comprobación (no hay productos que evaluar). La degradación real alcanzó a todas las respuestas con productos.
+
+### 9.4 Fallo inyectado: notificaciones detenido durante el checkout
+
+`tests/rendimiento/fallo-inyectado.sh notificaciones`:
+- carga de 50 VU sobre el checkout;
+- `docker stop ecom_notificaciones` a los 102 s y `docker start` a los 164 s (62 s caído);
+- la profundidad de la cola `notificaciones.envio` se muestrea cada 2 s.
+
+![Notificaciones detenido](../evidencia/no-funcionales/graficas/fallo-notificaciones.png)
+
+- **Las compras no se enteran** (RNF-08 ✅): **7 429 compras pagadas, 0 errores**. La publicación es asíncrona (invariante 12).
+- **Los eventos esperan en RabbitMQ**: la cola crece unos 32 mensajes/s hasta un máximo de **2 233** y se vacía **84 s** después del pico, sin perder ninguno.
+- **Mientras se drena la cola, el checkout se vuelve más lento**: el p95 por tramo sube a ~1,4 s, porque notificaciones compite por CPU y por Mongo. Sigue por debajo del umbral de 1,5 s.
+- **R6 cambió con la Fase 2.** El consumidor procesa ahora unos **50 mensajes/s**, estimados porque la cola bajó 2 233 mensajes en 84 s mientras seguían entrando ~32/s. En la práctica eran ~10/s. La diferencia está en el envío: entonces se simulaba con 100 ms fijos por mensaje (`LATENCIA_ENVIO_MS`); ahora es SMTP real contra Mailpit, que responde en milisegundos. El `prefetch(1)` sigue igual, así que con un proveedor real más lento el problema volvería. R6 queda abierto con prioridad más baja (ver la matriz).
+
+### 9.5 Escenarios de calidad (RNF) medidos
+
+| RNF | Escenario | Medida | Resultado |
+|---|---|---|---|
+| RNF-01 | 50 usuarios buscan en el catálogo | p95 < 500 ms; errores < 1 % | ✅ 74 ms; 0 % |
+| RNF-02 | 100 compradores concurrentes | p95 del checkout < 1 500 ms | ✅ 1 414 ms (escalón de 1 min del estrés; en el límite) |
+| RNF-03 | 50 usuarios inician sesión | p95 < 1 000 ms | ✅ 981 ms (en el límite) |
+| RNF-04 | Agregar al carrito y mis pedidos | p95 < 500 ms | ✅ 40 ms y 28 ms |
+| RNF-05 | Escalones hasta 300 VU | 0 respuestas sin código; salud verde al terminar | ✅ los errores son 503 explícitos; el sistema sigue sano |
+| RNF-07 | Inventario cae durante la carga | 0 errores 5xx del catálogo; recuperación < 30 s | ✅ 0 errores; se cierra 12 s después del arranque (con el defecto R7 en la latencia) |
+| RNF-08 | Notificaciones cae durante el checkout | 0 compras fallidas; todos los eventos consumidos | ✅ 7 429 compras; cola vacía 84 s después del pico |
+| RNF-06 | Escalado horizontal del catálogo | Throughput con 1 y con N réplicas | No medido (sección 8) |
+
+### 9.6 Corrección de R7: antes y después
+
+**Qué se cambió** (`packages/shared/src/circuit-breaker.ts`). En semiabierto, `ejecutar()` deja pasar **una sola** llamada de prueba (`pruebaEnCurso`). Las demás reciben la alternativa al instante, o un 503 si no hay alternativa, igual que con el circuito abierto. Cuando la prueba termina, la siguiente llamada vuelve a probar; con dos éxitos seguidos, el circuito se cierra. Hay dos pruebas unitarias nuevas en `circuit-breaker.test.ts`: tres llamadas concurrentes con una prueba en vuelo, y el caso sin alternativa. La invariante 14 de `CLAUDE.md` documenta el comportamiento.
+
+**Medición.** La misma corrida de la sección 9.3: inventario detenido 61 s en plena meseta de 50 VU. El antes se guardó con el sufijo `-antes`.
+
+| | Antes | Después, corrida 1 | Después, corrida 2 |
+|---|---|---|---|
+| Respuestas del catálogo | 10 287 | 10 596 | 10 849 |
+| Errores | 0 | 3 (504 a los 15 s) | **0** |
+| p50 / p95 / p99 | 7 / 28 / **6 373** ms | 9 / 97 / 360 ms | 7 / 25 / **76** ms |
+| Promedio | 94 ms | 58 ms | **37 ms** |
+| Ráfagas de p95 > 6 s | 3: al caer y en **cada** paso a semiabierto | 1, al caer | **1, al caer** |
+| Recuperación tras el `start` | 12 s | 7 s | 7 s |
+
+![Antes](../evidencia/no-funcionales/graficas/fallo-inventario-antes.png)
+
+![Después](../evidencia/no-funcionales/graficas/fallo-inventario.png)
+
+**La corrida 1 del después no es representativa, y se reporta igual.** Se hizo justo después de reiniciar el entorno desde cero (`docker compose down -v`, necesario tras el escaneo destructivo de ZAP), con la caché de MongoDB fría: el p95 fue más alto **durante toda la corrida**, no solo en la caída.
+
+Sus tres errores son 504 que el gateway emitió a los 15 s, con el circuito ya abierto. El catálogo no llegó a registrarlos, porque el perfil de carga registra solo advertencias, así que no se pudo atribuir su causa. La corrida 2, en las mismas condiciones y con el sistema ya caliente, no los reprodujo: 0 errores en 10 849 respuestas. Si reaparecen, el siguiente paso es repetir con `LOG_LEVEL=info` para seguirlos por `request_id`.
+
+**Lo que queda.** Persiste el pico de ~6,5 s de los primeros 2 segundos, antes de que el circuito acumule los 5 fallos que lo abren. Ningún breaker lo evita, porque necesita fallos para decidir. La palanca sería el timeout y los reintentos del cliente hacia inventario (`HTTP_TIMEOUT_MS`, `HTTP_REINTENTOS`). No se tocan: también protegen frente a fallos transitorios, y queda anotado como mejora.
+
+**Hallazgo lateral: arranque en frío frágil.** El primer `infra:carga` tras `down -v` falló: RabbitMQ, con el volumen nuevo, superó la ventana de su healthcheck, y Compose dejó el gateway y notificaciones sin arrancar ([`00-arranque-en-frio-fallido-log.txt`](../evidencia/no-funcionales/rendimiento/00-arranque-en-frio-fallido-log.txt)). El segundo intento funcionó. Es el problema del arranque robusto que la Fase 5 debe resolver (RNF-11): reintentos en la conexión inicial del bus y un healthcheck de RabbitMQ con más margen.
