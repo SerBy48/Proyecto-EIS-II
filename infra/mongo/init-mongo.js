@@ -239,8 +239,10 @@ notif.plantillas.insertMany([
   {
     clave: 'pedido.cancelado',
     canal: 'email',
-    asunto: 'Tu pedido {{numero}} no pudo completarse',
-    cuerpo: 'Hola {{nombre}}, tu pedido {{numero}} fue cancelado. Motivo: {{motivo}}. No se realizo ningun cobro.',
+    // detalle_cobro lo pone quien cancela: la saga ("No se realizo ningun
+    // cobro") o la cancelacion posterior ("El reembolso ... fue procesado").
+    asunto: 'Tu pedido {{numero}} fue cancelado',
+    cuerpo: 'Hola {{nombre}}, tu pedido {{numero}} fue cancelado. Motivo: {{motivo}}. {{detalle_cobro}}',
     activo: true
   },
   {

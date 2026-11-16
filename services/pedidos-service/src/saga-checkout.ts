@@ -354,6 +354,7 @@ export const ejecutarCheckout = async (
           total,
           estado: 'cancelado',
           motivo: 'No fue posible procesar el pago.',
+          detalle_cobro: 'No se realizo ningun cobro.',
           email: validacion.cliente.email,
           nombre: validacion.cliente.nombre
         },
@@ -390,6 +391,7 @@ export const ejecutarCheckout = async (
           total,
           estado: 'cancelado',
           motivo,
+          detalle_cobro: 'No se realizo ningun cobro.',
           email: validacion.cliente.email,
           nombre: validacion.cliente.nombre
         },

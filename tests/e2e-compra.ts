@@ -484,6 +484,21 @@ const escenarioE = async (admin: string): Promise<void> => {
     `El stock vuelve a subir (${stockTrasCompra} -> ${stockFinal})`
   );
 
+  // Hallazgo H-F5-01: el correo de cancelacion iba al buzon de operaciones,
+  // con "Hola ," y diciendo que no hubo cobro cuando si lo hubo.
+  paso('El correo de cancelacion le llega al cliente y menciona el reembolso');
+  const correo = await buscarCorreo(`${compra.datos.pedido.numero} fue cancelado`);
+  afirmar(
+    correo?.To?.some((d: { Address: string }) => d.Address === ana.usuario.email) ?? false,
+    'El correo de cancelacion va dirigido al cliente',
+    correo?.To
+  );
+  afirmar(
+    /Hola \S/.test(correo?.Snippet ?? '') && /reembolso/i.test(correo?.Snippet ?? ''),
+    'Saluda al cliente por su nombre e informa el reembolso',
+    correo?.Snippet
+  );
+
   paso('Cancelar de nuevo es idempotente');
   const segunda = await pedir(`/api/pedidos/${compra.datos.pedido.id}/cancelar`, {
     metodo: 'POST',
