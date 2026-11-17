@@ -941,7 +941,7 @@ Desde volúmenes vacíos (`docker compose down -v` y `npm run infra:normal`): 16
 | `npm audit --omit=dev --audit-level=high` | 0 vulnerabilidades | `regresion-f5b/npm-audit.txt` |
 | Lint de OpenAPI (Redocly) | válido, sin advertencias | `regresion-f5b/docs-openapi.txt` |
 
-**Ajustes a las pruebas** (por el catálogo nuevo, no por defectos): los SKU de hogar y deportes se reemplazaron por `SKU-TEC-006` a `010` con el mismo stock, precio y descuento; los filtros `categoria=hogar|deportes` pasaron a `subcategoria=accesorios|gaming`; `test:http` desactiva al terminar el producto de evidencia (U-17). En el recorrido de usabilidad, E6 ahora espera a que termine la renovación del token: si E7 escribía sus tokens antes, la renovación en curso los sobrescribía (carrera de la prueba, no de la tienda).
+**Ajustes a las pruebas** (por el catálogo nuevo, no por defectos): los SKU de hogar y deportes se reemplazaron por `SKU-TEC-006` a `010` con el mismo stock, precio y descuento; los filtros `categoria=hogar|deportes` pasaron a `subcategoria=accesorios|gaming`; `test:http` desactiva al terminar el producto de evidencia (U-17). En el recorrido de usabilidad, E6 ahora espera a que el token renovado quede guardado: si E7 escribía sus tokens antes, la renovación en curso los sobrescribía (carrera de la prueba, no de la tienda). Estable en 3 ejecuciones seguidas. La tarea T2 elige la sección con su botón, porque el catálogo ya no tiene la lista «Todas las secciones».
 
 ---
 

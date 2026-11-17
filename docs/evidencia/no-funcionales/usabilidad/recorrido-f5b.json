@@ -1,5 +1,5 @@
 {
-  "fecha": "2026-11-16T21:17:22.075Z",
+  "fecha": "2026-11-17T01:00:02.372Z",
   "web": "http://localhost:4173",
   "navegador": "Chromium (Playwright 1.48.2), 1280 x 800",
   "klm": {
@@ -47,7 +47,7 @@
           "accion": "Esperar la sesion iniciada",
           "operadores": "",
           "segundos_usuario": 0,
-          "r_sistema_s": 0.24
+          "r_sistema_s": 0.41
         }
       ],
       "conteo": {
@@ -58,8 +58,8 @@
         "M": 3
       },
       "klm_usuario_s": 17.6,
-      "r_sistema_s": 0.2,
-      "klm_total_s": 17.8,
+      "r_sistema_s": 0.4,
+      "klm_total_s": 18,
       "observaciones": [
         "Correo y contrasena se escriben; las cuentas de prueba aparecen como ayuda plegable."
       ]
@@ -83,16 +83,16 @@
           "r_sistema_s": 0.02
         },
         {
-          "accion": "Elegir la seccion Computadores",
-          "operadores": "M H P B B P B B",
-          "segundos_usuario": 4.35,
+          "accion": "Pulsar la seccion Computadores",
+          "operadores": "M H P B B",
+          "segundos_usuario": 3.05,
           "r_sistema_s": 0
         },
         {
           "accion": "Esperar la lista filtrada",
           "operadores": "",
           "segundos_usuario": 0,
-          "r_sistema_s": 0.4
+          "r_sistema_s": 0.42
         },
         {
           "accion": "Revisar la lista resultante",
@@ -103,14 +103,14 @@
       ],
       "conteo": {
         "K": 8,
-        "P": 3,
-        "B": 6,
+        "P": 2,
+        "B": 4,
         "H": 2,
         "M": 3
       },
-      "klm_usuario_s": 11,
+      "klm_usuario_s": 9.7,
       "r_sistema_s": 0.4,
-      "klm_total_s": 11.4,
+      "klm_total_s": 10.1,
       "observaciones": [
         "La busqueda muestra 3 producto(s) e indica \"Mostrando 1–3 de 3 productos en Computadores para «portatil»\"."
       ]
@@ -131,7 +131,7 @@
           "accion": "Esperar el aviso de agregado",
           "operadores": "",
           "segundos_usuario": 0,
-          "r_sistema_s": 0.34
+          "r_sistema_s": 0.36
         },
         {
           "accion": "Agregar el producto 2 al carrito",
@@ -155,7 +155,7 @@
           "accion": "Esperar el carrito",
           "operadores": "",
           "segundos_usuario": 0,
-          "r_sistema_s": 0.03
+          "r_sistema_s": 0.02
         },
         {
           "accion": "Aumentar la cantidad del primer producto",
@@ -167,7 +167,7 @@
           "accion": "Esperar la cantidad 2",
           "operadores": "",
           "segundos_usuario": 0,
-          "r_sistema_s": 0.65
+          "r_sistema_s": 0.62
         }
       ],
       "conteo": {
@@ -206,7 +206,7 @@
           "accion": "Esperar la linea de descuento",
           "operadores": "",
           "segundos_usuario": 0,
-          "r_sistema_s": 0.9
+          "r_sistema_s": 0.93
         },
         {
           "accion": "Comprobar el descuento en el resumen",
@@ -251,7 +251,7 @@
           "accion": "Esperar la confirmacion (saga completa)",
           "operadores": "",
           "segundos_usuario": 0,
-          "r_sistema_s": 0.23
+          "r_sistema_s": 0.13
         }
       ],
       "conteo": {
@@ -262,8 +262,8 @@
         "M": 2
       },
       "klm_usuario_s": 4,
-      "r_sistema_s": 0.2,
-      "klm_total_s": 4.2,
+      "r_sistema_s": 0.1,
+      "klm_total_s": 4.1,
       "observaciones": []
     },
     {
@@ -285,7 +285,7 @@
           "r_sistema_s": 0.14
         },
         {
-          "accion": "Encontrar el pedido PED-202611-001034 en la tabla",
+          "accion": "Encontrar el pedido PED-202611-001064 en la tabla",
           "operadores": "M",
           "segundos_usuario": 1.35,
           "r_sistema_s": 0
@@ -324,7 +324,7 @@
           "accion": "Esperar el estado cancelado",
           "operadores": "",
           "segundos_usuario": 0,
-          "r_sistema_s": 0.92
+          "r_sistema_s": 0.94
         },
         {
           "accion": "Comprobar el nuevo estado en la tabla",
@@ -363,7 +363,7 @@
           "accion": "Esperar el catalogo",
           "operadores": "",
           "segundos_usuario": 0,
-          "r_sistema_s": 0.37
+          "r_sistema_s": 0.39
         },
         {
           "accion": "Agregar un producto",
@@ -375,7 +375,7 @@
           "accion": "Esperar el aviso",
           "operadores": "",
           "segundos_usuario": 0,
-          "r_sistema_s": 0.36
+          "r_sistema_s": 0.35
         },
         {
           "accion": "Ir al carrito",
@@ -405,7 +405,7 @@
           "accion": "Esperar el resultado",
           "operadores": "",
           "segundos_usuario": 0,
-          "r_sistema_s": 0.89
+          "r_sistema_s": 1.12
         },
         {
           "accion": "Leer el mensaje del rechazo",
@@ -434,8 +434,8 @@
         "M": 8
       },
       "klm_usuario_s": 19.9,
-      "r_sistema_s": 1.6,
-      "klm_total_s": 21.5,
+      "r_sistema_s": 1.9,
+      "klm_total_s": 21.8,
       "observaciones": [
         "La pantalla explica que el pedido quedo cancelado, que no hubo cobro y que el carrito se conserva."
       ]
@@ -480,13 +480,13 @@
           "accion": "Esperar la sesion iniciada",
           "operadores": "",
           "segundos_usuario": 0,
-          "r_sistema_s": 0.92
+          "r_sistema_s": 0.36
         },
         {
           "accion": "Esperar el panel",
           "operadores": "",
           "segundos_usuario": 0,
-          "r_sistema_s": 0.02
+          "r_sistema_s": 0.01
         },
         {
           "accion": "Abrir Inventario",
@@ -498,7 +498,7 @@
           "accion": "Esperar el formulario",
           "operadores": "",
           "segundos_usuario": 0,
-          "r_sistema_s": 0.01
+          "r_sistema_s": 0.03
         },
         {
           "accion": "Escribir el SKU",
@@ -522,7 +522,7 @@
           "accion": "Esperar la confirmacion",
           "operadores": "",
           "segundos_usuario": 0,
-          "r_sistema_s": 0.86
+          "r_sistema_s": 0.38
         },
         {
           "accion": "Abrir Pedidos",
@@ -552,7 +552,7 @@
           "accion": "Esperar el nuevo estado",
           "operadores": "",
           "segundos_usuario": 0,
-          "r_sistema_s": 0.01
+          "r_sistema_s": 0.04
         }
       ],
       "conteo": {
@@ -563,8 +563,8 @@
         "M": 11
       },
       "klm_usuario_s": 43.3,
-      "r_sistema_s": 1.8,
-      "klm_total_s": 45.1,
+      "r_sistema_s": 0.8,
+      "klm_total_s": 44.1,
       "observaciones": [
         "La tabla de pedidos muestra el id numerico del cliente, no su nombre; los cambios de estado no piden confirmacion."
       ]
@@ -609,7 +609,7 @@
           "accion": "Esperar la sesion iniciada",
           "operadores": "",
           "segundos_usuario": 0,
-          "r_sistema_s": 0.25
+          "r_sistema_s": 0.24
         },
         {
           "accion": "Abrir el asistente",
@@ -639,7 +639,7 @@
           "accion": "Esperar la respuesta del envio",
           "operadores": "",
           "segundos_usuario": 0,
-          "r_sistema_s": 0.84
+          "r_sistema_s": 0.37
         },
         {
           "accion": "Leer el costo y el umbral de envio gratis",
@@ -663,7 +663,7 @@
           "accion": "Esperar la respuesta del pedido",
           "operadores": "",
           "segundos_usuario": 0,
-          "r_sistema_s": 0.13
+          "r_sistema_s": 0.06
         },
         {
           "accion": "Leer el estado del ultimo pedido",
@@ -680,10 +680,10 @@
         "M": 10
       },
       "klm_usuario_s": 41.6,
-      "r_sistema_s": 1.2,
-      "klm_total_s": 42.8,
+      "r_sistema_s": 0.7,
+      "klm_total_s": 42.3,
       "observaciones": [
-        "El asistente responde con el numero y el estado del ultimo pedido (\"Tu último pedido, PED-202611-001035, está cancelado. Estos son los más...\") y lista los mas recientes.",
+        "El asistente responde con el numero y el estado del ultimo pedido (\"Tu último pedido, PED-202611-001065, está cancelado. Estos son los más...\") y lista los mas recientes.",
         "Los textos del asistente llevan tildes (U-13 corregido)."
       ]
     }

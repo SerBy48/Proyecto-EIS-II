@@ -257,14 +257,8 @@ export default function App() {
         {vista === 'admin' && esInterno && <Admin usuario={usuario} />}
       </main>
 
-      <footer className="border-t border-gray-200 bg-superficie">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 text-sm text-gray-600 flex flex-wrap gap-x-6 gap-y-2 justify-between">
-          <p>
-            <span className="font-semibold text-gray-900">SerByTek</span> · Tecnología con envío a toda Colombia
-          </p>
-          <p>Trabajo Final · Ingeniería de Software II · Universidad Surcolombiana</p>
-        </div>
-      </footer>
+      <PiePagina />
+
 
       <Asistente
         usuario={usuario}
@@ -273,6 +267,95 @@ export default function App() {
         onIniciarSesion={() => navegar('login')}
       />
     </div>
+  );
+}
+
+/** Iconos de redes sociales: trazos simples, decorativos (el nombre va en texto). */
+const ICONOS_REDES = {
+  Instagram: (
+    <>
+      <rect x="3" y="3" width="18" height="18" rx="5" />
+      <circle cx="12" cy="12" r="4" />
+      <circle cx="17.5" cy="6.5" r="0.8" fill="currentColor" />
+    </>
+  ),
+  Facebook: <path d="M15 3h-2.5A3.5 3.5 0 0 0 9 6.5V9H7v3.5h2V21h3.5v-8.5h2.6l.4-3.5h-3V7a1 1 0 0 1 1-1H15z" />,
+  TikTok: <path d="M14 3v11.5a3.5 3.5 0 1 1-3.5-3.5M14 3c.5 2.5 2.3 4.2 5 4.5" />,
+  YouTube: (
+    <>
+      <rect x="2.5" y="5.5" width="19" height="13" rx="4" />
+      <path d="M10 9.5v5l4.5-2.5z" fill="currentColor" />
+    </>
+  )
+};
+
+/**
+ * Pie de pagina: informacion de compra, contacto y redes. Las cifras son las
+ * mismas del carrito y del asistente (envio, umbral de envio gratis, IVA y
+ * retracto); las redes y el correo son de la tienda de demostracion.
+ */
+function PiePagina() {
+  const columna = (titulo, filas) => (
+    <div>
+      <h2 className="text-sm font-bold text-gray-900 mb-3">{titulo}</h2>
+      <ul className="space-y-2 text-sm text-gray-600">{filas}</ul>
+    </div>
+  );
+  return (
+    <footer className="border-t border-gray-200 bg-superficie">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+        <div>
+          <Logo />
+          <p className="mt-3 text-sm text-gray-600">
+            Tecnología para trabajar, estudiar y jugar, con envío a toda Colombia.
+          </p>
+          <p className="mt-2 text-sm text-gray-600">Tienda 100 % en línea · Neiva, Huila.</p>
+        </div>
+
+        {columna('Compra segura', [
+          <li key="envio">Envío de $15.000; <strong className="text-gray-800">gratis desde $500.000</strong></li>,
+          <li key="entrega">Entrega en 2 a 5 días hábiles</li>,
+          <li key="pagos">Tarjeta de crédito o débito, PSE y Efecty</li>,
+          <li key="retracto">5 días hábiles de retracto y garantía del fabricante</li>,
+          <li key="datos">No guardamos los datos de tu tarjeta</li>
+        ])}
+
+        {columna('Contáctenos', [
+          <li key="correo">
+            <span className="block text-gray-500 text-xs">Correo</span>
+            soporte@serbytek.co
+          </li>,
+          <li key="horario">
+            <span className="block text-gray-500 text-xs">Atención de asesores</span>
+            Lunes a viernes, 8:00 a. m. a 6:00 p. m.
+          </li>,
+          <li key="asistente">
+            <span className="block text-gray-500 text-xs">Asistente virtual</span>
+            Todos los días, botón «¿Necesitas ayuda?»
+          </li>
+        ])}
+
+        {columna(
+          'Síguenos',
+          Object.entries(ICONOS_REDES).map(([red, icono]) => (
+            <li key={red} className="flex items-center gap-2">
+              <svg aria-hidden="true" viewBox="0 0 24 24" className="w-5 h-5 text-marca-700" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                {icono}
+              </svg>
+              <span>
+                {red} <span className="text-gray-500">@serbytek</span>
+              </span>
+            </li>
+          ))
+        )}
+      </div>
+      <div className="border-t border-gray-200">
+        <p className="max-w-7xl mx-auto px-4 sm:px-6 pt-4 pb-24 text-xs text-gray-500 flex flex-wrap gap-x-4 gap-y-1 justify-between">
+          <span>© {new Date().getFullYear()} SerByTek. Todos los derechos reservados.</span>
+          <span>Precios en pesos colombianos; el IVA (19 %) se suma en el carrito.</span>
+        </p>
+      </div>
+    </footer>
   );
 }
 

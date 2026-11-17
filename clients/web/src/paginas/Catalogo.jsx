@@ -153,26 +153,12 @@ export default function Catalogo({ usuario, alAgregar, filtrosIniciales }) {
           onChange={(e) => cambiarFiltro({ q: e.target.value })}
           className="flex-1 min-w-[200px] bg-superficie border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-marca-500"
         />
-        <label htmlFor="filtro-categoria" className="sr-only">Sección</label>
-        <select
-          id="filtro-categoria"
-          value={filtros.subcategoria}
-          onChange={(e) => cambiarFiltro({ subcategoria: e.target.value })}
-          className="flex-1 sm:flex-none bg-superficie border border-gray-300 rounded-lg px-3 py-2"
-        >
-          <option value="">Todas las secciones</option>
-          {subcategorias.map((s) => (
-            <option key={s.slug} value={s.slug}>
-              {s.nombre} ({s.productos})
-            </option>
-          ))}
-        </select>
         <label htmlFor="filtro-orden" className="sr-only">Ordenar por</label>
         <select
           id="filtro-orden"
           value={filtros.orden}
           onChange={(e) => cambiarFiltro({ orden: e.target.value })}
-          className="flex-1 sm:flex-none bg-superficie border border-gray-300 rounded-lg px-3 py-2"
+          className="w-full sm:w-auto bg-superficie border border-gray-300 rounded-lg px-3 py-2"
         >
           <option value="">{filtros.q ? 'Más relevantes' : 'Más recientes'}</option>
           <option value="precio_asc">Precio: menor a mayor</option>
@@ -182,8 +168,10 @@ export default function Catalogo({ usuario, alAgregar, filtrosIniciales }) {
         </select>
       </div>
 
-      <nav aria-label="Secciones del catálogo" className="mb-6 -mx-4 px-4 overflow-x-auto">
-        <div className="flex gap-2 pb-1">
+      {/* Las secciones se reparten en las filas que hagan falta: sin barra de
+          desplazamiento horizontal (dos filas en un escritorio). */}
+      <nav aria-label="Secciones del catálogo" className="mb-6">
+        <div className="flex flex-wrap gap-2">
           <button
             onClick={() => cambiarFiltro({ subcategoria: '', en_oferta: false })}
             aria-pressed={!filtros.subcategoria && !filtros.en_oferta}

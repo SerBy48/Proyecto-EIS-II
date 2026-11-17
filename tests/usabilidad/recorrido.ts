@@ -296,7 +296,7 @@ const tareas = async (pagina: Page): Promise<ResultadoTarea[]> => {
     // La consulta filtrada sale tras el debounce de 350 ms: se espera su
     // respuesta, no solo la ausencia de carga (que es cierta antes de empezar).
     const filtrada = pagina.waitForResponse((r) => r.url().includes('/catalogo/productos') && r.url().includes('subcategoria=computadores'));
-    await t.elegir(pagina.locator('#filtro-categoria'), 'computadores', 'Elegir la seccion Computadores');
+    await t.clic(pagina.getByRole('navigation', { name: 'Secciones del catálogo' }).getByRole('button', { name: /Computadores/ }), 'Pulsar la seccion Computadores');
     await t.esperar(async () => {
       await filtrada;
       await sinCarga(pagina);
@@ -588,18 +588,23 @@ const estados = async (navegador: Browser): Promise<Estado[]> => {
     await p.evaluate((t) => localStorage.setItem('token', t), expirado);
     await nav(p, /^Mis pedidos/).click();
     await p.getByRole('heading', { name: 'Mis pedidos' }).waitFor();
-    // Esperar a que termine la renovacion: si E7 escribe sus tokens mientras
-    // esta en curso, la renovacion los sobrescribe con unos validos.
+    // Esperar a que la renovacion termine Y quede guardada: si E7 escribe sus
+    // tokens antes, la renovacion en curso los sobrescribe con unos validos;
+    // si se la interrumpe, el refresh ya rotado queda invalido. (No se usa
+    // waitForFunction: la CSP de la web bloquea su evaluacion.)
+    for (let i = 0; i < 50 && (await p.evaluate(() => localStorage.getItem('token'))) === expirado; i++) {
+      await p.waitForTimeout(200);
+    }
     await p.waitForLoadState('networkidle');
     const ok = await p.getByRole('alert').count();
     registrar({ id: 'E6', estado: 'Token expirado durante la navegacion', resultado: ok === 0 ? 'La sesion se renueva sola y la pagina carga sin errores.' : 'Aparece un error en lugar de renovar la sesion.' });
 
     // E7. Refresh token tambien invalido: ¿que ve el usuario?
+    await nav(p, /^Catálogo/).click();
     await p.evaluate((t) => {
       localStorage.setItem('token', t);
       localStorage.setItem('refresh_token', 'invalido.invalido');
     }, expirado);
-    await nav(p, /^Catálogo/).click();
     await nav(p, /^Mis pedidos/).click();
     // Desde H-F5-02 el aviso es un estado ("Tu sesion expiro"), no un error del formulario.
     const aviso = p.getByText(/Tu sesión expiró|sesión expiró/).first();

@@ -26,15 +26,15 @@ Estados especiales
   E9 Catalogo en movil (390 px): Sin desplazamiento horizontal; la grilla pasa a una columna.
 
 KLM por tarea (usuario experto + respuesta del sistema)
-  T1 ✓  17.8 s  (usuario 17.6 s + sistema 0.2 s; esperado 30 s)  3M 4P 8B 24K 4H
-  T2 ✓  11.4 s  (usuario 11 s + sistema 0.4 s; esperado 30 s)  3M 3P 6B 8K 2H
+  T1 ✓    18 s  (usuario 17.6 s + sistema 0.4 s; esperado 30 s)  3M 4P 8B 24K 4H
+  T2 ✓  10.1 s  (usuario 9.7 s + sistema 0.4 s; esperado 30 s)  3M 2P 4B 8K 2H
   T3 ✓  11.6 s  (usuario 10.6 s + sistema 1 s; esperado 60 s)  4M 4P 8B 0K 0H
   T4 ✓  11.7 s  (usuario 10.8 s + sistema 0.9 s; esperado 30 s)  3M 2P 4B 12K 2H
-  T5 ✓   4.2 s  (usuario 4 s + sistema 0.2 s; esperado 45 s)  2M 1P 2B 0K 0H
+  T5 ✓   4.1 s  (usuario 4 s + sistema 0.1 s; esperado 45 s)  2M 1P 2B 0K 0H
   T6 ✓  14.8 s  (usuario 13.3 s + sistema 1.5 s; esperado 60 s)  6M 4P 8B 0K 0H
-  T7 ✓  21.5 s  (usuario 19.9 s + sistema 1.6 s; esperado 90 s)  8M 7P 14B 0K 0H
-  T8 ✓  45.1 s  (usuario 43.3 s + sistema 1.8 s; esperado 90 s)  11M 11P 22B 39K 8H
-  T9 ✓  42.8 s  (usuario 41.6 s + sistema 1.2 s; esperado 60 s)  10M 9P 18B 50K 6H
+  T7 ✓  21.8 s  (usuario 19.9 s + sistema 1.9 s; esperado 90 s)  8M 7P 14B 0K 0H
+  T8 ✓  44.1 s  (usuario 43.3 s + sistema 0.8 s; esperado 90 s)  11M 11P 22B 39K 8H
+  T9 ✓  42.3 s  (usuario 41.6 s + sistema 0.7 s; esperado 60 s)  10M 9P 18B 50K 6H
 
 axe: 14 pantallas, 0 reglas WCAG incumplidas en total
 

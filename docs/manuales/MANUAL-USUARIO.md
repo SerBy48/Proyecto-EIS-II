@@ -41,7 +41,7 @@ Todas las imágenes son capturas reales del sistema (actualizadas para SerByTek 
 La página principal es el catálogo: 60 productos de tecnología en 10 secciones (computadores, componentes, almacenamiento, periféricos, monitores, audio, celulares/tablets/relojes, redes, gaming y accesorios).
 
 - **Buscar productos…**: escriba el nombre, la marca o la sección (por ejemplo, «mouse» o «audífonos»). La lista se filtra mientras escribe y encuentra también palabras incompletas («portat») y sin tildes.
-- **Secciones**: los botones bajo el buscador (o la lista «Todas las secciones») muestran una sola sección. **Ofertas** muestra solo los productos con descuento.
+- **Secciones**: los botones bajo el buscador muestran una sola sección; **Todo** vuelve al catálogo completo y **Ofertas** muestra solo los productos con descuento.
 - **Orden**: más recientes (o más relevantes si buscó algo), precio, mayor descuento o nombre.
 
 Cada tarjeta muestra:
@@ -254,7 +254,11 @@ Las cuentas de cliente no cambian de rol, y nadie puede desactivarse ni cambiars
 
 ---
 
-## 6. Preguntas frecuentes
+## 6. Contacto
+
+El pie de cada página reúne la información de compra (envío, entrega, medios de pago y retracto), el contacto de la tienda (correo y horario de los asesores) y las redes sociales de SerByTek.
+
+## 7. Preguntas frecuentes
 
 **¿Me pueden cobrar dos veces si pulso «Pagar» dos veces?**
 No. Cada intento de compra lleva una clave única: el segundo clic recibe la misma respuesta que el primero, sin un cobro nuevo.
