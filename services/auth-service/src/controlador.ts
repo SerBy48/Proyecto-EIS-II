@@ -7,6 +7,7 @@ import {
   Rol,
   errorConflicto,
   errorNoAutenticado,
+  errorNoEncontrado,
   errorProhibido,
   errorDePostgres,
   errorSolicitud,
@@ -327,4 +328,128 @@ export const crearUsuarioInterno = async (req: PeticionAutenticada, res: Respons
  */
 export const verificarTokenRemoto = async (req: PeticionAutenticada, res: Response): Promise<void> => {
   res.status(200).json({ valido: true, usuario: req.usuario });
+};
+
+// ------------------------------------------------------ eliminar la cuenta
+
+const pedidos = new ClienteServicio({
+  nombre: 'pedidos',
+  urlBase: process.env.URL_PEDIDOS || 'http://localhost:3006',
+  timeoutMs: Number(process.env.HTTP_TIMEOUT_MS || 3000)
+});
+
+const carrito = new ClienteServicio({
+  nombre: 'carrito',
+  urlBase: process.env.URL_CARRITO || 'http://localhost:3005',
+  timeoutMs: Number(process.env.HTTP_TIMEOUT_MS || 3000)
+});
+
+/**
+ * DELETE /cuenta { password } - el cliente elimina su propia cuenta.
+ *
+ * Se ANONIMIZA, no se borra: los pedidos ya entregados o cancelados se
+ * conservan por obligaciones contables, sin datos que identifiquen a la
+ * persona. Pasos, en este orden:
+ *   1. confirmar la contrasena (un token robado no basta para borrar la cuenta);
+ *   2. pedidos-service: si hay pedidos creados, pagados, en preparacion o
+ *      enviados, se rechaza con 409 y la lista;
+ *   3. clientes-service anonimiza el perfil, borra las direcciones y lo
+ *      desactiva (idempotente: si el paso 4 falla, el usuario puede reintentar);
+ *   4. esta base anonimiza el usuario y revoca sus sesiones;
+ *   5. el carrito se vacia (si falla, solo se registra: no tiene datos personales).
+ * El cliente_id sale del token (invariante 1), nunca del cuerpo.
+ */
+export const eliminarCuenta = async (req: PeticionAutenticada, res: Response): Promise<void> => {
+  const yo = req.usuario;
+  if (!yo || yo.rol !== 'cliente' || !yo.cliente_id) {
+    throw errorProhibido('Solo una cuenta de cliente se elimina desde la tienda. Las cuentas internas las desactiva un administrador.');
+  }
+  const password = (req.body ?? {}).password;
+  if (typeof password !== 'string' || !password) throw errorSolicitud('Confirma con tu contraseña.');
+
+  const usuario = await repositorio.obtenerUsuario(yo.sub);
+  if (!usuario || !usuario.activo) throw errorNoAutenticado('La cuenta no existe o ya fue eliminada.');
+  const valida = await conPoolHash(res, (senal) => compararHash(password, usuario.password_hash, senal));
+  if (!valida) {
+    await auditar({ usuario_id: yo.sub, accion: 'eliminar_cuenta', exitoso: false, request_id: req.requestId });
+    throw new ErrorApp(403, 'La contraseña no es correcta.', 'CONTRASENA_INCORRECTA');
+  }
+
+  const { pendientes } = await pedidos.pedir<{ pendientes: Array<{ numero: string; estado: string }> }>({
+    ruta: `/internos/clientes/${yo.cliente_id}/pendientes`,
+    requestId: req.requestId
+  });
+  if (pendientes.length) {
+    throw new ErrorApp(
+      409,
+      `No puedes eliminar tu cuenta mientras tengas pedidos en curso (${pendientes.map((p) => p.numero).join(', ')}). Espera a que se entreguen o cancélalos.`,
+      'PEDIDOS_EN_CURSO',
+      { pendientes }
+    );
+  }
+
+  await clientes.pedir({ ruta: `/${yo.cliente_id}/anonimizar`, metodo: 'POST', requestId: req.requestId });
+
+  const hashAleatorio = await conPoolHash(res, (senal) => generarHash(randomBytes(32).toString('hex'), RONDAS_BCRYPT, senal));
+  await repositorio.anonimizarUsuario(yo.sub, hashAleatorio);
+  const sesiones = await repositorio.revocarTokensDelUsuario(yo.sub);
+
+  try {
+    await carrito.pedir({ ruta: `/${yo.cliente_id}`, metodo: 'DELETE', requestId: req.requestId });
+  } catch {
+    // El carrito vence solo en Redis y no tiene datos personales.
+  }
+
+  await auditar({ usuario_id: yo.sub, accion: 'eliminar_cuenta', exitoso: true, request_id: req.requestId });
+  res.status(200).json({ mensaje: 'Tu cuenta fue eliminada.', sesiones_cerradas: sesiones });
+};
+
+// --------------------------------------------- administracion de usuarios
+
+const ROLES: Rol[] = ['cliente', 'vendedor', 'administrador'];
+
+/** GET /usuarios?rol= - administrador. */
+export const listarUsuarios = async (req: PeticionAutenticada, res: Response): Promise<void> => {
+  const rol = req.query.rol;
+  if (rol !== undefined && (typeof rol !== 'string' || !ROLES.includes(rol as Rol))) {
+    throw errorSolicitud("rol debe ser 'cliente', 'vendedor' o 'administrador'.");
+  }
+  res.status(200).json(await repositorio.listarUsuarios(rol as Rol | undefined));
+};
+
+/**
+ * PATCH /usuarios/:id { rol?, activo? } - administrador.
+ * Solo cuentas internas: un vendedor puede pasar a administrador y viceversa,
+ * y cualquiera puede desactivarse (pierde sus sesiones). Una cuenta de cliente
+ * no cambia de rol: su identidad esta atada a un perfil de cliente. Nadie se
+ * cambia el rol ni se desactiva a si mismo (asi siempre queda un administrador).
+ */
+export const actualizarUsuario = async (req: PeticionAutenticada, res: Response): Promise<void> => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) throw errorSolicitud('El id del usuario no es valido.');
+  if (req.usuario?.sub === id) throw errorProhibido('No puedes cambiar tu propio rol ni desactivar tu propia cuenta.');
+
+  const { rol, activo } = (req.body ?? {}) as { rol?: unknown; activo?: unknown };
+  const cambios: { rol?: Rol; activo?: boolean } = {};
+  if (rol !== undefined) {
+    if (rol !== 'vendedor' && rol !== 'administrador') throw errorSolicitud("rol debe ser 'vendedor' o 'administrador'.");
+    cambios.rol = rol;
+  }
+  if (activo !== undefined) {
+    if (typeof activo !== 'boolean') throw errorSolicitud('activo debe ser true o false.');
+    cambios.activo = activo;
+  }
+  if (!Object.keys(cambios).length) throw errorSolicitud('Indique al menos uno de: rol, activo.');
+
+  const actual = await repositorio.obtenerUsuario(id);
+  if (!actual) throw errorNoEncontrado('Usuario no encontrado.');
+  if (cambios.rol && actual.rol === 'cliente') {
+    throw errorConflicto('Una cuenta de cliente no cambia de rol. Crea una cuenta interna nueva para el vendedor.');
+  }
+
+  const usuario = await repositorio.actualizarUsuario(id, cambios);
+  // Un rol cambiado o una cuenta desactivada no deben seguir con sesiones viejas.
+  const sesiones = await repositorio.revocarTokensDelUsuario(id);
+  await auditar({ usuario_id: id, accion: cambios.activo === false ? 'desactivar_usuario' : 'cambiar_usuario', exitoso: true, request_id: req.requestId });
+  res.status(200).json({ mensaje: 'Usuario actualizado.', usuario, sesiones_cerradas: sesiones });
 };

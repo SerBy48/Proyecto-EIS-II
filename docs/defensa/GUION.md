@@ -54,14 +54,15 @@ Cuentas: contraseña `Password123` en todas.
 | Paso | Quién | Acción | Qué señalar |
 |---|---|---|---|
 | 1 | Visitante | Abrir la URL del túnel desde el celular de un jurado | Solo se publica la web; la API va por el mismo origen |
-| 2 | Visitante | Asistente: «¿cuánto cuesta el envío?» y luego «busco una cafetera» | La cifra sale de la misma configuración que el carrito |
+| 2 | Visitante | Asistente: «¿cuánto cuesta el envío?», «¿hay audífonos disponibles?» y «portátiles de menos de 3 millones» | La cifra sale de la misma configuración que el carrito; el motor de reglas entiende frases compuestas y precios, y lee las secciones del catálogo en vivo |
 | 3 | Visitante | **Crear cuenta** con un correo nuevo | Sesión iniciada y dirección guardada: ya puede comprar |
 | 4 | `ana@correo.co` | Buscar «portátil», agregarlo, aplicar `BIENVENIDA10` y pagar | Descuento antes del IVA; el botón se bloquea contra el doble clic |
 | 5 | — | Mailpit: el correo de confirmación | Llegó por un evento asíncrono (RabbitMQ) |
 | 6 | `ana@correo.co` | Agregar otro producto, elegir «Pago rechazado» y pagar | «No se realizó ningún cobro» y el stock vuelve (saga compensada) |
 | 7 | `ana@correo.co` | Asistente: «estado del pedido PED-…» con el número de Bruno | «No encontré el pedido»: el chat respeta el aislamiento |
 | 8 | `ana@correo.co` | **Mis pedidos → Cancelar pedido** | Reembolso y correo de cancelación al cliente (H-F5-01) |
-| 9 | `vendedor@tienda.co` | Inventario: entrada de 5 unidades de `SKU-HOG-002` | Alerta de reposición; el vendedor no ve la bitácora |
+| 8b *(opcional)* | `ana@correo.co` | **Mi perfil**: «Eliminar mi cuenta» con un pedido pagado; luego el botón de la luna | Bloqueado y con el número del pedido (se anonimiza, no se borra); el tema oscuro se recuerda |
+| 9 | `vendedor@tienda.co` | Inventario: entrada de 5 unidades de `SKU-TEC-007` | Alerta de reposición; el vendedor no ve la bitácora |
 | 10 | `admin@tienda.co` | Salud del sistema → Pedidos → **Bitácora** de la compra del paso 4 | Pasos de la saga con su hora |
 | 11 *(opcional)* | Terminal | `docker stop ecom_notificaciones` y comprar otra vez | La compra se confirma; el correo espera en la cola y llega al hacer `docker start` |
 
@@ -120,6 +121,15 @@ Cuentas: contraseña `Password123` en todas.
 - **S-09:** el token vive en `localStorage`, mitigado con CSP. La solución sería una cookie `HttpOnly` con protección CSRF.
 - **R5 y R1:** dos escenarios de rendimiento en el límite.
 - **Usabilidad:** la prueba con evaluadores y el SUS (⚠️ PENDIENTE: dato humano).
+
+**¿El asistente es una inteligencia artificial?**
+- No: es un motor de reglas determinista (ADR-0007), con IA opcional apagada.
+- Entiende plural, errores de tipeo y rangos de precio, y lee las secciones del catálogo en vivo: un producto nuevo se entiende sin cambiar el asistente.
+- Se mide: 50/50 frases de SerByTek, escritas antes del motor nuevo (la primera medición dio 49/50 y reveló un defecto que se corrigió).
+
+**¿Es un marketplace?**
+- No: SerByTek es una sola tienda. El vendedor es personal interno; el administrador crea y desactiva sus cuentas desde «Usuarios».
+- Un marketplace exigiría stock y catálogo por comerciante, pagos divididos y comisiones: otra arquitectura.
 
 **¿Por qué un túnel y no la nube?**
 - No había credenciales de nube para la entrega.

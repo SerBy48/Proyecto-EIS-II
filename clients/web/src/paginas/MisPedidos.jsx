@@ -1,5 +1,110 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { api, moneda } from '../servicios/api';
+import FormularioDireccion, { describirDireccion } from '../componentes/FormularioDireccion.jsx';
+
+/** Mismo limite y estados que pedidos-service (direccion-pedido.ts). */
+const MAXIMO_CAMBIOS_DIRECCION = 2;
+const ESTADOS_CON_DIRECCION_EDITABLE = ['creado', 'pagado', 'en_preparacion'];
+
+/**
+ * Cambio de direccion de un pedido ya creado: se elige una direccion guardada
+ * o se agrega una nueva. El servidor aplica el limite de dos cambios en una
+ * sola sentencia; la web solo lo anticipa.
+ */
+function CambiarDireccion({ usuario, pedido, alCambiar }) {
+  const [abierto, setAbierto] = useState(false);
+  const [direcciones, setDirecciones] = useState([]);
+  const [elegida, setElegida] = useState(null);
+  const [agregando, setAgregando] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState(null);
+  const restantes = MAXIMO_CAMBIOS_DIRECCION - (pedido.cambios_direccion ?? 0);
+
+  const abrir = async () => {
+    setAbierto(true);
+    setError(null);
+    try {
+      const lista = (await api(`/clientes/${usuario.cliente_id}/direcciones`)).filter((d) => d.tipo === 'envio');
+      setDirecciones(lista);
+      setElegida(lista.find((d) => d.id !== pedido.direccion_envio?.id)?.id ?? null);
+      setAgregando(lista.every((d) => d.id === pedido.direccion_envio?.id));
+    } catch (e) {
+      setError(e.message);
+    }
+  };
+
+  const confirmar = async (direccionId) => {
+    setGuardando(true);
+    setError(null);
+    try {
+      const respuesta = await api(`/pedidos/${pedido.id}/direccion`, { metodo: 'PATCH', cuerpo: { direccion_id: direccionId } });
+      setAbierto(false);
+      await alCambiar(respuesta.cambios_restantes);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  if (!ESTADOS_CON_DIRECCION_EDITABLE.includes(pedido.estado)) return null;
+  if (restantes <= 0) {
+    return <p className="mt-2 text-xs text-gray-500">Ya usaste los {MAXIMO_CAMBIOS_DIRECCION} cambios de dirección de este pedido.</p>;
+  }
+
+  if (!abierto) {
+    return (
+      <button onClick={abrir} className="mt-2 text-sm text-marca-700 font-semibold hover:underline">
+        Cambiar dirección <span className="font-normal text-gray-500">(te quedan {restantes})</span>
+      </button>
+    );
+  }
+
+  return (
+    <div className="mt-3 border border-gray-300 rounded-lg p-3 space-y-2">
+      <p className="text-sm font-semibold text-gray-900">
+        Nueva dirección de envío <span className="font-normal text-gray-500">· te quedan {restantes} cambio{restantes === 1 ? '' : 's'}</span>
+      </p>
+      {error && (
+        <div role="alert" className="bg-red-50 border border-red-200 text-red-800 rounded-lg p-2 text-sm">
+          {error}
+        </div>
+      )}
+      {direcciones
+        .filter((d) => d.id !== pedido.direccion_envio?.id)
+        .map((d) => (
+          <label key={d.id} className={`flex gap-2 items-start rounded-lg border p-2 text-sm cursor-pointer ${d.id === elegida ? 'border-marca-600 bg-marca-50' : 'border-gray-300'}`}>
+            <input type="radio" name="nueva-direccion" checked={d.id === elegida} onChange={() => setElegida(d.id)} className="mt-1 accent-[#047857]" />
+            <span>
+              <span className="font-semibold">{d.etiqueta || 'Dirección'}</span>
+              <br />
+              <span className="text-gray-700">{describirDireccion(d)}</span>
+            </span>
+          </label>
+        ))}
+      {agregando ? (
+        <FormularioDireccion
+          clienteId={usuario.cliente_id}
+          alGuardar={(d) => confirmar(d.id)}
+          alCancelar={() => setAgregando(false)}
+          textoGuardar="Guardar y enviar aquí"
+        />
+      ) : (
+        <div className="flex flex-wrap gap-2 pt-1">
+          <button onClick={() => confirmar(elegida)} disabled={!elegida || guardando} className="btn-primario px-4 py-2 text-sm">
+            {guardando ? 'Guardando…' : 'Enviar a esta dirección'}
+          </button>
+          <button onClick={() => setAgregando(true)} className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-100">
+            Agregar otra dirección
+          </button>
+          <button onClick={() => setAbierto(false)} className="px-4 py-2 text-sm text-gray-600 hover:underline">
+            Cancelar
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 /** Historial de pedidos del cliente, con su ciclo de vida y cancelacion. */
 export default function MisPedidos({ usuario }) {
@@ -13,6 +118,7 @@ export default function MisPedidos({ usuario }) {
   const [cancelando, setCancelando] = useState(false);
   const [errorDetalle, setErrorDetalle] = useState(null);
   const [aviso, setAviso] = useState(null);
+  const [exitoDetalle, setExitoDetalle] = useState(null);
 
   const cargar = async () => {
     setCargando(true);
@@ -61,6 +167,7 @@ export default function MisPedidos({ usuario }) {
     setDetalle(null);
     setConfirmando(false);
     setErrorDetalle(null);
+    setExitoDetalle(null);
   };
 
   const verDetalle = async (id) => {
@@ -107,7 +214,7 @@ export default function MisPedidos({ usuario }) {
     creado: 'bg-gray-100 text-gray-700',
     pagado: 'bg-blue-100 text-blue-800',
     en_preparacion: 'bg-amber-100 text-amber-800',
-    enviado: 'bg-indigo-100 text-indigo-800',
+    enviado: 'bg-marca-100 text-marca-800',
     entregado: 'bg-green-100 text-green-800',
     cancelado: 'bg-red-100 text-red-800'
   };
@@ -133,11 +240,11 @@ export default function MisPedidos({ usuario }) {
       {cargando ? (
         <p role="status" className="text-gray-500">Cargando...</p>
       ) : pedidos.length === 0 ? (
-        <div className="bg-white border border-gray-200 rounded-xl p-10 text-center text-gray-500">
+        <div className="bg-superficie border border-gray-200 rounded-xl p-10 text-center text-gray-500">
           Aun no tienes pedidos.
         </div>
       ) : (
-        <div className="relative bg-white border border-gray-200 rounded-xl overflow-x-auto">
+        <div className="relative bg-superficie border border-gray-200 rounded-xl overflow-x-auto">
           <table className="min-w-full text-sm whitespace-nowrap">
             <caption className="sr-only">Historial de pedidos</caption>
             <thead className="bg-gray-50 text-left text-xs uppercase text-gray-500">
@@ -167,7 +274,7 @@ export default function MisPedidos({ usuario }) {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <button onClick={() => verDetalle(p.id)} className="text-indigo-600 hover:underline text-xs">
+                    <button onClick={() => verDetalle(p.id)} className="text-marca-600 hover:underline text-xs">
                       Ver detalle<span className="sr-only"> del pedido {p.numero}</span>
                     </button>
                   </td>
@@ -186,7 +293,7 @@ export default function MisPedidos({ usuario }) {
             aria-modal="true"
             aria-labelledby="titulo-detalle"
             tabIndex={-1}
-            className="bg-white rounded-xl max-w-2xl w-full max-h-[85vh] overflow-auto p-4 sm:p-6 focus:outline-none"
+            className="bg-superficie rounded-xl max-w-2xl w-full max-h-[85vh] overflow-auto p-4 sm:p-6 focus:outline-none"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-between items-start mb-4">
@@ -232,12 +339,29 @@ export default function MisPedidos({ usuario }) {
             {detalle.direccion_envio && (
               <div className="mt-4 text-sm bg-gray-50 rounded-lg p-3">
                 <p className="font-semibold text-xs uppercase text-gray-500 mb-1">Dirección de envío</p>
-                <p>{detalle.direccion_envio.linea1}</p>
-                <p className="text-gray-600">
-                  {detalle.direccion_envio.ciudad}, {detalle.direccion_envio.departamento}
+                <p>
+                  {detalle.direccion_envio.linea1}
+                  {detalle.direccion_envio.linea2 && `, ${detalle.direccion_envio.linea2}`}
                 </p>
+                <p className="text-gray-600">
+                  {[detalle.direccion_envio.ciudad, detalle.direccion_envio.departamento].filter(Boolean).join(', ')}
+                </p>
+                <CambiarDireccion
+                  usuario={usuario}
+                  pedido={detalle}
+                  alCambiar={async (restantes) => {
+                    setDetalle(await api(`/pedidos/${detalle.id}`));
+                    setExitoDetalle(`Actualizamos la dirección del pedido ${detalle.numero}. Te ${restantes === 1 ? 'queda 1 cambio' : `quedan ${restantes} cambios`}.`);
+                  }}
+                />
               </div>
             )}
+
+            <div role="status" aria-live="polite">
+              {exitoDetalle && (
+                <div className="mt-3 bg-green-50 border border-green-200 text-green-800 rounded-lg p-3 text-sm">{exitoDetalle}</div>
+              )}
+            </div>
 
             {detalle.historial?.length > 0 && (
               <div className="mt-4">
@@ -288,14 +412,14 @@ export default function MisPedidos({ usuario }) {
                     onClick={() => cancelar(detalle)}
                     disabled={cancelando}
                     aria-describedby="pregunta-cancelar"
-                    className="flex-1 bg-red-700 hover:bg-red-800 disabled:bg-red-300 text-white font-semibold py-2 rounded-lg"
+                    className="flex-1 btn-peligro py-2 rounded-lg"
                   >
                     {cancelando ? 'Cancelando...' : 'Si, cancelar pedido'}
                   </button>
                   <button
                     onClick={() => setConfirmando(false)}
                     disabled={cancelando}
-                    className="flex-1 border border-gray-300 bg-white hover:bg-gray-50 font-semibold py-2 rounded-lg"
+                    className="flex-1 border border-gray-300 bg-superficie hover:bg-gray-50 font-semibold py-2 rounded-lg"
                   >
                     No, conservarlo
                   </button>

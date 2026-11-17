@@ -40,8 +40,8 @@ const META_STOCK = 10_000;
 const META_STOCK_NUEVOS = 200;
 const CONCURRENCIA = 5;
 
-/** SKU con stock alto para la carga. SKU-TEC-004 y SKU-HOG-002 NO se tocan: las pruebas existentes dependen de su escasez. */
-export const SKUS_CARGA = ['SKU-TEC-001', 'SKU-HOG-001', 'SKU-DEP-001', 'SKU-TEC-002', 'SKU-DEP-002'];
+/** SKU con stock alto para la carga. SKU-TEC-004 y SKU-TEC-007 NO se tocan: las pruebas existentes dependen de su escasez. */
+export const SKUS_CARGA = ['SKU-TEC-001', 'SKU-TEC-006', 'SKU-TEC-009', 'SKU-TEC-002', 'SKU-TEC-010'];
 
 // --------------------------------------------------------------------------
 // Cliente HTTP minimo con espera ante 429
@@ -127,39 +127,41 @@ interface ProductoSemilla {
   nombre: string;
   descripcion: string;
   categoria: string;
+  subcategoria: string;
   marca: string;
   precio: number;
   descuento_porcentaje: number;
   atributos: Record<string, unknown>;
 }
 
+// SerByTek vende solo tecnologia: las plantillas son subcategorias.
 const PLANTILLAS: Record<string, { prefijo: string; tipos: string[]; marcas: string[]; usos: string[]; base: number }> = {
-  tecnologia: {
+  perifericos: {
     prefijo: 'TEC',
     tipos: ['Portatil', 'Monitor', 'Teclado mecanico', 'Mouse inalambrico', 'Audifonos', 'Parlante bluetooth', 'Tableta', 'Camara web', 'Disco solido', 'Router wifi'],
     marcas: ['Andina', 'Nexo', 'Volta', 'Orbital'],
     usos: ['para oficina y estudio', 'para videojuegos', 'para diseno grafico', 'para teletrabajo'],
     base: 120_000
   },
-  hogar: {
-    prefijo: 'HOG',
-    tipos: ['Licuadora', 'Cafetera', 'Sarten antiadherente', 'Juego de sabanas', 'Lampara de mesa', 'Aspiradora', 'Olla a presion', 'Ventilador de torre', 'Freidora de aire', 'Set de cuchillos'],
-    marcas: ['Casa Viva', 'Hogarena', 'Brisa', 'Terra'],
-    usos: ['para cocina familiar', 'para apartamento pequeno', 'de uso diario', 'de alta durabilidad'],
-    base: 60_000
-  },
-  deportes: {
-    prefijo: 'DEP',
-    tipos: ['Balon de futbol', 'Bicicleta de ruta', 'Mancuernas', 'Colchoneta de yoga', 'Raqueta de tenis', 'Guantes de boxeo', 'Tenis para correr', 'Morral de hidratacion', 'Cuerda para saltar', 'Casco de ciclismo'],
-    marcas: ['Cumbre', 'Rapido', 'Atleta', 'Montana'],
-    usos: ['para entrenamiento en casa', 'para competencia', 'para principiantes', 'para uso al aire libre'],
+  accesorios: {
+    prefijo: 'ACC',
+    tipos: ['Cargador USB-C', 'Cable HDMI', 'Hub USB', 'Bateria externa', 'Base para portatil', 'Funda para tablet', 'Adaptador de red', 'Soporte para celular', 'Regleta inteligente', 'Maletin para portatil'],
+    marcas: ['Andina', 'Cumbre', 'Brisa', 'Terra'],
+    usos: ['para viaje', 'para escritorio', 'de uso diario', 'de alta durabilidad'],
     base: 40_000
+  },
+  gaming: {
+    prefijo: 'GAM',
+    tipos: ['Control inalambrico', 'Diadema gamer', 'Mousepad', 'Silla gamer', 'Teclado gamer', 'Volante', 'Capturadora de video', 'Microfono para streaming', 'Luz RGB', 'Soporte para audifonos'],
+    marcas: ['Cumbre', 'Rapido', 'Atleta', 'Montana'],
+    usos: ['para competencia', 'para streaming', 'para principiantes', 'para sesiones largas'],
+    base: 60_000
   }
 };
 
 export const generarProductos = (): ProductoSemilla[] => {
   const productos: ProductoSemilla[] = [];
-  for (const [categoria, p] of Object.entries(PLANTILLAS)) {
+  for (const [subcategoria, p] of Object.entries(PLANTILLAS)) {
     for (let i = 0; i < 20; i++) {
       const tipo = p.tipos[i % p.tipos.length];
       const marca = p.marcas[i % p.marcas.length];
@@ -169,7 +171,8 @@ export const generarProductos = (): ProductoSemilla[] => {
         sku: `SKU-${p.prefijo}-${String(101 + i)}`,
         nombre: `${tipo} ${marca} ${serie}`,
         descripcion: `${tipo} de la linea ${serie.toLowerCase()} ${uso}. Producto de carga para pruebas de rendimiento.`,
-        categoria,
+        categoria: 'tecnologia',
+        subcategoria,
         marca,
         precio: p.base * (1 + (i % 7)) + (i < 10 ? 0 : p.base),
         descuento_porcentaje: [0, 0, 5, 10, 15][i % 5],

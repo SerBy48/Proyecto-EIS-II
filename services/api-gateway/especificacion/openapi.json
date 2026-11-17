@@ -365,6 +365,50 @@
       }
     },
     "/api/auth/usuarios": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Listar usuarios",
+        "description": "Para el panel de administracion. Hasta 200, del mas reciente al mas antiguo.",
+        "operationId": "listarUsuarios",
+        "x-roles": [
+          "administrador"
+        ],
+        "parameters": [
+          {
+            "name": "rol",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/Rol"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Usuarios (sin el hash de la contrasena).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UsuarioAdministrado"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/SolicitudInvalida"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          }
+        }
+      },
       "post": {
         "tags": [
           "auth"
@@ -416,6 +460,159 @@
           },
           "409": {
             "$ref": "#/components/responses/Conflicto"
+          }
+        }
+      }
+    },
+    "/api/auth/usuarios/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "example": 2
+          }
+        }
+      ],
+      "patch": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Cambiar el rol o desactivar un usuario",
+        "operationId": "actualizarUsuario",
+        "x-roles": [
+          "administrador"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CambiosUsuario"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Usuario actualizado y sus sesiones revocadas.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "mensaje": {
+                      "type": "string",
+                      "example": "Usuario actualizado."
+                    },
+                    "usuario": {
+                      "$ref": "#/components/schemas/UsuarioAdministrado"
+                    },
+                    "sesiones_cerradas": {
+                      "type": "integer",
+                      "example": 1
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/SolicitudInvalida"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflicto"
+          }
+        }
+      }
+    },
+    "/api/auth/cuenta": {
+      "delete": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Eliminar la propia cuenta",
+        "description": "Solo cuentas de cliente, confirmando con la contrasena. Se rechaza con 409 si hay pedidos\ncreados, pagados, en preparacion o enviados. Si procede, se ANONIMIZA: el perfil pierde sus\ndatos personales y direcciones, la cuenta queda inactiva y se cierran sus sesiones. Los\npedidos se conservan sin datos personales (obligaciones contables).\n",
+        "operationId": "eliminarCuenta",
+        "x-roles": [
+          "cliente"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "password"
+                ],
+                "properties": {
+                  "password": {
+                    "type": "string",
+                    "format": "password"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cuenta eliminada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "mensaje": {
+                      "type": "string",
+                      "example": "Tu cuenta fue eliminada."
+                    },
+                    "sesiones_cerradas": {
+                      "type": "integer",
+                      "example": 1
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/SolicitudInvalida"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "description": "Contrasena incorrecta (CONTRASENA_INCORRECTA) o la cuenta no es de cliente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Hay pedidos en curso (PEDIDOS_EN_CURSO); detalle.pendientes los lista.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         }
       }
@@ -512,7 +709,7 @@
         "tags": [
           "clientes"
         ],
-        "summary": "Actualizar nombre, apellido o telefono",
+        "summary": "Actualizar los datos personales (nombre, apellido, telefono, documento)",
         "operationId": "actualizarCliente",
         "x-roles": [
           "sesion"
@@ -558,6 +755,43 @@
           },
           "404": {
             "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      }
+    },
+    "/api/clientes/departamentos": {
+      "get": {
+        "tags": [
+          "clientes"
+        ],
+        "summary": "Departamentos de Colombia",
+        "description": "Lista oficial para el selector de direcciones; el servicio valida contra ella al guardar.",
+        "operationId": "listarDepartamentos",
+        "security": [],
+        "x-roles": [
+          "publica"
+        ],
+        "responses": {
+          "200": {
+            "description": "Los 32 departamentos y Bogota D.C.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "example": [
+                    "Antioquia",
+                    "Bogotá D.C.",
+                    "Huila"
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/LimiteExcedido"
           }
         }
       }
@@ -654,6 +888,107 @@
         }
       }
     },
+    "/api/clientes/{id}/direcciones/{direccionId}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdCliente"
+        },
+        {
+          "name": "direccionId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "example": 3
+          }
+        }
+      ],
+      "patch": {
+        "tags": [
+          "clientes"
+        ],
+        "summary": "Editar una direccion o marcarla como predeterminada",
+        "operationId": "actualizarDireccion",
+        "x-roles": [
+          "sesion"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CambiosDireccion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Direccion actualizada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "mensaje": {
+                      "type": "string",
+                      "example": "Direccion actualizada."
+                    },
+                    "direccion": {
+                      "$ref": "#/components/schemas/Direccion"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/SolicitudInvalida"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "clientes"
+        ],
+        "summary": "Eliminar una direccion",
+        "description": "Si era la predeterminada, la mas antigua que quede pasa a serlo.",
+        "operationId": "eliminarDireccion",
+        "x-roles": [
+          "sesion"
+        ],
+        "responses": {
+          "200": {
+            "description": "Direccion eliminada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Mensaje"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      }
+    },
     "/api/clientes/{id}/historial": {
       "parameters": [
         {
@@ -709,7 +1044,7 @@
           {
             "name": "q",
             "in": "query",
-            "description": "Busqueda de texto completo (nombre, descripcion, marca).",
+            "description": "Busqueda de texto (nombre, marca, subcategoria, descripcion). Si el indice no encuentra nada, se repite con una busqueda tolerante: palabras incompletas, plural y tildes (busqueda = tolerante).",
             "schema": {
               "type": "string",
               "example": "portatil"
@@ -721,6 +1056,26 @@
             "schema": {
               "type": "string",
               "example": "tecnologia"
+            }
+          },
+          {
+            "name": "subcategoria",
+            "in": "query",
+            "description": "Seccion de GET /api/catalogo/categorias.",
+            "schema": {
+              "type": "string",
+              "example": "audio"
+            }
+          },
+          {
+            "name": "en_oferta",
+            "in": "query",
+            "description": "true: solo productos con descuento.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true"
+              ]
             }
           },
           {
@@ -756,7 +1111,8 @@
               "enum": [
                 "precio_asc",
                 "precio_desc",
-                "nombre"
+                "nombre",
+                "descuento"
               ]
             }
           },
@@ -1893,6 +2249,88 @@
         }
       }
     },
+    "/api/pedidos/{id}/direccion": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "description": "Id numerico del pedido.",
+          "schema": {
+            "type": "integer",
+            "example": 12
+          }
+        }
+      ],
+      "patch": {
+        "tags": [
+          "pedidos"
+        ],
+        "summary": "Cambiar la direccion de envio de un pedido",
+        "description": "Solo el cliente dueno, como maximo 2 veces y mientras el pedido este creado, pagado o en\npreparacion. El limite se aplica en una sola sentencia condicional (dos clics simultaneos no lo\nsuperan). Envia un correo con la direccion nueva.\n",
+        "operationId": "cambiarDireccionPedido",
+        "x-roles": [
+          "cliente"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CambioDireccionPedido"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Direccion actualizada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "mensaje": {
+                      "type": "string"
+                    },
+                    "pedido": {
+                      "type": "object",
+                      "additionalProperties": true
+                    },
+                    "cambios_restantes": {
+                      "type": "integer",
+                      "example": 1
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/SolicitudInvalida"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          },
+          "409": {
+            "description": "El pedido ya salio (DIRECCION_NO_EDITABLE) o ya se hicieron los 2 cambios (LIMITE_CAMBIOS_DIRECCION).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/pagos/transacciones": {
       "get": {
         "tags": [
@@ -2727,6 +3165,38 @@
           }
         ]
       },
+      "UsuarioAdministrado": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 2
+          },
+          "email": {
+            "type": "string",
+            "example": "vendedor@tienda.co"
+          },
+          "rol": {
+            "$ref": "#/components/schemas/Rol"
+          },
+          "activo": {
+            "type": "boolean"
+          },
+          "cliente_id": {
+            "type": "integer",
+            "nullable": true
+          },
+          "ultimo_acceso": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "creado_en": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
       "UsuarioInterno": {
         "type": "object",
         "required": [
@@ -2747,6 +3217,23 @@
           },
           "rol": {
             "$ref": "#/components/schemas/Rol"
+          }
+        }
+      },
+      "CambiosUsuario": {
+        "type": "object",
+        "minProperties": 1,
+        "description": "Solo las cuentas internas cambian de rol. Nadie se cambia el rol ni se desactiva a si mismo. Revoca las sesiones del usuario.",
+        "properties": {
+          "rol": {
+            "type": "string",
+            "enum": [
+              "vendedor",
+              "administrador"
+            ]
+          },
+          "activo": {
+            "type": "boolean"
           }
         }
       },
@@ -2843,7 +3330,7 @@
       },
       "CambiosCliente": {
         "type": "object",
-        "description": "Al menos uno. El correo y el documento no se cambian por esta via.",
+        "description": "Al menos uno. El correo no se cambia por esta via (es la identidad de la cuenta).",
         "minProperties": 1,
         "properties": {
           "nombre": {
@@ -2856,7 +3343,24 @@
           },
           "telefono": {
             "type": "string",
-            "maxLength": 30
+            "maxLength": 30,
+            "nullable": true,
+            "example": "300 123 4567"
+          },
+          "tipo_documento": {
+            "type": "string",
+            "enum": [
+              "CC",
+              "CE",
+              "NIT",
+              "PAS"
+            ]
+          },
+          "documento": {
+            "type": "string",
+            "maxLength": 30,
+            "nullable": true,
+            "description": "Letras, numeros y guiones; unico (409 si ya lo usa otra cuenta)."
           }
         }
       },
@@ -2906,9 +3410,11 @@
       },
       "DireccionNueva": {
         "type": "object",
+        "description": "La primera direccion de envio del cliente queda como predeterminada aunque no se pida.",
         "required": [
           "linea1",
-          "ciudad"
+          "ciudad",
+          "departamento"
         ],
         "properties": {
           "tipo": {
@@ -2941,22 +3447,66 @@
           "departamento": {
             "type": "string",
             "maxLength": 100,
-            "example": "Huila"
-          },
-          "pais": {
-            "type": "string",
-            "maxLength": 60,
-            "default": "Colombia"
+            "example": "Huila",
+            "description": "Uno de GET /api/clientes/departamentos; se acepta sin tildes y se guarda el nombre oficial."
           },
           "codigo_postal": {
             "type": "string",
-            "maxLength": 20,
+            "pattern": "^[0-9]{6}$",
             "example": "410001"
           },
           "predeterminada": {
             "type": "boolean",
             "default": false,
             "description": "Si es true, quita la marca a la anterior del mismo tipo."
+          }
+        }
+      },
+      "Mensaje": {
+        "type": "object",
+        "properties": {
+          "mensaje": {
+            "type": "string"
+          }
+        }
+      },
+      "CambiosDireccion": {
+        "type": "object",
+        "minProperties": 1,
+        "description": "Al menos un campo. predeterminada solo admite true (para cambiarla se marca otra).",
+        "properties": {
+          "etiqueta": {
+            "type": "string",
+            "maxLength": 50,
+            "nullable": true
+          },
+          "linea1": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "linea2": {
+            "type": "string",
+            "maxLength": 200,
+            "nullable": true
+          },
+          "ciudad": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "departamento": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "codigo_postal": {
+            "type": "string",
+            "nullable": true,
+            "example": "110231"
+          },
+          "predeterminada": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
           }
         }
       },
@@ -3010,6 +3560,11 @@
             "type": "string",
             "example": "tecnologia"
           },
+          "subcategoria": {
+            "type": "string",
+            "nullable": true,
+            "example": "computadores"
+          },
           "marca": {
             "type": "string",
             "example": "Aurora"
@@ -3062,6 +3617,14 @@
           "por_pagina": {
             "type": "integer",
             "example": 20
+          },
+          "busqueda": {
+            "type": "string",
+            "enum": [
+              "texto",
+              "tolerante"
+            ],
+            "description": "Solo con q: como se encontraron los resultados."
           },
           "productos": {
             "type": "array",
@@ -3166,13 +3729,65 @@
             "type": "string",
             "example": "tecnologia"
           },
+          "nombre": {
+            "type": "string",
+            "example": "Tecnología"
+          },
           "productos": {
             "type": "integer",
-            "example": 25
+            "example": 60
           },
           "precio_min": {
             "type": "number",
-            "example": 120000
+            "example": 59000
+          },
+          "marcas": {
+            "type": "array",
+            "description": "Marcas de la categoria; el asistente las reconoce sin reglas propias.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "nombre": {
+                  "type": "string",
+                  "example": "Logitech"
+                },
+                "productos": {
+                  "type": "integer",
+                  "example": 5
+                }
+              }
+            }
+          },
+          "subcategorias": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "slug": {
+                  "type": "string",
+                  "example": "audio"
+                },
+                "nombre": {
+                  "type": "string",
+                  "example": "Audio"
+                },
+                "productos": {
+                  "type": "integer",
+                  "example": 6
+                },
+                "precio_min": {
+                  "type": "number",
+                  "example": 249000
+                },
+                "sinonimos": {
+                  "type": "array",
+                  "description": "El asistente los usa para reconocer la seccion (audifonos, parlante...).",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
           }
         }
       },
@@ -3685,6 +4300,19 @@
               "reembolso_procesado",
               "stock_devuelto:SKU-HOG-001"
             ]
+          }
+        }
+      },
+      "CambioDireccionPedido": {
+        "type": "object",
+        "required": [
+          "direccion_id"
+        ],
+        "properties": {
+          "direccion_id": {
+            "type": "integer",
+            "example": 3,
+            "description": "Una direccion de envio del propio cliente."
           }
         }
       },

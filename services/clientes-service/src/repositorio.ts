@@ -10,7 +10,7 @@ import { clientes, direcciones, historialCompras } from './esquema';
  */
 
 /** Campos del perfil que el propio cliente puede cambiar. */
-export const CAMPOS_EDITABLES = ['nombre', 'apellido', 'telefono'] as const;
+export const CAMPOS_EDITABLES = ['nombre', 'apellido', 'telefono', 'documento', 'tipo_documento'] as const;
 export type CampoEditable = (typeof CAMPOS_EDITABLES)[number];
 
 export const crearCliente = async (datos: {
@@ -67,7 +67,15 @@ export const existeCliente = async (id: number): Promise<boolean> => {
   return filas.length > 0;
 };
 
-export const actualizarCliente = async (id: number, cambios: Partial<Record<CampoEditable, string>>) => {
+export interface CambiosCliente {
+  nombre?: string;
+  apellido?: string;
+  telefono?: string | null;
+  documento?: string | null;
+  tipo_documento?: 'CC' | 'CE' | 'NIT' | 'PAS';
+}
+
+export const actualizarCliente = async (id: number, cambios: CambiosCliente) => {
   const [cliente] = await db
     .update(clientes)
     .set({ ...cambios, actualizado_en: sql`NOW()` })
@@ -232,3 +240,95 @@ export const proyectarPedido = async (datos: {
     })
     .onConflictDoUpdate({ target: historialCompras.pedido_id, set: { estado: sql`EXCLUDED.estado` } });
 };
+
+/** Campos de una direccion que se pueden cambiar. */
+export const CAMPOS_DIRECCION = ['etiqueta', 'linea1', 'linea2', 'ciudad', 'departamento', 'codigo_postal'] as const;
+export type CampoDireccion = (typeof CAMPOS_DIRECCION)[number];
+export interface CambiosDireccion {
+  etiqueta?: string | null;
+  linea1?: string;
+  linea2?: string | null;
+  ciudad?: string;
+  departamento?: string | null;
+  codigo_postal?: string | null;
+}
+
+/**
+ * Actualiza una direccion del cliente. Si se marca como predeterminada, la
+ * anterior del mismo tipo deja de serlo en la misma transaccion (el indice
+ * unico parcial no admite dos). Devuelve null si la direccion no es suya.
+ */
+export const actualizarDireccion = (
+  clienteId: number,
+  direccionId: number,
+  cambios: CambiosDireccion,
+  predeterminada?: boolean
+) =>
+  db.transaction(async (tx) => {
+    const [actual] = await tx
+      .select({ id: direcciones.id, tipo: direcciones.tipo })
+      .from(direcciones)
+      .where(and(eq(direcciones.id, direccionId), eq(direcciones.cliente_id, clienteId)));
+    if (!actual) return null;
+    if (predeterminada) {
+      await tx
+        .update(direcciones)
+        .set({ predeterminada: false })
+        .where(and(eq(direcciones.cliente_id, clienteId), eq(direcciones.tipo, actual.tipo)));
+    }
+    const [direccion] = await tx
+      .update(direcciones)
+      .set({ ...cambios, ...(predeterminada !== undefined ? { predeterminada } : {}) })
+      .where(eq(direcciones.id, direccionId))
+      .returning(columnasDireccion);
+    return direccion;
+  });
+
+/**
+ * Elimina una direccion del cliente. Si era la predeterminada, la mas antigua
+ * que quede del mismo tipo pasa a serlo: el cliente no se queda sin direccion
+ * predeterminada mientras tenga alguna. Devuelve false si no es suya.
+ */
+export const eliminarDireccion = (clienteId: number, direccionId: number) =>
+  db.transaction(async (tx) => {
+    const [borrada] = await tx
+      .delete(direcciones)
+      .where(and(eq(direcciones.id, direccionId), eq(direcciones.cliente_id, clienteId)))
+      .returning({ tipo: direcciones.tipo, predeterminada: direcciones.predeterminada });
+    if (!borrada) return false;
+    if (borrada.predeterminada) {
+      const [siguiente] = await tx
+        .select({ id: direcciones.id })
+        .from(direcciones)
+        .where(and(eq(direcciones.cliente_id, clienteId), eq(direcciones.tipo, borrada.tipo)))
+        .orderBy(direcciones.id)
+        .limit(1);
+      if (siguiente) await tx.update(direcciones).set({ predeterminada: true }).where(eq(direcciones.id, siguiente.id));
+    }
+    return true;
+  });
+
+/**
+ * Anonimiza el perfil de un cliente que elimino su cuenta: borra sus
+ * direcciones, reemplaza sus datos personales y lo desactiva (pedidos ya no lo
+ * acepta en el checkout). Es idempotente. El historial de compras se conserva:
+ * solo tiene numeros de pedido y totales.
+ */
+export const anonimizarCliente = (clienteId: number) =>
+  db.transaction(async (tx) => {
+    await tx.delete(direcciones).where(eq(direcciones.cliente_id, clienteId));
+    const [cliente] = await tx
+      .update(clientes)
+      .set({
+        nombre: 'Cliente',
+        apellido: 'eliminado',
+        email: `eliminado-${clienteId}@cuenta-eliminada.invalid`,
+        telefono: null,
+        documento: null,
+        activo: false,
+        actualizado_en: sql`NOW()`
+      })
+      .where(eq(clientes.id, clienteId))
+      .returning({ id: clientes.id });
+    return cliente ?? null;
+  });

@@ -50,10 +50,14 @@ paths:
   /api/auth/perfil: { $ref: 'rutas/auth.yaml#/perfil' }
   /api/auth/verificar: { $ref: 'rutas/auth.yaml#/verificar' }
   /api/auth/usuarios: { $ref: 'rutas/auth.yaml#/usuarios' }
+  /api/auth/usuarios/{id}: { $ref: 'rutas/auth.yaml#/usuario' }
+  /api/auth/cuenta: { $ref: 'rutas/auth.yaml#/cuenta' }
 
   /api/clientes: { $ref: 'rutas/clientes.yaml#/raiz' }
   /api/clientes/{id}: { $ref: 'rutas/clientes.yaml#/porId' }
+  /api/clientes/departamentos: { $ref: 'rutas/clientes.yaml#/departamentos' }
   /api/clientes/{id}/direcciones: { $ref: 'rutas/clientes.yaml#/direcciones' }
+  /api/clientes/{id}/direcciones/{direccionId}: { $ref: 'rutas/clientes.yaml#/direccion' }
   /api/clientes/{id}/historial: { $ref: 'rutas/clientes.yaml#/historial' }
 
   /api/catalogo/productos: { $ref: 'rutas/catalogo.yaml#/productos' }
@@ -78,6 +82,7 @@ paths:
   /api/pedidos/{id}/saga: { $ref: 'rutas/pedidos.yaml#/saga' }
   /api/pedidos/{id}/cancelar: { $ref: 'rutas/pedidos.yaml#/cancelar' }
   /api/pedidos/{id}/estado: { $ref: 'rutas/pedidos.yaml#/estado' }
+  /api/pedidos/{id}/direccion: { $ref: 'rutas/pedidos.yaml#/direccion' }
 
   /api/pagos/transacciones: { $ref: 'rutas/pagos-notificaciones.yaml#/transacciones' }
   /api/pagos/transacciones/{referencia}: { $ref: 'rutas/pagos-notificaciones.yaml#/transaccion' }

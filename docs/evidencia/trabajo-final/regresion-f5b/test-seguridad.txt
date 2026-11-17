@@ -1,0 +1,56 @@
+
+> ecommerce-distribuido@1.0.0 test:seguridad
+> tsx --env-file-if-exists=.env tests/seguridad/verificaciones.ts
+
+Verificaciones manuales de seguridad contra http://localhost:8080
+
+  V-01   [32mSEGURO  [0m Registro público vinculado al cliente_id de otra persona
+         El registro con cliente_id=1 y otro correo respondió 403 (El cliente indicado no corresponde a este correo.); no se creó ninguna cuenta vinculada a Ana.
+  V-02   [32mSEGURO  [0m Inyección de operadores NoSQL en categoria y marca
+         Los operadores no se interpretan (estados 400 y 400).
+  V-03   [32mSEGURO  [0m Búsqueda con q como objeto (q[$gt]=)
+         Respondió 400. 
+  V-04   [32mSEGURO  [0m Inyección SQL en /pedidos/:id
+         Estados: 404 (49 ms), 404 (19 ms), 404 (14 ms). Las consultas son parametrizadas (invariante 8) y pg_sleep no se ejecuta.
+  V-05   [32mSEGURO  [0m XSS almacenado: texto del usuario en la web y en los correos
+         Producto creado (201); la API guarda y devuelve el HTML tal cual. Web: no usa dangerouslySetInnerHTML ni innerHTML, React lo muestra como texto. Correo: los datos se escapan ("Hola &lt;img src=x onerror=&quot;alert(document.cookie)&quot;&gt;, recibimos tu pedido.").
+  V-06   [32mSEGURO  [0m Contraseñas con bcrypt y el hash nunca expuesto
+         5 de 5 usuarios con hash bcrypt de 10 rondas. El hash no aparece en la respuesta del login ni en /auth/perfil, y aparece 0 veces en los logs de auth.
+  V-07   [32mSEGURO  [0m Errores sin stack traces ni detalles internos
+         JSON mal formado → 400; ruta inexistente → 401; sin stack, rutas ni versiones, y sin x-powered-by.
+  V-08   [32mSEGURO  [0m IDOR entre clientes y cabeceras de confianza inyectadas
+         pedido de otro cliente → 404; carrito de otro cliente → 403; perfil de otro cliente → 403; ruta de administrador con x-usuario-rol: administrador inyectada → 403; carrito ajeno con x-cliente-id: 2 inyectada → 403
+  V-09   [32mSEGURO  [0m Tokens manipulados y refresh token reutilizado tras la rotación
+         alg:none → 401; rol cambiado sin refirmar → 401; firma alterada → 401; primera renovación → 200; reutilizar el refresh token ya rotado → 401.
+  V-10   [32mSEGURO  [0m Token de administrador forjado con el secreto JWT por defecto
+         El token forjado fue rechazado (401 / 401): el entorno no usa el secreto por defecto.
+  V-11   [32mSEGURO  [0m CORS con un origen no permitido
+         Origen malicioso → 403, Access-Control-Allow-Origin: (ausente); origen permitido → 200, http://localhost:5173. 
+  V-12   [32mSEGURO  [0m Cabeceras de seguridad en la web
+         Presentes todas.
+  V-13   [31mHALLAZGO[0m JWT y refresh token en localStorage
+         api.js guarda token, refresh_token, usuario en localStorage. Cualquier XSS lee el refresh token (vigencia de 7 días) y suplanta la sesión.
+  V-14   [32mSEGURO  [0m Los 404 de un usuario abren el circuit breaker de todos
+         Tras 6 SKU inexistentes de Ana (404, 404, 404, 404, 404, 404), Bruno sigue agregando productos (200).
+  V-15   [32mSEGURO  [0m El registro acepta un correo sin formato de correo
+         POST /auth/registro con email "no-es-un-correo-1794884163919" → 400. El escaneo activo creó además 115 usuarios administradores con "correos" como http://www.google.com/ o plantillas de inyección por POST /auth/usuarios.
+  V-16   [32mSEGURO  [0m Servicio interno alcanzable sin el gateway con el token interno por defecto
+         Directo a http://localhost:3004 con el token interno publicado → 401: el servicio ya no acepta ese secreto. Los puertos de los servicios quedan ligados a 127.0.0.1 en docker-compose.yml.
+  V-17   [32mSEGURO  [0m Asistente: un cliente consulta por el chat los pedidos de otro (IDOR)
+         Bruno pidió el pedido PED-202611-001006 de Ana por número, por id y continuando la conversación de Ana: en los tres casos "No encontré el pedido PED-202611-001006 entre tus pedidos." y ninguna tarjeta de pedido. El asistente consulta pedidos con el token del usuario (invariante 15).
+  V-18   [32mSEGURO  [0m Asistente: cabeceras de identidad falsificadas sin token
+         Con x-usuario-rol: administrador y x-cliente-id: 1 inyectadas, el asistente respondió como a un visitante: "Para consultar tus pedidos necesito que inicies sesión: solo te muestro tus propios pedidos.". El gateway borra esas cabeceras y el asistente solo toma la identidad del JWT.
+  V-19   [32mSEGURO  [0m Asistente: HTML, operadores NoSQL, longitud y datos de tarjeta en el texto
+         HTML no reflejado; texto como objeto → 400; conversacion_id {$ne:null} → conversación nueva; 5 000 caracteres → 400; la tarjeta se guarda como "[numero]".
+  V-20   [32mSEGURO  [0m Asistente: límite de mensajes por usuario
+         El mensaje 31 del mismo usuario en menos de un minuto recibió 429 LIMITE_ASISTENTE.
+  V-21   [32mSEGURO  [0m Asistente: inyección de instrucciones (prompt injection)
+         Sin datos de pedidos ni correos en la respuesta (intención: buscar_producto). El motor es de reglas; la IA opcional no recibe datos personales ni herramientas (ADR-0007).
+  V-22   [32mSEGURO  [0m Rutas internas de eliminación de cuenta, invocadas desde afuera con token de administrador
+         POST /clientes/:id/anonimizar y GET /pedidos/internos/... responden 403 al administrador; el perfil de Ana sigue intacto. Solo auth-service, con el secreto interno, las invoca al eliminar una cuenta con contraseña.
+  V-23   [32mSEGURO  [0m Cambiar la dirección de envío de un pedido ajeno
+         Bruno recibió 404 al cambiar la dirección del pedido 7 de Ana: un pedido ajeno se responde como inexistente (invariante 1).
+
+23 verificaciones: 1 hallazgos, 22 seguras, 0 informativas.
+Evidencia: docs\evidencia\no-funcionales\seguridad\verificaciones-manuales.json
+  V-13 es un riesgo aceptado (S-09, riesgo aceptado en docs/calidad/SEGURIDAD.md 9.4).

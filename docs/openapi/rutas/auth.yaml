@@ -158,6 +158,23 @@ verificar:
       '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
 
 usuarios:
+  get:
+    tags: [auth]
+    summary: Listar usuarios
+    description: Para el panel de administracion. Hasta 200, del mas reciente al mas antiguo.
+    operationId: listarUsuarios
+    x-roles: [administrador]
+    parameters:
+      - { name: rol, in: query, schema: { $ref: '../componentes/esquemas.yaml#/Rol' } }
+    responses:
+      '200':
+        description: Usuarios (sin el hash de la contrasena).
+        content:
+          application/json:
+            schema: { type: array, items: { $ref: '../componentes/esquemas.yaml#/UsuarioAdministrado' } }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
   post:
     tags: [auth]
     summary: Crear un usuario interno
@@ -183,3 +200,76 @@ usuarios:
       '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
       '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
       '409': { $ref: '../componentes/respuestas.yaml#/Conflicto' }
+
+usuario:
+  parameters:
+    - { name: id, in: path, required: true, schema: { type: integer, example: 2 } }
+  patch:
+    tags: [auth]
+    summary: Cambiar el rol o desactivar un usuario
+    operationId: actualizarUsuario
+    x-roles: [administrador]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../componentes/esquemas.yaml#/CambiosUsuario' }
+    responses:
+      '200':
+        description: Usuario actualizado y sus sesiones revocadas.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mensaje: { type: string, example: Usuario actualizado. }
+                usuario: { $ref: '../componentes/esquemas.yaml#/UsuarioAdministrado' }
+                sesiones_cerradas: { type: integer, example: 1 }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+      '404': { $ref: '../componentes/respuestas.yaml#/NoEncontrado' }
+      '409': { $ref: '../componentes/respuestas.yaml#/Conflicto' }
+
+cuenta:
+  delete:
+    tags: [auth]
+    summary: Eliminar la propia cuenta
+    description: |
+      Solo cuentas de cliente, confirmando con la contrasena. Se rechaza con 409 si hay pedidos
+      creados, pagados, en preparacion o enviados. Si procede, se ANONIMIZA: el perfil pierde sus
+      datos personales y direcciones, la cuenta queda inactiva y se cierran sus sesiones. Los
+      pedidos se conservan sin datos personales (obligaciones contables).
+    operationId: eliminarCuenta
+    x-roles: [cliente]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [password]
+            properties:
+              password: { type: string, format: password }
+    responses:
+      '200':
+        description: Cuenta eliminada.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mensaje: { type: string, example: Tu cuenta fue eliminada. }
+                sesiones_cerradas: { type: integer, example: 1 }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403':
+        description: Contrasena incorrecta (CONTRASENA_INCORRECTA) o la cuenta no es de cliente.
+        content:
+          application/json:
+            schema: { $ref: '../componentes/esquemas.yaml#/Error' }
+      '409':
+        description: Hay pedidos en curso (PEDIDOS_EN_CURSO); detalle.pendientes los lista.
+        content:
+          application/json:
+            schema: { $ref: '../componentes/esquemas.yaml#/Error' }

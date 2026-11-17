@@ -286,17 +286,17 @@ const tareas = async (pagina: Page): Promise<ResultadoTarea[]> => {
     );
   }));
 
-  r.push(await ejecutarTarea(pagina, 'T2', 'Buscar un producto y filtrar por categoria', 30, async (t) => {
+  r.push(await ejecutarTarea(pagina, 'T2', 'Buscar un producto y filtrar por seccion', 30, async (t) => {
     await analizar(pagina, 'Catalogo (cliente)');
     await t.escribir(pagina.locator('#filtro-q'), 'portatil', 'Escribir "portatil" en el buscador');
     await t.esperar(async () => {
-      await pagina.waitForFunction(() => [...document.querySelectorAll('article h2')].some((h) => /portatil/i.test(h.textContent ?? '')));
+      await pagina.waitForFunction(() => [...document.querySelectorAll('article h2')].some((h) => /port[aá]til/i.test(h.textContent ?? '')));
       await sinCarga(pagina);
     }, 'Esperar los resultados (la busqueda se lanza sola tras 350 ms)');
     // La consulta filtrada sale tras el debounce de 350 ms: se espera su
     // respuesta, no solo la ausencia de carga (que es cierta antes de empezar).
-    const filtrada = pagina.waitForResponse((r) => r.url().includes('/catalogo/productos') && r.url().includes('categoria=tecnologia'));
-    await t.elegir(pagina.locator('#filtro-categoria'), 'tecnologia', 'Elegir la categoria tecnologia');
+    const filtrada = pagina.waitForResponse((r) => r.url().includes('/catalogo/productos') && r.url().includes('subcategoria=computadores'));
+    await t.clic(pagina.getByRole('navigation', { name: 'Secciones del catálogo' }).getByRole('button', { name: /Computadores/ }), 'Pulsar la seccion Computadores');
     await t.esperar(async () => {
       await filtrada;
       await sinCarga(pagina);
@@ -416,7 +416,7 @@ const tareas = async (pagina: Page): Promise<ResultadoTarea[]> => {
     await t.captura('T8-salud');
     await t.clic(pagina.getByRole('button', { name: 'Inventario', exact: true }), 'Abrir Inventario');
     await t.esperar(() => pagina.getByRole('heading', { name: 'Registrar entrada' }).waitFor(), 'Esperar el formulario');
-    await t.escribir(pagina.locator('#entrada-sku'), 'SKU-HOG-002', 'Escribir el SKU');
+    await t.escribir(pagina.locator('#entrada-sku'), 'SKU-TEC-007', 'Escribir el SKU');
     await t.escribir(pagina.locator('#entrada-cantidad'), '10', 'Escribir la cantidad');
     await t.clic(pagina.getByRole('button', { name: 'Registrar' }), 'Pulsar Registrar');
     await t.esperar(() => pagina.getByText(/ahora hay \d+ unidades/).waitFor(), 'Esperar la confirmacion');
@@ -587,26 +587,37 @@ const estados = async (navegador: Browser): Promise<Estado[]> => {
     const expirado = jwt.sign({ sub: bruno.usuario.id, email: bruno.usuario.email, rol: 'cliente', cliente_id: bruno.usuario.cliente_id }, secreto, { expiresIn: -60 });
     await p.evaluate((t) => localStorage.setItem('token', t), expirado);
     await nav(p, /^Mis pedidos/).click();
-    const ok = await p.getByRole('heading', { name: 'Mis pedidos' }).waitFor().then(() => p.getByRole('alert').count());
+    await p.getByRole('heading', { name: 'Mis pedidos' }).waitFor();
+    // Esperar a que la renovacion termine Y quede guardada: si E7 escribe sus
+    // tokens antes, la renovacion en curso los sobrescribe con unos validos;
+    // si se la interrumpe, el refresh ya rotado queda invalido. (No se usa
+    // waitForFunction: la CSP de la web bloquea su evaluacion.)
+    for (let i = 0; i < 50 && (await p.evaluate(() => localStorage.getItem('token'))) === expirado; i++) {
+      await p.waitForTimeout(200);
+    }
+    await p.waitForLoadState('networkidle');
+    const ok = await p.getByRole('alert').count();
     registrar({ id: 'E6', estado: 'Token expirado durante la navegacion', resultado: ok === 0 ? 'La sesion se renueva sola y la pagina carga sin errores.' : 'Aparece un error en lugar de renovar la sesion.' });
 
     // E7. Refresh token tambien invalido: ¿que ve el usuario?
+    await nav(p, /^Catálogo/).click();
     await p.evaluate((t) => {
       localStorage.setItem('token', t);
       localStorage.setItem('refresh_token', 'invalido.invalido');
     }, expirado);
-    await nav(p, /^Catálogo/).click();
     await nav(p, /^Mis pedidos/).click();
-    await p.getByRole('alert').waitFor();
+    // Desde H-F5-02 el aviso es un estado ("Tu sesion expiro"), no un error del formulario.
+    const aviso = p.getByText(/Tu sesión expiró|sesión expiró/).first();
+    await aviso.waitFor();
     const sigueLogueado = await p.getByRole('button', { name: 'Salir' }).count();
-    registrar({ id: 'E7', estado: 'Sesion vencida sin posibilidad de renovar', resultado: `Mensaje "${(await p.getByRole('alert').textContent())?.trim()}"; ${sigueLogueado ? 'la cabecera sigue mostrando la sesion abierta y no lleva al inicio de sesion' : 'se vuelve al inicio de sesion'}.`, captura: await foto(p, 'E7-sesion-vencida') });
+    registrar({ id: 'E7', estado: 'Sesion vencida sin posibilidad de renovar', resultado: `Mensaje "${(await aviso.textContent())?.trim()}"; ${sigueLogueado ? 'la cabecera sigue mostrando la sesion abierta y no lleva al inicio de sesion' : 'se vuelve al inicio de sesion'}.`, captura: await foto(p, 'E7-sesion-vencida') });
   }
   await p.context().close();
 
   // E8. Error al cancelar mientras el detalle esta abierto: ¿se ve el mensaje?
   {
     const b = await tokenDe('bruno@correo.co');
-    await api(`/carrito/${b.usuario.cliente_id}/items`, { metodo: 'POST', token: b.token, cuerpo: { sku: 'SKU-HOG-001', cantidad: 1 } });
+    await api(`/carrito/${b.usuario.cliente_id}/items`, { metodo: 'POST', token: b.token, cuerpo: { sku: 'SKU-TEC-006', cantidad: 1 } });
     const compra = await api('/pedidos/checkout', { metodo: 'POST', token: b.token, cabeceras: { 'Idempotency-Key': `usabilidad-e8-${Date.now()}` }, cuerpo: { medio_pago: 'tarjeta_credito', token_medio_pago: 'tok_ok_e8' } });
     const pedido = compra.datos?.pedido ?? compra.datos;
     const q = await nueva();
@@ -706,7 +717,7 @@ const estados = async (navegador: Browser): Promise<Estado[]> => {
 const principal = async (): Promise<void> => {
   mkdirSync(CAPTURAS, { recursive: true });
 
-  // Datos de partida: el carrito de Ana vacio y SKU-HOG-002 bajo el minimo.
+  // Datos de partida: el carrito de Ana vacio y SKU-TEC-007 bajo el minimo.
   const ana = await tokenDe('ana@correo.co');
   if (!ana?.token) throw new Error('No se pudo iniciar sesion como Ana: ¿esta el sistema levantado?');
   await api(`/carrito/${ana.usuario.cliente_id}`, { metodo: 'DELETE', token: ana.token });
@@ -715,7 +726,7 @@ const principal = async (): Promise<void> => {
   // compra uno por la API.
   const bruno = await tokenDe('bruno@correo.co');
   await api(`/carrito/${bruno.usuario.cliente_id}`, { metodo: 'DELETE', token: bruno.token });
-  await api(`/carrito/${bruno.usuario.cliente_id}/items`, { metodo: 'POST', token: bruno.token, cuerpo: { sku: 'SKU-DEP-001', cantidad: 1 } });
+  await api(`/carrito/${bruno.usuario.cliente_id}/items`, { metodo: 'POST', token: bruno.token, cuerpo: { sku: 'SKU-TEC-009', cantidad: 1 } });
   const previa = await api('/pedidos/checkout', {
     metodo: 'POST',
     token: bruno.token,

@@ -148,6 +148,9 @@ services:
       DATABASE_URL: postgresql://auth_user:auth_pass@postgres:5432/auth_db
       # El registro confirma con clientes que el cliente_id le pertenece (S-01).
       URL_CLIENTES: http://clientes-service:3002
+      # Eliminar la cuenta: pedidos en curso, anonimizar el perfil y vaciar el carrito.
+      URL_PEDIDOS: http://pedidos-service:3006
+      URL_CARRITO: http://carrito-service:3005
     ports: ["127.0.0.1:3001:3001"]
     depends_on:
       postgres: { condition: service_healthy }

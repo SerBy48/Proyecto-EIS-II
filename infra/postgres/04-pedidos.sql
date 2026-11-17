@@ -23,6 +23,10 @@ CREATE TABLE pedidos (
     clave_idempotencia VARCHAR(80) UNIQUE NOT NULL,
     transaccion_pago_id VARCHAR(40),
     motivo_cancelacion  VARCHAR(200),
+    -- Veces que el cliente cambio la direccion despues de comprar (maximo 2,
+    -- antes de que el pedido salga). El CHECK es la ultima defensa del limite.
+    cambios_direccion SMALLINT NOT NULL DEFAULT 0
+                      CHECK (cambios_direccion BETWEEN 0 AND 2),
     request_id      VARCHAR(64),
     creado_en       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     actualizado_en  TIMESTAMPTZ NOT NULL DEFAULT NOW()

@@ -30,7 +30,7 @@ const entrar = async (p: Page, correo: string) => {
   await p.goto(WEB, { waitUntil: 'domcontentloaded' });
   await p.getByRole('button', { name: 'Iniciar sesión' }).click();
   await p.getByLabel('Correo').fill(correo);
-  await p.getByLabel('Contraseña').fill(CLAVE);
+  await p.getByLabel('Contraseña', { exact: true }).fill(CLAVE);
   await p.getByRole('button', { name: 'Ingresar' }).click();
   await p.getByRole('button', { name: 'Salir' }).waitFor();
 };
@@ -57,10 +57,11 @@ const principal = async (): Promise<void> => {
   await p.getByLabel('Nombre', { exact: true }).fill('Valentina');
   await p.getByLabel('Apellido').fill('Rojas');
   await p.getByLabel('Correo').fill(`manual-${Date.now()}@correo.co`);
-  await p.getByLabel(/^Contraseña/).fill(CLAVE);
-  await p.getByLabel('Dirección de envío').fill('Calle 10 # 5-20');
-  await p.getByLabel('Ciudad').fill('Neiva');
-  await foto(p, '03-registro');
+  await p.locator('#registro-password').fill(CLAVE);
+  await p.getByLabel('Dirección', { exact: true }).fill('Calle 10 # 5-20');
+  await p.getByLabel('Departamento').selectOption('Huila');
+  await p.getByLabel('Ciudad o municipio').fill('Neiva');
+  await foto(p, '03-registro', true);
   await p.getByRole('button', { name: 'Crear cuenta' }).click();
   await p.getByRole('button', { name: 'Salir' }).waitFor();
   await p.context().close();
@@ -75,9 +76,9 @@ const principal = async (): Promise<void> => {
     await p.waitForTimeout(400);
   }
   await nav(p, /^Catálogo/).click();
-  await p.locator('#filtro-q').fill('cafetera');
-  await p.locator('article h2', { hasText: /cafetera/i }).first().waitFor();
-  await p.locator('article', { hasText: /cafetera/i }).getByRole('button', { name: /^Agregar al carrito/ }).click();
+  await p.locator('#filtro-q').fill('mouse');
+  await p.locator('article h2', { hasText: /mouse inal/i }).first().waitFor();
+  await p.locator('article', { hasText: /mouse inal/i }).first().getByRole('button', { name: /^Agregar al carrito/ }).click();
   await p.getByRole('status').filter({ hasText: 'agregado al carrito' }).waitFor();
   await foto(p, '04-buscar-y-agregar');
   await nav(p, /^Carrito/).click();
@@ -94,6 +95,12 @@ const principal = async (): Promise<void> => {
   await p.getByRole('button', { name: new RegExp(`Ver detalle del pedido ${numero}`) }).click();
   await p.getByRole('button', { name: 'Cancelar pedido' }).waitFor();
   await foto(p, '07-mis-pedidos', true);
+  // Cambiar la direccion de un pedido pagado (hasta 2 veces).
+  await p.getByRole('button', { name: /Cambiar dirección/ }).click();
+  await p.getByText('Nueva dirección de envío').waitFor();
+  await p.getByRole('dialog').screenshot({ path: path.join(SALIDA, '16-cambiar-direccion.png') });
+  console.log('  16-cambiar-direccion.png');
+  await p.getByRole('button', { name: 'Cancelar', exact: true }).click();
   await p.getByRole('button', { name: 'Cancelar pedido' }).click();
   await p.getByRole('button', { name: 'Si, cancelar pedido' }).waitFor();
   await foto(p, '08-cancelar-pedido');
@@ -107,7 +114,26 @@ const principal = async (): Promise<void> => {
   await panel.getByLabel('Escribe tu pregunta').fill(`estado del pedido ${numero}`);
   await panel.getByRole('button', { name: 'Enviar' }).click();
   await panel.getByText(new RegExp(`Tu pedido ${numero} está`)).waitFor();
+  await panel.getByLabel('Escribe tu pregunta').fill('Hay audífonos disponibles?');
+  await panel.getByRole('button', { name: 'Enviar' }).click();
+  await panel.getByText(/Sí, tenemos/).waitFor();
   await foto(p, '09-asistente');
+  await p.getByRole('button', { name: 'Cerrar asistente' }).click();
+
+  // Mi perfil: datos, direcciones y eliminar la cuenta.
+  await nav(p, /^Mi perfil/).click();
+  await p.getByRole('heading', { name: 'Mi perfil' }).waitFor();
+  await p.getByText('Eliminar cuenta').first().waitFor();
+  await p.waitForTimeout(600);
+  await foto(p, '15-perfil', true);
+  await p.context().close();
+
+  // Modo oscuro (se recuerda en el navegador).
+  p = await nuevaPagina();
+  await p.goto(WEB, { waitUntil: 'domcontentloaded' });
+  await p.locator('article').first().waitFor();
+  await p.getByRole('button', { name: 'Modo oscuro' }).click();
+  await foto(p, '17-modo-oscuro');
   await p.context().close();
 
   // Correo de la compra en Mailpit (la interfaz solo escucha en 127.0.0.1).
@@ -123,7 +149,7 @@ const principal = async (): Promise<void> => {
   await entrar(p, 'vendedor@tienda.co');
   await p.getByRole('navigation', { name: 'Secciones de administración' }).waitFor();
   await p.getByRole('button', { name: 'Inventario', exact: true }).click();
-  await p.locator('#entrada-sku').fill('SKU-HOG-002');
+  await p.locator('#entrada-sku').fill('SKU-TEC-007');
   await p.locator('#entrada-cantidad').fill('5');
   await p.getByRole('button', { name: 'Registrar' }).click();
   await p.getByText(/ahora hay \d+ unidades/).waitFor();
@@ -148,6 +174,10 @@ const principal = async (): Promise<void> => {
   await p.getByRole('button', { name: 'Notificaciones', exact: true }).click();
   await p.getByRole('heading', { name: 'Mensajes enviados' }).waitFor();
   await foto(p, '14-admin-notificaciones');
+  await p.getByRole('navigation', { name: 'Secciones de administración' }).getByRole('button', { name: 'Usuarios' }).click();
+  await p.getByRole('heading', { name: 'Crear cuenta interna' }).waitFor();
+  await p.locator('#usuario-correo').fill('nuevo.vendedor@serbytek.co');
+  await foto(p, '18-admin-usuarios', true);
 
   await navegador.close();
   console.log(`Listo: ${path.relative(process.cwd(), SALIDA)}`);

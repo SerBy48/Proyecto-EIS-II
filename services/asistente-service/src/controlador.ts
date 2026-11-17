@@ -12,8 +12,9 @@ import {
 } from '@ecommerce/shared';
 import { LONGITUD_MAXIMA_MENSAJE, enmascarar } from './configuracion';
 import { coleccionConversaciones, coleccionFaq, coleccionIntenciones, coleccionTickets } from './db';
+import { listarCategorias } from './adaptadores';
 import { Contexto, responder } from './dialogo';
-import { Intencion, Pendiente, clasificar } from './motor';
+import { Intencion, Pendiente, VOCABULARIO_VACIO, Vocabulario, clasificar } from './motor';
 
 const log = crearLogger('asistente-service');
 
@@ -72,6 +73,39 @@ const invalidarCache = () => {
   cache = undefined;
 };
 
+// --------------------------------------------- vocabulario del catalogo
+
+/**
+ * Subcategorias y sinonimos del catalogo, con una cache de un minuto. Asi un
+ * producto o una subcategoria nueva se entienden en el chat sin tocar las
+ * reglas. Si el catalogo no responde se usa el ultimo vocabulario conocido: el
+ * asistente sigue atendiendo envios, pagos y pedidos.
+ */
+let vocabulario: { hasta: number; datos: Vocabulario } | undefined;
+const VIGENCIA_VOCABULARIO_MS = Number(process.env.ASISTENTE_VOCABULARIO_MS || 60_000);
+
+const vocabularioDelCatalogo = async (requestId?: string): Promise<Vocabulario> => {
+  if (vocabulario && vocabulario.hasta > Date.now()) return vocabulario.datos;
+  try {
+    const categorias = await listarCategorias(requestId);
+    vocabulario = {
+      hasta: Date.now() + VIGENCIA_VOCABULARIO_MS,
+      datos: {
+        categorias: categorias.map((c) => c.categoria),
+        subcategorias: categorias.flatMap((c) => c.subcategorias),
+        marcas: [...new Set(categorias.flatMap((c) => (c.marcas ?? []).map((m) => m.nombre)))]
+      }
+    };
+  } catch (error) {
+    log.con({ request_id: requestId }).warn('Vocabulario del catalogo no disponible; se usa el ultimo conocido', {
+      error: error instanceof Error ? error.message : error
+    });
+    // Se reintenta en 10 s, no en cada mensaje.
+    vocabulario = { hasta: Date.now() + 10_000, datos: vocabulario?.datos ?? VOCABULARIO_VACIO };
+  }
+  return vocabulario.datos;
+};
+
 // ----------------------------------------------------------- conversacion
 
 interface Conversacion {
@@ -112,8 +146,8 @@ export const crearControlador = (bus: BusEventos) => {
     const previa = await cargarConversacion(conversacion_id, usuario);
     const conversacionId = previa?._id ?? randomUUID();
 
-    const { intenciones, faq } = await datosDelMotor();
-    const resultado = clasificar(mensaje, intenciones, previa?.pendiente ?? undefined);
+    const [{ intenciones, faq }, vocabularioActual] = await Promise.all([datosDelMotor(), vocabularioDelCatalogo(req.requestId)]);
+    const resultado = clasificar(mensaje, intenciones, previa?.pendiente ?? undefined, vocabularioActual);
 
     const contexto: Contexto = {
       texto: mensaje,
@@ -122,6 +156,8 @@ export const crearControlador = (bus: BusEventos) => {
       requestId: req.requestId,
       conversacionId,
       faq,
+      intenciones,
+      vocabulario: vocabularioActual,
       bus,
       registrarTicket: async ({ texto: textoTicket, usuario: autor }) => {
         const numero = nuevoNumeroTicket();
@@ -234,7 +270,7 @@ export const crearControlador = (bus: BusEventos) => {
 
     const resultado = await coleccionIntenciones().findOneAndUpdate(
       { clave: req.params.clave },
-      { $set: { ...cambios, actualizada_en: new Date() } },
+      { $set: { ...cambios, editada: true, actualizada_en: new Date() } },
       { returnDocument: 'after', projection: { _id: 0 } }
     );
     if (!resultado) throw errorNoEncontrado('Intencion no encontrada.');
@@ -255,7 +291,7 @@ export const crearControlador = (bus: BusEventos) => {
     }
     const resultado = await coleccionFaq().findOneAndUpdate(
       { clave: req.params.clave },
-      { $set: { respuesta: respuesta.trim(), actualizada_en: new Date() } },
+      { $set: { respuesta: respuesta.trim(), editada: true, actualizada_en: new Date() } },
       { returnDocument: 'after', projection: { _id: 0 } }
     );
     if (!resultado) throw errorNoEncontrado('Pregunta frecuente no encontrada.');

@@ -201,3 +201,52 @@ export const auditar = async (datos: {
     })
     .catch(() => undefined);
 };
+
+// ------------------------------------------------- administracion de usuarios
+
+const columnasAdministracion = {
+  id: usuarios.id,
+  email: usuarios.email,
+  rol: usuarios.rol,
+  activo: usuarios.activo,
+  cliente_id: usuarios.cliente_id,
+  ultimo_acceso: usuarios.ultimo_acceso,
+  creado_en: usuarios.creado_en
+};
+
+/** Usuarios, opcionalmente de un rol, del mas reciente al mas antiguo. */
+export const listarUsuarios = (rol?: Rol) =>
+  db
+    .select(columnasAdministracion)
+    .from(usuarios)
+    .where(rol ? eq(usuarios.rol, rol) : undefined)
+    .orderBy(sql`${usuarios.creado_en} DESC`)
+    .limit(200);
+
+export const obtenerUsuario = async (id: number) => {
+  const [usuario] = await db
+    .select({ ...columnasAdministracion, password_hash: usuarios.password_hash })
+    .from(usuarios)
+    .where(eq(usuarios.id, id));
+  return usuario ?? null;
+};
+
+export const actualizarUsuario = async (id: number, cambios: { rol?: Rol; activo?: boolean }) => {
+  const [usuario] = await db.update(usuarios).set(cambios).where(eq(usuarios.id, id)).returning(columnasAdministracion);
+  return usuario ?? null;
+};
+
+/**
+ * Anonimiza una cuenta eliminada: el correo deja de identificar a la persona
+ * (y queda libre para registrarse de nuevo), la contrasena se reemplaza por el
+ * hash de un valor aleatorio que nadie conoce y la cuenta queda inactiva. La
+ * fila se conserva porque la auditoria y los pedidos la referencian por id.
+ */
+export const anonimizarUsuario = async (id: number, hashAleatorio: string) => {
+  const [usuario] = await db
+    .update(usuarios)
+    .set({ email: `eliminado-${id}@cuenta-eliminada.invalid`, password_hash: hashAleatorio, activo: false })
+    .where(eq(usuarios.id, id))
+    .returning({ id: usuarios.id });
+  return usuario ?? null;
+};

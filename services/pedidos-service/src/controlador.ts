@@ -26,7 +26,7 @@ const log = crearLogger('pedidos');
  * Si clientes no responde, el evento sale sin contacto y el cambio de estado se
  * mantiene: un correo nunca tumba la operacion principal (invariante 12).
  */
-const contactoDelCliente = async (
+export const contactoDelCliente = async (
   clienteId: number,
   req: PeticionAutenticada
 ): Promise<{ email?: string; nombre?: string }> => {
@@ -48,6 +48,9 @@ const contactoDelCliente = async (
 export const inyectarBus = (instancia: BusEventos): void => {
   bus = instancia;
 };
+
+/** El bus de eventos del servicio (para los modulos que publican fuera de este archivo). */
+export const busDeEventos = (): BusEventos | undefined => bus;
 
 /** Transiciones de estado permitidas (seccion 5.8 del documento). */
 const TRANSICIONES: Record<EstadoPedido, EstadoPedido[]> = {
@@ -146,7 +149,7 @@ export const obtenerPedido = async (req: PeticionAutenticada, res: Response): Pr
 
   const columnas = `id, numero, cliente_id, direccion_envio, estado, subtotal, impuestos,
                     envio, descuento, total, transaccion_pago_id, motivo_cancelacion,
-                    creado_en, actualizado_en`;
+                    cambios_direccion, creado_en, actualizado_en`;
 
   const { rows } = esId
     ? await pool.query(`SELECT ${columnas} FROM pedidos WHERE id = $1`, [Number(valor)])

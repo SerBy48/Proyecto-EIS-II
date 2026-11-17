@@ -12,7 +12,7 @@
 import http from 'k6/http';
 import { check, group, sleep } from 'k6';
 import {
-  API, CATEGORIAS, SKUS_CARGA, TERMINOS, agregarAlCarrito, azar, comprar, conToken, correoCuenta, iniciarSesion,
+  API, SUBCATEGORIAS, SKUS_CARGA, TERMINOS, agregarAlCarrito, azar, comprar, conToken, correoCuenta, iniciarSesion,
   prepararCarrito
 } from './lib/comun.js';
 import { opciones } from './lib/perfiles.js';
@@ -37,7 +37,7 @@ export default function () {
   sleep(1);
 
   group('2 busqueda', () => {
-    const r = http.get(`${API}/catalogo/productos?q=${azar(TERMINOS)}&categoria=${azar(CATEGORIAS)}`, {
+    const r = http.get(`${API}/catalogo/productos?q=${azar(TERMINOS)}&subcategoria=${azar(SUBCATEGORIAS)}`, {
       tags: { endpoint: 'catalogo_busqueda', name: 'GET /catalogo/productos?q=' }
     });
     check(r, { 'catalogo 200': (x) => x.status === 200 });

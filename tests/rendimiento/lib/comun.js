@@ -18,13 +18,14 @@ export const CONTRASENA = 'Password123';
 export const TOTAL_CUENTAS = Number(__ENV.CUENTAS || 300);
 
 /** SKU con 10 000 unidades: los unicos que compra la carga. */
-export const SKUS_CARGA = ['SKU-TEC-001', 'SKU-HOG-001', 'SKU-DEP-001', 'SKU-TEC-002', 'SKU-DEP-002'];
+export const SKUS_CARGA = ['SKU-TEC-001', 'SKU-TEC-006', 'SKU-TEC-009', 'SKU-TEC-002', 'SKU-TEC-010'];
 
 export const TERMINOS = [
-  'portatil', 'monitor', 'audifonos', 'teclado', 'cafetera', 'licuadora', 'aspiradora',
-  'freidora', 'bicicleta', 'mancuernas', 'balon', 'raqueta', 'pro', 'basico', 'andina', 'cumbre'
+  'portatil', 'monitor', 'audifonos', 'teclado', 'mouse', 'cargador', 'router',
+  'celular', 'tablet', 'control', 'diadema', 'ssd', 'pro', 'basico', 'andina', 'cumbre'
 ];
-export const CATEGORIAS = ['tecnologia', 'hogar', 'deportes'];
+/** Subcategorias de SerByTek (todo el catalogo es tecnologia). */
+export const SUBCATEGORIAS = ['computadores', 'perifericos', 'audio', 'accesorios', 'gaming', 'redes'];
 
 export const JSON_CABECERAS = { 'Content-Type': 'application/json' };
 

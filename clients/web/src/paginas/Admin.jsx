@@ -7,18 +7,20 @@ import { api, BASE, moneda } from '../servicios/api';
  * que el operador responde la pregunta 4 del analisis: ver de un vistazo que
  * servicio esta caido y que sigue funcionando.
  */
-export default function Admin() {
+export default function Admin({ usuario }) {
   const [vista, setVista] = useState('salud');
+  const esAdministrador = usuario?.rol === 'administrador';
 
   return (
     <div className="max-w-6xl mx-auto p-4 sm:p-6">
       <h1 className="sr-only">Panel de administración</h1>
-      <nav aria-label="Secciones de administración" className="relative flex gap-2 mb-6 border-b overflow-x-auto">
+      <nav aria-label="Secciones de administración" className="relative flex gap-2 mb-6 border-b border-gray-200 overflow-x-auto">
         {[
           ['salud', 'Salud del sistema'],
           ['inventario', 'Inventario'],
           ['pedidos', 'Pedidos'],
-          ['notificaciones', 'Notificaciones']
+          ['notificaciones', 'Notificaciones'],
+          ...(esAdministrador ? [['usuarios', 'Usuarios']] : [])
         ].map(([id, etiqueta]) => (
           <button
             key={id}
@@ -26,7 +28,7 @@ export default function Admin() {
             aria-current={vista === id ? 'page' : undefined}
             className={`px-4 py-2 text-sm font-semibold border-b-2 transition whitespace-nowrap ${
               vista === id
-                ? 'border-indigo-600 text-indigo-700'
+                ? 'border-marca-600 text-marca-700'
                 : 'border-transparent text-gray-500 hover:text-gray-800'
             }`}
           >
@@ -39,6 +41,175 @@ export default function Admin() {
       {vista === 'inventario' && <Inventario />}
       {vista === 'pedidos' && <PedidosAdmin />}
       {vista === 'notificaciones' && <Notificaciones />}
+      {vista === 'usuarios' && esAdministrador && <Usuarios yo={usuario} />}
+    </div>
+  );
+}
+
+const NOMBRE_ROL = { cliente: 'Cliente', vendedor: 'Vendedor', administrador: 'Administrador' };
+
+/**
+ * Usuarios internos (solo administrador). SerByTek es una sola tienda: el
+ * "vendedor" es personal de la tienda que maneja inventario y pedidos, no un
+ * comerciante con su propio catalogo. Aqui el administrador crea vendedores,
+ * cambia el rol de una cuenta interna y desactiva cuentas.
+ */
+function Usuarios({ yo }) {
+  const [usuarios, setUsuarios] = useState(null);
+  const [filtro, setFiltro] = useState('internos');
+  const [nuevo, setNuevo] = useState({ email: '', password: '', rol: 'vendedor' });
+  const [mensaje, setMensaje] = useState(null);
+  const [creando, setCreando] = useState(false);
+
+  const cargar = async () => {
+    try {
+      setUsuarios(await api('/auth/usuarios'));
+    } catch (e) {
+      setMensaje({ tipo: 'error', texto: e.message });
+    }
+  };
+  useEffect(() => {
+    cargar();
+  }, []);
+
+  const crear = async (e) => {
+    e.preventDefault();
+    setCreando(true);
+    setMensaje(null);
+    try {
+      await api('/auth/usuarios', { metodo: 'POST', cuerpo: nuevo });
+      setMensaje({ tipo: 'ok', texto: `Se creó la cuenta ${nuevo.email} con el rol ${NOMBRE_ROL[nuevo.rol].toLowerCase()}.` });
+      setNuevo({ email: '', password: '', rol: 'vendedor' });
+      await cargar();
+    } catch (err) {
+      setMensaje({ tipo: 'error', texto: err.message });
+    } finally {
+      setCreando(false);
+    }
+  };
+
+  const cambiar = async (u, cambios, texto) => {
+    setMensaje(null);
+    try {
+      await api(`/auth/usuarios/${u.id}`, { metodo: 'PATCH', cuerpo: cambios });
+      setMensaje({ tipo: 'ok', texto });
+      await cargar();
+    } catch (err) {
+      setMensaje({ tipo: 'error', texto: err.message });
+    }
+  };
+
+  const visibles = (usuarios ?? []).filter((u) => (filtro === 'internos' ? u.rol !== 'cliente' : filtro === 'todos' ? true : u.rol === filtro));
+
+  return (
+    <div className="space-y-6">
+      <h2 className="sr-only">Usuarios</h2>
+      <div role="status" aria-live="polite">
+        {mensaje && (
+          <div className={`rounded-lg p-3 text-sm border ${mensaje.tipo === 'ok' ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'}`}>
+            {mensaje.texto}
+          </div>
+        )}
+      </div>
+
+      <form onSubmit={crear} className="bg-superficie border border-gray-200 rounded-xl p-4 sm:p-5">
+        <h3 className="font-bold text-gray-900 mb-1">Crear cuenta interna</h3>
+        <p className="text-sm text-gray-600 mb-4">
+          Los vendedores registran entradas de mercancía y avanzan los pedidos. Comparte la contraseña inicial por un canal seguro.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
+          <div className="sm:col-span-2">
+            <label htmlFor="usuario-correo" className="block text-sm font-semibold text-gray-700 mb-1">Correo</label>
+            <input id="usuario-correo" type="email" required maxLength={150} value={nuevo.email} onChange={(e) => setNuevo((n) => ({ ...n, email: e.target.value }))} className="w-full bg-superficie border border-gray-300 rounded-lg px-3 py-2" />
+          </div>
+          <div>
+            <label htmlFor="usuario-rol" className="block text-sm font-semibold text-gray-700 mb-1">Rol</label>
+            <select id="usuario-rol" value={nuevo.rol} onChange={(e) => setNuevo((n) => ({ ...n, rol: e.target.value }))} className="w-full bg-superficie border border-gray-300 rounded-lg px-3 py-2">
+              <option value="vendedor">Vendedor</option>
+              <option value="administrador">Administrador</option>
+            </select>
+          </div>
+          <div>
+            <label htmlFor="usuario-password" className="block text-sm font-semibold text-gray-700 mb-1">Contraseña inicial</label>
+            <input id="usuario-password" type="text" required minLength={8} autoComplete="new-password" value={nuevo.password} onChange={(e) => setNuevo((n) => ({ ...n, password: e.target.value }))} className="w-full bg-superficie border border-gray-300 rounded-lg px-3 py-2" />
+          </div>
+        </div>
+        <button type="submit" disabled={creando} className="mt-4 btn-primario px-5 py-2 text-sm">
+          {creando ? 'Creando…' : 'Crear cuenta'}
+        </button>
+      </form>
+
+      <div className="bg-superficie border border-gray-200 rounded-xl overflow-hidden">
+        <div className="flex flex-wrap items-center justify-between gap-3 p-4 border-b border-gray-200">
+          <h3 className="font-bold text-gray-900">Cuentas</h3>
+          <label className="text-sm text-gray-700">
+            <span className="mr-2">Mostrar</span>
+            <select value={filtro} onChange={(e) => setFiltro(e.target.value)} className="bg-superficie border border-gray-300 rounded-lg px-2 py-1">
+              <option value="internos">Personal interno</option>
+              <option value="vendedor">Vendedores</option>
+              <option value="administrador">Administradores</option>
+              <option value="cliente">Clientes</option>
+              <option value="todos">Todas</option>
+            </select>
+          </label>
+        </div>
+        {!usuarios ? (
+          <p className="p-4 text-gray-500">Cargando…</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <caption className="sr-only">Cuentas de usuario</caption>
+              <thead className="bg-gray-50 text-left text-xs uppercase text-gray-500">
+                <tr>
+                  <th className="px-4 py-2">Correo</th>
+                  <th className="px-4 py-2">Rol</th>
+                  <th className="px-4 py-2">Estado</th>
+                  <th className="px-4 py-2">Último acceso</th>
+                  <th className="px-4 py-2"><span className="sr-only">Acciones</span></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {visibles.map((u) => {
+                  const soyYo = u.id === yo?.id || u.email === yo?.email;
+                  return (
+                    <tr key={u.id}>
+                      <td className="px-4 py-2 break-all">{u.email}{soyYo && <span className="text-xs text-gray-500"> (tú)</span>}</td>
+                      <td className="px-4 py-2">{NOMBRE_ROL[u.rol]}</td>
+                      <td className="px-4 py-2">
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${u.activo ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'}`}>
+                          {u.activo ? 'Activa' : 'Inactiva'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2 text-gray-600 whitespace-nowrap">{u.ultimo_acceso ? new Date(u.ultimo_acceso).toLocaleString('es-CO') : '—'}</td>
+                      <td className="px-4 py-2 text-right whitespace-nowrap space-x-3">
+                        {!soyYo && u.rol !== 'cliente' && (
+                          <button
+                            onClick={() => cambiar(u, { rol: u.rol === 'vendedor' ? 'administrador' : 'vendedor' }, `${u.email} ahora es ${u.rol === 'vendedor' ? 'administrador' : 'vendedor'}.`)}
+                            className="text-marca-700 font-semibold hover:underline text-xs"
+                          >
+                            {u.rol === 'vendedor' ? 'Hacer administrador' : 'Hacer vendedor'}
+                            <span className="sr-only"> a {u.email}</span>
+                          </button>
+                        )}
+                        {!soyYo && (
+                          <button
+                            onClick={() => cambiar(u, { activo: !u.activo }, `La cuenta ${u.email} quedó ${u.activo ? 'desactivada' : 'activa'}.`)}
+                            className={`font-semibold hover:underline text-xs ${u.activo ? 'text-red-700' : 'text-green-800'}`}
+                          >
+                            {u.activo ? 'Desactivar' : 'Activar'}
+                            <span className="sr-only"> la cuenta {u.email}</span>
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            {!visibles.length && <p className="p-4 text-gray-500 text-sm">No hay cuentas con ese filtro.</p>}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -169,7 +340,7 @@ function Inventario() {
       <div className="lg:col-span-2">
         <h2 className="font-bold mb-3">Alertas de reposicion</h2>
         {error && <p role="alert" className="text-red-700 text-sm mb-3">{error}</p>}
-        <div className="relative bg-white border border-gray-200 rounded-xl overflow-x-auto">
+        <div className="relative bg-superficie border border-gray-200 rounded-xl overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead className="bg-gray-50 text-xs uppercase text-gray-500 text-left">
               <tr>
@@ -200,7 +371,7 @@ function Inventario() {
         </div>
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-xl p-5 h-fit">
+      <div className="bg-superficie border border-gray-200 rounded-xl p-5 h-fit">
         <h2 className="font-bold mb-3">Registrar entrada</h2>
         <div role="status">
           {mensaje && <p className="text-green-700 text-sm mb-3">{mensaje}</p>}
@@ -229,7 +400,7 @@ function Inventario() {
         <button
           onClick={reponer}
           disabled={!sku}
-          className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 text-white text-sm font-semibold py-2 rounded"
+          className="w-full btn-primario text-sm py-2 rounded"
         >
           Registrar
         </button>
@@ -287,7 +458,7 @@ function PedidosAdmin() {
     <div>
       <h2 className="font-bold mb-3">Pedidos del sistema</h2>
       {error && <p role="alert" className="text-red-700 text-sm mb-3">{error}</p>}
-      <div className="relative bg-white border border-gray-200 rounded-xl overflow-x-auto">
+      <div className="relative bg-superficie border border-gray-200 rounded-xl overflow-x-auto">
         <table className="min-w-full text-sm whitespace-nowrap">
           <thead className="bg-gray-50 text-xs uppercase text-gray-500 text-left">
             <tr>
@@ -309,7 +480,7 @@ function PedidosAdmin() {
                   {SIGUIENTE[p.estado] ? (
                     <button
                       onClick={() => avanzar(p.id, SIGUIENTE[p.estado])}
-                      className="text-xs bg-gray-800 hover:bg-gray-900 text-white px-2 py-1 rounded"
+                      className="text-xs btn-oscuro px-2 py-1 rounded"
                     >
                       Marcar {SIGUIENTE[p.estado].replace('_', ' ')}
                       <span className="sr-only"> el pedido {p.numero}</span>
@@ -338,7 +509,7 @@ function PedidosAdmin() {
       </div>
 
       {saga && (
-        <section aria-label={`Bitácora de la saga del pedido ${saga.numero}`} className="mt-6 bg-white border border-gray-200 rounded-xl p-4">
+        <section aria-label={`Bitácora de la saga del pedido ${saga.numero}`} className="mt-6 bg-superficie border border-gray-200 rounded-xl p-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-bold">Bitácora de la saga · {saga.numero}</h3>
             <button onClick={() => setSaga(null)} className="text-sm text-gray-600 hover:text-gray-900">
@@ -383,7 +554,7 @@ function Notificaciones() {
       {error && <p role="alert" className="text-red-700 text-sm mb-3">{error}</p>}
       <div className="space-y-2">
         {mensajes.map((m) => (
-          <div key={m._id} className="bg-white border border-gray-200 rounded-lg p-4 text-sm">
+          <div key={m._id} className="bg-superficie border border-gray-200 rounded-lg p-4 text-sm">
             <div className="flex flex-col sm:flex-row justify-between items-start gap-2 sm:gap-4">
               <div className="min-w-0 break-words">
                 <p className="font-semibold">{m.asunto}</p>

@@ -168,10 +168,10 @@ class ApiService {
 
   // -------------------------------------------------------------- catalogo --
 
-  static Future<List<dynamic>> productos({String? busqueda, String? categoria}) async {
+  static Future<List<dynamic>> productos({String? busqueda, String? subcategoria}) async {
     final parametros = <String, String>{};
     if (busqueda != null && busqueda.isNotEmpty) parametros['q'] = busqueda;
-    if (categoria != null && categoria.isNotEmpty) parametros['categoria'] = categoria;
+    if (subcategoria != null && subcategoria.isNotEmpty) parametros['subcategoria'] = subcategoria;
 
     final consulta = parametros.entries
         .map((e) => '${e.key}=${Uri.encodeComponent(e.value)}')
@@ -181,8 +181,13 @@ class ApiService {
     return (datos as Map<String, dynamic>)['productos'] as List<dynamic>;
   }
 
-  static Future<List<dynamic>> categorias() async =>
-      await _peticion('GET', '/catalogo/categorias', conToken: false) as List<dynamic>;
+  /// Secciones del catalogo de SerByTek: las subcategorias de cada categoria.
+  static Future<List<dynamic>> categorias() async {
+    final categorias = await _peticion('GET', '/catalogo/categorias', conToken: false) as List<dynamic>;
+    return categorias
+        .expand((c) => ((c as Map<String, dynamic>)['subcategorias'] as List<dynamic>? ?? const []))
+        .toList();
+  }
 
   // --------------------------------------------------------------- carrito --
 

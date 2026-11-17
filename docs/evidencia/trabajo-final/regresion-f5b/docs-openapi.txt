@@ -1,0 +1,16 @@
+
+> ecommerce-distribuido@1.0.0 docs:openapi
+> redocly lint docs/openapi/openapi.yaml docs/openapi/openapi-interna.yaml && redocly bundle docs/openapi/openapi.yaml -o services/api-gateway/especificacion/openapi.json && redocly bundle docs/openapi/openapi-interna.yaml -o docs/openapi/generado/openapi-interna.json
+
+[90mvalidating docs\openapi\openapi.yaml...
+[39m[90mdocs\openapi\openapi.yaml: validated in 300ms
+
+[39m[90mvalidating docs\openapi\openapi-interna.yaml...
+[39m[90mdocs\openapi\openapi-interna.yaml: validated in 74ms
+
+[39m[32mWoohoo! Your API descriptions are valid. 🎉
+[39m
+[90mbundling docs\openapi\openapi.yaml...
+[39m📦 Created a bundle for [34mdocs\openapi\openapi.yaml[39m at [34mservices\api-gateway\especificacion\openapi.json[39m [32m242ms[39m.
+[90mbundling docs\openapi\openapi-interna.yaml...
+[39m📦 Created a bundle for [34mdocs\openapi\openapi-interna.yaml[39m at [34mdocs\openapi\generado\openapi-interna.json[39m [32m65ms[39m.

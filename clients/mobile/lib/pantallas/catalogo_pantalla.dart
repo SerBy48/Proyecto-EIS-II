@@ -56,7 +56,7 @@ class _CatalogoPantallaState extends State<CatalogoPantalla> {
     try {
       final productos = await ApiService.productos(
         busqueda: _busquedaCtrl.text,
-        categoria: _categoriaSeleccionada,
+        subcategoria: _categoriaSeleccionada,
       );
       final categorias = _categorias.isEmpty ? await ApiService.categorias() : _categorias;
       if (!mounted) return;
@@ -125,8 +125,8 @@ class _CatalogoPantallaState extends State<CatalogoPantalla> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Tienda en linea'),
-        backgroundColor: Colors.indigo,
+        title: const Text('SerByTek'),
+        backgroundColor: const Color(0xFF047857),
         foregroundColor: Colors.white,
         actions: [
           IconButton(
@@ -202,7 +202,7 @@ class _CatalogoPantallaState extends State<CatalogoPantalla> {
                     children: [
                       _chip('Todas', null),
                       ..._categorias.map(
-                        (c) => _chip(c['categoria'] as String, c['categoria'] as String),
+                        (c) => _chip(c['nombre'] as String, c['slug'] as String),
                       ),
                     ],
                   ),
@@ -273,10 +273,10 @@ class _CatalogoPantallaState extends State<CatalogoPantalla> {
                     width: 56,
                     height: 56,
                     decoration: BoxDecoration(
-                      color: Colors.indigo.shade50,
+                      color: Colors.green.shade50,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.inventory_2_outlined, color: Colors.indigo),
+                    child: const Icon(Icons.inventory_2_outlined, color: Color(0xFF047857)),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -327,7 +327,7 @@ class _CatalogoPantallaState extends State<CatalogoPantalla> {
                   ),
                   IconButton(
                     icon: const Icon(Icons.add_shopping_cart),
-                    color: Colors.indigo,
+                    color: const Color(0xFF047857),
                     onPressed: agotado ? null : () => _agregar(p['sku'] as String),
                   ),
                 ],

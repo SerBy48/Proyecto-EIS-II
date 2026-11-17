@@ -93,13 +93,45 @@ const ejecutar = async (ruta, opciones, token) => {
   return { respuesta, datos };
 };
 
-export const api = async (ruta, opciones = {}) => {
-  let { respuesta, datos } = await ejecutar(ruta, opciones, sesion.token);
+/**
+ * Evento que avisa a la aplicacion que la sesion guardada ya no sirve (token
+ * invalido o renovacion rechazada): App vuelve al modo visitante.
+ */
+export const EVENTO_SESION_EXPIRADA = 'sesion-expirada';
 
-  // Token expirado: se renueva y se repite la peticion una sola vez.
-  if (respuesta.status === 401 && datos?.codigo === 'TOKEN_EXPIRADO' && sesion.refresh) {
-    const nuevo = await renovarToken();
-    ({ respuesta, datos } = await ejecutar(ruta, opciones, nuevo));
+const sesionInvalida = () => {
+  sesion.limpiar();
+  window.dispatchEvent(new CustomEvent(EVENTO_SESION_EXPIRADA));
+};
+
+/**
+ * Peticion a la API. Con `publica: true` (catalogo, chat) una sesion invalida
+ * no impide la respuesta: se descarta la sesion y se repite como visitante.
+ *
+ * Hallazgo H-F5-02: antes, un token que el servidor ya no aceptaba (secretos
+ * rotados, bases recreadas) se quedaba en el navegador; la web seguia
+ * mostrando la sesion iniciada y el chat respondia "no disponible".
+ */
+export const api = async (ruta, opciones = {}) => {
+  const tokenUsado = sesion.token;
+  let { respuesta, datos } = await ejecutar(ruta, opciones, tokenUsado);
+
+  if (respuesta.status === 401 && tokenUsado) {
+    if (datos?.codigo === 'TOKEN_EXPIRADO' && sesion.refresh) {
+      // Token expirado: se renueva y se repite la peticion una sola vez.
+      try {
+        const nuevo = await renovarToken();
+        ({ respuesta, datos } = await ejecutar(ruta, opciones, nuevo));
+      } catch (error) {
+        sesionInvalida();
+        if (!opciones.publica) throw error;
+        ({ respuesta, datos } = await ejecutar(ruta, opciones, null));
+      }
+    } else if (datos?.codigo === 'TOKEN_INVALIDO' || datos?.codigo === 'TOKEN_EXPIRADO') {
+      sesionInvalida();
+      if (opciones.publica) ({ respuesta, datos } = await ejecutar(ruta, opciones, null));
+      else throw new ErrorApi(401, 'Tu sesión expiró. Inicia sesión de nuevo.', 'SESION_EXPIRADA');
+    }
   }
 
   if (!respuesta.ok) {

@@ -1,40 +1,50 @@
 # Asistente virtual: tasa de acierto de intenciones
 
-Generado con `npm run asistente:metricas -- --guardar` el 2026-11-16. Motor de reglas con las intenciones iniciales; sin IA.
+Generado con `npm run asistente:metricas -- --guardar` el 2026-11-17. Motor de reglas con las intenciones de `intenciones.json` y el vocabulario del catalogo; sin IA.
 
 | Conjunto | Frases | Aciertos | Tasa de acierto |
 |---|---:|---:|---:|
-| Desarrollo (se usa para ajustar los terminos) | 26 | 26 | 100,0 % |
-| **Evaluacion (no se ajusta; es la cifra que se reporta)** | 36 | 33 | **91,7 %** |
-| Total | 62 | 59 | 95,2 % |
+| Desarrollo (se usa para ajustar los terminos) | 57 | 57 | 100,0 % |
+| Evaluacion de la Fase 3 (no se ajusta) | 36 | 35 | 97,2 % |
+| **Evaluacion SerByTek (escrita antes del motor nuevo; es la cifra que se reporta)** | 50 | 50 | **100,0 %** |
+| **Evaluacion de marcas (escrita antes del reconocimiento de marcas)** | 27 | 27 | **100,0 %** |
+| Total | 170 | 169 | 99,4 % |
 
-## Matriz de confusion (conjunto de evaluacion)
+Primera medicion del conjunto SerByTek (2026-11-16): 49 de 50 (98,0 %). La frase fallida, "Hay audífonos disponibles?", revelo un defecto en `singular()` ("disponibles" -> "disponibl"); se corrigio la regla del plural, no los terminos, y la cifra de arriba es la medicion posterior (docs/PRUEBAS.md, 4.33).
+
+Conjunto de marcas (2026-11-16, catalogo con marcas reales): linea base sin reconocer marcas 20 de 27; primera medicion con el reconocimiento 26 de 27 ("hay audífonos Sony disponibles?" se iba a buscar, porque los refuerzos por seccion y marca solo favorecian a esa intencion). Un intento de dar los mismos refuerzos a precio_disponibilidad bajo a 19 de 27 y a 46 de 50 en SerByTek, y se descarto. La regla final, que no toca los pesos de los terminos: las entidades confirman una intencion que el mensaje ya sugiere con palabras, pero no la crean; resultado de arriba.
+
+## Matriz de confusion (evaluacion SerByTek)
 
 Filas: intencion esperada. Columnas: intencion que dio el motor. La diagonal en negrita son aciertos; ⚠ marca confusiones.
 
-| esperada \ obtenida | ayuda | buscar | cancelar | despedida | estado | f_devoluciones | f_entrega | f_envio | f_envio_gratis | f_horario | f_iva | f_pagos | humano | no_ent | precio | saludo |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| ayuda | · | ⚠ 1 | · | · | · | · | · | · | · | · | · | · | · | ⚠ 1 | · | · |
-| buscar_producto | · | **4** | · | · | · | · | · | · | · | · | · | · | · | · | · | · |
-| cancelar_pedido | · | · | **3** | · | · | · | · | · | · | · | · | · | · | · | · | · |
-| despedida | · | · | · | **1** | · | · | · | · | · | · | · | · | · | · | · | · |
-| estado_pedido | · | · | · | · | **5** | · | · | · | · | · | · | · | · | · | · | · |
-| faq_devoluciones | · | · | · | · | · | **1** | · | · | · | · | · | · | · | ⚠ 1 | · | · |
-| faq_entrega | · | · | · | · | · | · | **2** | · | · | · | · | · | · | · | · | · |
-| faq_envio | · | · | · | · | · | · | · | **2** | · | · | · | · | · | · | · | · |
-| faq_envio_gratis | · | · | · | · | · | · | · | · | **2** | · | · | · | · | · | · | · |
-| faq_horario | · | · | · | · | · | · | · | · | · | **1** | · | · | · | · | · | · |
-| faq_iva | · | · | · | · | · | · | · | · | · | · | **1** | · | · | · | · | · |
-| faq_pagos | · | · | · | · | · | · | · | · | · | · | · | **2** | · | · | · | · |
-| humano | · | · | · | · | · | · | · | · | · | · | · | · | **2** | · | · | · |
-| no_entendido | · | · | · | · | · | · | · | · | · | · | · | · | · | **1** | · | · |
-| precio_disponibilidad | · | · | · | · | · | · | · | · | · | · | · | · | · | · | **4** | · |
-| saludo | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · | **2** |
+| esperada \ obtenida | buscar | cancelar | categorias | despedida | estado | f_contrasena | f_cuenta | f_cupones | f_devoluciones | f_direccion | f_eliminar_cuenta | f_entrega | f_envio_gratis | f_factura | f_iva | f_pagos | f_seguridad | f_tienda | humano | no_ent | ofertas | precio |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| buscar_producto | **13** | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · |
+| cancelar_pedido | · | **1** | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · |
+| categorias | · | · | **2** | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · |
+| despedida | · | · | · | **2** | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · |
+| estado_pedido | · | · | · | · | **1** | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · |
+| faq_contrasena | · | · | · | · | · | **3** | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · |
+| faq_cuenta | · | · | · | · | · | · | **2** | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · |
+| faq_cupones | · | · | · | · | · | · | · | **2** | · | · | · | · | · | · | · | · | · | · | · | · | · | · |
+| faq_devoluciones | · | · | · | · | · | · | · | · | **2** | · | · | · | · | · | · | · | · | · | · | · | · | · |
+| faq_direccion | · | · | · | · | · | · | · | · | · | **2** | · | · | · | · | · | · | · | · | · | · | · | · |
+| faq_eliminar_cuenta | · | · | · | · | · | · | · | · | · | · | **2** | · | · | · | · | · | · | · | · | · | · | · |
+| faq_entrega | · | · | · | · | · | · | · | · | · | · | · | **1** | · | · | · | · | · | · | · | · | · | · |
+| faq_envio_gratis | · | · | · | · | · | · | · | · | · | · | · | · | **1** | · | · | · | · | · | · | · | · | · |
+| faq_factura | · | · | · | · | · | · | · | · | · | · | · | · | · | **1** | · | · | · | · | · | · | · | · |
+| faq_iva | · | · | · | · | · | · | · | · | · | · | · | · | · | · | **1** | · | · | · | · | · | · | · |
+| faq_pagos | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · | **1** | · | · | · | · | · | · |
+| faq_seguridad | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · | **1** | · | · | · | · | · |
+| faq_tienda | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · | **2** | · | · | · | · |
+| humano | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · | **1** | · | · | · |
+| no_entendido | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · | **1** | · | · |
+| ofertas | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · | **3** | · |
+| precio_disponibilidad | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · | · | **5** |
 
 ## Errores
 
 | Conjunto | Frase | Esperada | Obtenida |
 |---|---|---|---|
-| evaluacion | me puedes ayudar? | ayuda | no_entendido |
-| evaluacion | muéstrame el menú | ayuda | buscar_producto |
-| evaluacion | me quiero retractar de una compra | faq_devoluciones | no_entendido |
+| evaluacion F3 | muéstrame el menú | ayuda | buscar_producto |

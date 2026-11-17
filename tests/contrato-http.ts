@@ -140,8 +140,8 @@ const restablecerEstado = async (): Promise<void> => {
     'inventario_db',
     `UPDATE stock s SET cantidad_disponible = v.cant, cantidad_reservada = 0, version = s.version + 1
        FROM (VALUES ('SKU-TEC-001',50),('SKU-TEC-002',25),('SKU-TEC-003',12),('SKU-TEC-004',1),
-                    ('SKU-TEC-005',30),('SKU-HOG-001',40),('SKU-HOG-002',3),('SKU-HOG-003',18),
-                    ('SKU-DEP-001',60),('SKU-DEP-002',8)) AS v(sku, cant)
+                    ('SKU-TEC-005',30),('SKU-TEC-006',40),('SKU-TEC-007',3),('SKU-TEC-008',18),
+                    ('SKU-TEC-009',60),('SKU-TEC-010',8)) AS v(sku, cant)
       WHERE s.sku = v.sku`
   );
   await sql('pagos_db', 'DELETE FROM reembolsos; DELETE FROM auditoria_pasarela; DELETE FROM transacciones;');
@@ -249,9 +249,13 @@ const ejecutar = async (): Promise<void> => {
   // la primera entrada debe abrirlo (antes respondia 404 y el producto no se
   // podia vender nunca). El 409 del alta cubre las re-ejecuciones de la suite.
   await pedir('/api/catalogo/productos', {
-    ...vend, metodo: 'POST', cuerpo: { sku: 'SKU-EV-INV-001', nombre: 'Producto de evidencia inventario', categoria: 'hogar', precio: 10000 }
+    ...vend, metodo: 'POST', cuerpo: { sku: 'SKU-EV-INV-001', nombre: 'Producto de evidencia inventario', categoria: 'tecnologia', subcategoria: 'accesorios', precio: 10000 }
   });
   await caso('C-10', 200, 'Primera entrada de un producto nuevo abre su inventario', '/api/inventario/stock/SKU-EV-INV-001/entrada', { ...vend, metodo: 'POST', cuerpo: { cantidad: 3 } });
+  // Hallazgo U-17: el producto de evidencia no debe quedar a la vista de los
+  // clientes. Se desactiva (si la suite se interrumpe antes, la siguiente
+  // ejecucion lo vuelve a desactivar aqui).
+  await pedir('/api/catalogo/productos/SKU-EV-INV-001', { ...vend, metodo: 'PATCH', cuerpo: { activo: false } });
   await caso('C-11', 404, 'Entrada de un SKU que no existe en el catalogo', '/api/inventario/stock/SKU-NO-EXISTE-999/entrada', { ...vend, metodo: 'POST', cuerpo: { cantidad: 3 } });
   await caso('C-12', 400, 'Entrada hacia una bodega inexistente', '/api/inventario/stock/SKU-TEC-002/entrada', { ...vend, metodo: 'POST', cuerpo: { cantidad: 1, bodega_id: 9999 } });
   await caso('C-10', 404, 'Entrada sobre un SKU inexistente', '/api/inventario/stock/SKU-NO-EXISTE/entrada', { ...vend, metodo: 'POST', cuerpo: { cantidad: 5 } });

@@ -1,5 +1,6 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { api, moneda } from '../servicios/api';
+import { FotoProducto } from '../paginas/Catalogo.jsx';
 
 /**
  * Asistente virtual: boton flotante y panel de chat, visible en todas las vistas.
@@ -13,9 +14,10 @@ import { api, moneda } from '../servicios/api';
 const LONGITUD_MAXIMA = 500;
 
 const OPCIONES_INICIALES = [
-  { etiqueta: 'Costo de envío', texto: 'Cuánto cuesta el envío?' },
   { etiqueta: 'Buscar un producto', texto: 'Quiero buscar un producto' },
+  { etiqueta: 'Ofertas', texto: '¿Qué productos están en oferta?' },
   { etiqueta: 'Mis pedidos', texto: 'Cuál es el estado de mis pedidos?' },
+  { etiqueta: 'Costo de envío', texto: 'Cuánto cuesta el envío?' },
   { etiqueta: 'Hablar con un asesor', texto: 'Quiero hablar con un asesor' }
 ];
 
@@ -23,7 +25,7 @@ const bienvenida = () => ({
   id: 'bienvenida',
   de: 'asistente',
   respuestas: [
-    { tipo: 'texto', texto: 'Hola, soy el asistente de la tienda. Pregúntame por envíos, pagos, productos o tus pedidos.' },
+    { tipo: 'texto', texto: 'Hola, soy el asistente de SerByTek. Pregúntame por productos, ofertas, envíos, pagos o tus pedidos; por ejemplo: "¿hay audífonos disponibles?".' },
     { tipo: 'opciones', opciones: OPCIONES_INICIALES }
   ]
 });
@@ -81,6 +83,8 @@ export default function Asistente({ usuario, alAgregar, onNavegar, onIniciarSesi
     try {
       const respuesta = await api('/asistente/mensajes', {
         metodo: 'POST',
+        // Una sesion vencida no deja al visitante sin chat (H-F5-02).
+        publica: true,
         cuerpo: { texto: limpio, ...(conversacionId ? { conversacion_id: conversacionId } : {}) }
       });
       setConversacionId(respuesta.conversacion_id);
@@ -105,6 +109,10 @@ export default function Asistente({ usuario, alAgregar, onNavegar, onIniciarSesi
       onNavegar('pedidos');
     } else if (opcion.accion === 'ir_carrito') {
       onNavegar('carrito');
+    } else if (opcion.accion === 'ir_perfil') {
+      onNavegar('perfil');
+    } else if (opcion.accion === 'ir_catalogo') {
+      onNavegar('catalogo', opcion.filtros ?? {});
     } else if (opcion.texto) {
       enviar(opcion.texto);
     }
@@ -121,10 +129,10 @@ export default function Asistente({ usuario, alAgregar, onNavegar, onIniciarSesi
           aria-modal="false"
           aria-label="Asistente virtual"
           onKeyDown={(e) => e.key === 'Escape' && cerrar()}
-          className="w-[calc(100vw-2rem)] sm:w-96 h-[32rem] max-h-[calc(100vh-6rem)] bg-white border border-gray-200 rounded-xl shadow-xl flex flex-col"
+          className="w-[calc(100vw-2rem)] sm:w-96 h-[32rem] max-h-[calc(100vh-6rem)] bg-superficie border border-gray-200 rounded-xl shadow-xl flex flex-col"
         >
           <header className="flex items-center justify-between px-4 py-3 border-b">
-            <h2 className="font-semibold text-gray-900">Asistente virtual</h2>
+            <h2 className="font-semibold text-gray-900">Asistente de SerByTek</h2>
             <button onClick={cerrar} aria-label="Cerrar el asistente" className="text-gray-500 hover:text-gray-800 px-2 py-1 rounded">
               ✕
             </button>
@@ -133,7 +141,7 @@ export default function Asistente({ usuario, alAgregar, onNavegar, onIniciarSesi
           <div role="log" aria-live="polite" aria-label="Conversacion" className="flex-1 overflow-y-auto px-4 py-3 space-y-3 text-sm">
             {mensajes.map((m) =>
               m.de === 'usuario' ? (
-                <p key={m.id} className="ml-auto max-w-[85%] w-fit bg-indigo-600 text-white rounded-lg px-3 py-2 break-words">
+                <p key={m.id} className="ml-auto max-w-[85%] w-fit burbuja-usuario rounded-lg px-3 py-2 break-words">
                   <span className="sr-only">Tu: </span>
                   {m.texto}
                 </p>
@@ -183,7 +191,7 @@ export default function Asistente({ usuario, alAgregar, onNavegar, onIniciarSesi
             <button
               type="submit"
               disabled={escribiendo || !texto.trim()}
-              className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white font-semibold px-4 rounded-lg text-sm"
+              className="btn-primario px-4 rounded-lg text-sm"
             >
               Enviar
             </button>
@@ -196,7 +204,7 @@ export default function Asistente({ usuario, alAgregar, onNavegar, onIniciarSesi
         onClick={() => (abierto ? cerrar() : setAbierto(true))}
         aria-expanded={abierto}
         aria-controls={abierto ? idPanel : undefined}
-        className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-full shadow-lg px-5 py-3"
+        className="btn-primario rounded-full shadow-lg px-5 py-3"
       >
         {abierto ? 'Cerrar asistente' : '¿Necesitas ayuda?'}
       </button>
@@ -213,22 +221,26 @@ function Respuesta({ r, esCliente, alAgregar, alElegir, deshabilitado }) {
     return (
       <ul className="space-y-2" aria-label="Productos">
         {r.productos.map((p) => (
-          <li key={p.sku} className="border border-gray-200 rounded-lg p-3">
+          <li key={p.sku} className="border border-gray-200 rounded-lg p-3 flex gap-3">
+            <FotoProducto producto={p} className="w-16 h-16 rounded-md shrink-0 !text-2xl" />
+            <div className="min-w-0">
             <p className="font-semibold text-gray-900">{p.nombre}</p>
             <p className="text-gray-600">
-              {moneda(p.precio_final)} ·{' '}
+              {moneda(p.precio_final)}
+              {p.descuento_porcentaje > 0 && <span className="text-red-800 font-semibold"> (-{p.descuento_porcentaje}%)</span>} ·{' '}
               {p.disponible === null ? 'Disponibilidad no confirmada' : p.disponible > 0 ? `${p.disponible} disponibles` : 'Agotado'}
             </p>
             <p className="text-xs text-gray-500">{p.sku}</p>
             {esCliente && p.disponible !== 0 && (
               <button
                 onClick={() => alAgregar(p.sku)}
-                className="mt-2 text-indigo-700 border border-indigo-200 hover:bg-indigo-50 rounded-lg px-3 py-1 text-xs font-semibold"
+                className="mt-2 text-marca-700 border border-marca-300 hover:bg-marca-50 rounded-lg px-3 py-1 text-xs font-semibold"
                 aria-label={`Agregar ${p.nombre} al carrito`}
               >
                 Agregar al carrito
               </button>
             )}
+            </div>
           </li>
         ))}
       </ul>
@@ -260,7 +272,7 @@ function Respuesta({ r, esCliente, alAgregar, alElegir, deshabilitado }) {
             key={o.etiqueta}
             onClick={() => alElegir(o)}
             disabled={deshabilitado}
-            className="border border-indigo-200 text-indigo-700 hover:bg-indigo-50 disabled:opacity-50 rounded-full px-3 py-1 text-xs"
+            className="border border-marca-200 text-marca-700 hover:bg-marca-50 disabled:opacity-50 rounded-full px-3 py-1 text-xs"
           >
             {o.etiqueta}
           </button>

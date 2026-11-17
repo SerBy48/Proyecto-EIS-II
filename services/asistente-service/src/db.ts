@@ -26,9 +26,12 @@ export const conectarMongo = async (): Promise<Db> => {
 };
 
 /**
- * Indices y datos iniciales. Es idempotente: los indices se crean si faltan y
- * las intenciones y la FAQ se siembran SOLO si su coleccion esta vacia, para no
- * pisar lo que haya editado el administrador.
+ * Indices y datos iniciales. Es idempotente:
+ *   - los indices se crean si faltan;
+ *   - las intenciones y preguntas frecuentes nuevas (por clave) se agregan;
+ *   - las existentes se actualizan con la version del codigo SOLO si el
+ *     administrador no las edito (editada != true): asi una mejora del
+ *     asistente llega a una base que ya existe sin pisar lo que se ajusto a mano.
  */
 const prepararColecciones = async (db: Db): Promise<void> => {
   await db.collection('intenciones').createIndex({ clave: 1 }, { unique: true });
@@ -40,14 +43,27 @@ const prepararColecciones = async (db: Db): Promise<void> => {
     .collection('conversaciones')
     .createIndex({ actualizada_en: 1 }, { expireAfterSeconds: DIAS_CONVERSACION * 24 * 3600, name: 'ttl_conversaciones' });
 
-  if ((await db.collection('intenciones').estimatedDocumentCount()) === 0) {
-    await db.collection('intenciones').insertMany(datosIntenciones.intenciones.map((i) => ({ ...i, actualizada_en: new Date() })));
-    log.info('Intenciones iniciales sembradas', { cantidad: datosIntenciones.intenciones.length });
-  }
-  if ((await db.collection('faq').estimatedDocumentCount()) === 0) {
-    await db.collection('faq').insertMany(datosFaq.faq.map((f) => ({ ...f, actualizada_en: new Date() })));
-    log.info('FAQ inicial sembrada', { cantidad: datosFaq.faq.length });
-  }
+  const sembrar = async (coleccion: string, documentos: Array<{ clave: string }>) => {
+    const ahora = new Date();
+    const resultado = await db.collection(coleccion).bulkWrite(
+      documentos.map((documento) => ({
+        updateOne: {
+          filter: { clave: documento.clave, editada: { $ne: true } },
+          update: { $set: { ...documento, actualizada_en: ahora } },
+          upsert: true
+        }
+      })),
+      { ordered: false }
+    ).catch((error: { code?: number; result?: unknown }) => {
+      // E11000: la clave existe y fue editada por el administrador (el filtro no
+      // la encuentra y el upsert choca con el indice unico). Se respeta.
+      if (error.code === 11000 || /E11000/.test(String(error))) return null;
+      throw error;
+    });
+    log.info('Datos del asistente sincronizados', { coleccion, documentos: documentos.length, nuevos: resultado?.upsertedCount ?? 0 });
+  };
+  await sembrar('intenciones', datosIntenciones.intenciones);
+  await sembrar('faq', datosFaq.faq);
 };
 
 const exigirBase = (): Db => {

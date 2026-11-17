@@ -71,6 +71,8 @@ const DESTINOS: Destino[] = [
 const RUTAS_PUBLICAS: Array<{ metodo: string; patron: RegExp }> = [
   { metodo: 'POST', patron: /^\/api\/auth\/(login|registro|renovar)$/ },
   { metodo: 'POST', patron: /^\/api\/clientes\/?$/ },
+  // Lista de departamentos para el formulario de registro.
+  { metodo: 'GET',  patron: /^\/api\/clientes\/departamentos$/ },
   { metodo: 'GET',  patron: /^\/api\/catalogo\/productos(\/[^/]+)?$/ },
   { metodo: 'GET',  patron: /^\/api\/catalogo\/categorias$/ },
   // El asistente atiende tambien a visitantes; con token, el servicio lo valida.

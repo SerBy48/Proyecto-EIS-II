@@ -640,6 +640,55 @@ const ejecutar = async (): Promise<void> => {
     });
   }
 
+  // -------------------------------------------------------------- V-22
+  // F5b: anonimizar un perfil y listar los pedidos en curso son pasos internos
+  // de "eliminar la cuenta". Un administrador con su token pasa requiereRol,
+  // pero no soloLlamadaInterna: si pasara, podria borrar los datos de un
+  // cliente sin su contrasena.
+  {
+    const anonimizar = await pedir(`/clientes/${ana.usuario.cliente_id}/anonimizar`, { method: 'POST', token: admin.token });
+    const pendientes = await pedir(`/pedidos/internos/clientes/${ana.usuario.cliente_id}/pendientes`, { token: admin.token });
+    const perfil = await pedir(`/clientes/${ana.usuario.cliente_id}`, { token: ana.token });
+    const intacto = perfil.cuerpo?.email === 'ana@correo.co' && perfil.cuerpo?.activo === true;
+    const seguro = anonimizar.estado === 403 && pendientes.estado === 403 && intacto;
+    registrar({
+      id: 'V-22',
+      area: 'Control de acceso',
+      titulo: 'Rutas internas de eliminación de cuenta, invocadas desde afuera con token de administrador',
+      resultado: seguro ? 'SEGURO' : 'HALLAZGO',
+      detalle: seguro
+        ? 'POST /clientes/:id/anonimizar y GET /pedidos/internos/... responden 403 al administrador; el perfil de Ana sigue intacto. Solo auth-service, con el secreto interno, las invoca al eliminar una cuenta con contraseña.'
+        : `anonimizar ${anonimizar.estado}, pendientes ${pendientes.estado}, perfil intacto: ${intacto}.`,
+      evidencia: { anonimizar: anonimizar.estado, pendientes: pendientes.estado, perfil_intacto: intacto }
+    });
+  }
+
+  // -------------------------------------------------------------- V-23
+  // F5b: el cambio de direccion de un pedido toma el cliente del JWT. Otro
+  // cliente (Bruno) no puede redirigir el envio de un pedido de Ana.
+  {
+    const pedidosAna = await pedir('/pedidos', { token: ana.token });
+    const deAna = (pedidosAna.cuerpo as Array<{ id: number }> | null)?.[0];
+    const bruno = await login('bruno@correo.co');
+    const direccionesBruno = await pedir(`/clientes/${bruno.usuario.cliente_id}/direcciones`, { token: bruno.token });
+    const direccionBruno = (direccionesBruno.cuerpo as Array<{ id: number }>)[0]?.id;
+    const r = deAna
+      ? await pedir(`/pedidos/${deAna.id}/direccion`, { method: 'PATCH', token: bruno.token, body: JSON.stringify({ direccion_id: direccionBruno }) })
+      : null;
+    registrar({
+      id: 'V-23',
+      area: 'Control de acceso',
+      titulo: 'Cambiar la dirección de envío de un pedido ajeno',
+      resultado: !r ? 'INFO' : r.estado === 404 ? 'SEGURO' : 'HALLAZGO',
+      detalle: !r
+        ? 'Ana no tiene pedidos para intentarlo (ejecute antes test:e2e).'
+        : r.estado === 404
+          ? `Bruno recibió 404 al cambiar la dirección del pedido ${deAna!.id} de Ana: un pedido ajeno se responde como inexistente (invariante 1).`
+          : `Bruno recibió ${r.estado}: ${r.texto.slice(0, 120)}`,
+      evidencia: { estado: r?.estado ?? null }
+    });
+  }
+
   mkdirSync(path.dirname(SALIDA), { recursive: true });
   writeFileSync(SALIDA, JSON.stringify({ fecha: new Date().toISOString(), gateway: G, web: WEB, resultados }, null, 2));
   const hallazgos = resultados.filter((r) => r.resultado === 'HALLAZGO').length;

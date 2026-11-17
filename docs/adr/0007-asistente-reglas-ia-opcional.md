@@ -50,3 +50,20 @@ Lo último toca datos personales. Además, sus respuestas deben poder probarse d
 - **IA como núcleo**, con un LLM que interpreta todo y llama herramientas. Exige una clave de API y red, las pruebas dejan de ser deterministas, y el modelo tendría acceso a acciones sobre datos personales.
 - **Solo reglas, sin adaptador de IA.** Es válido frente a la rúbrica, pero cierra la puerta a mejorar las preguntas abiertas.
 - **Lógica del asistente en la web o en el gateway.** Rompe la responsabilidad única y el aislamiento de fallos, y obligaría a exponer en el cliente la lógica que decide qué datos consultar.
+
+## Revisión del 2026-11-16 (SerByTek, F5b)
+
+La prueba del equipo mostró el límite señalado en las consecuencias: «Hay audífonos disponibles?» respondía «no te entendí», y el botón de categoría «tecnologia» no encontraba productos. Se **mantiene la decisión** (reglas como núcleo, IA opcional y apagada) y se refuerza el motor sin perder el determinismo:
+
+- **Vocabulario del catálogo.** Las subcategorías y sus sinónimos se leen de `GET /api/catalogo/categorias` (caché de 60 s). Un producto o una sección nueva se entienden en el chat sin tocar las reglas.
+- **Coincidencia tolerante.** Plural y singular, y un error de tipeo solo en palabras que el motor no conoce («audifnos» → «audífonos», pero «cuesta» no se confunde con «cuenta»).
+- **Entidades nuevas.** Rango de precio («menos de 3 millones»), «barato» y «en oferta».
+- **Sin callejones sin salida.** Si ninguna intención alcanza el umbral, primero se busca en el catálogo con las palabras del mensaje, luego se sugieren las intenciones más cercanas y solo al final se muestra el menú.
+- **Intenciones nuevas.** Secciones, ofertas, cupones, cuenta, contraseña, dirección, eliminar la cuenta, la tienda, seguridad y factura.
+- **Datos existentes.** Las intenciones y la FAQ nuevas se agregan al arrancar; las que el administrador editó (`editada: true`) no se pisan.
+
+**Medición.** Un conjunto de evaluación nuevo, de 50 frases de SerByTek, escrito y versionado **antes** del motor nuevo. Primera medición: 49/50; la frase fallida reveló un defecto en `singular()` (docs/PRUEBAS.md, 4.34). Tras corregir la regla, no los términos: 50/50.
+
+**Marcas.** Con el catálogo de marcas reales, las marcas también se leen del catálogo (`marcas` en `/categorias`) y se reconocen como entidad. Para que una entidad no incline la intención por sí sola, los refuerzos por entidad solo se suman a una intención que el mensaje ya sugiere con palabras; los mensajes que solo nombran productos («Logitech», «monitores LG») van por la regla de búsqueda. Conjunto de marcas, escrito antes: 20/27 sin el reconocimiento y 27/27 con él (docs/PRUEBAS.md, 4.37).
+
+**Lo que no cambia.** La clave de IA **no** es necesaria para buscar productos: por diseño, la IA no recibe el catálogo ni tiene herramientas. Activarla solo mejora las preguntas generales que no son de la tienda.

@@ -1,9 +1,13 @@
 import 'dotenv/config';
 import { Application, Router } from 'express';
-import { BusEventos, asincrono, crearServicio, requiereRol, verificarPostgres } from '@ecommerce/shared';
+import { BusEventos, asincrono, crearServicio, requiereRol, soloLlamadaInterna, verificarPostgres } from '@ecommerce/shared';
 import { pool } from './db';
 import {
   actualizarCliente,
+  actualizarDireccion,
+  anonimizarCliente,
+  eliminarDireccion,
+  listarDepartamentos,
   crearCliente,
   crearDireccion,
   historialCompras,
@@ -23,14 +27,20 @@ const rutas = (app: Application): void => {
   const router = Router();
 
   router.post('/', asincrono(crearCliente));
+  // Antes de /:id para que "departamentos" no se lea como un id.
+  router.get('/departamentos', asincrono(listarDepartamentos));
   router.get('/:id', requiereRol(), asincrono(obtenerCliente));
   router.patch('/:id', requiereRol(), asincrono(actualizarCliente));
   router.get('/:id/direcciones', requiereRol(), asincrono(listarDirecciones));
   router.post('/:id/direcciones', requiereRol(), asincrono(crearDireccion));
+  router.patch('/:id/direcciones/:direccionId', requiereRol(), asincrono(actualizarDireccion));
+  router.delete('/:id/direcciones/:direccionId', requiereRol(), asincrono(eliminarDireccion));
   router.get('/:id/historial', requiereRol(), asincrono(historialCompras));
 
   // Endpoint interno consumido por el servicio de pedidos durante el checkout.
   router.get('/:id/validar', requiereRol('administrador', 'vendedor'), asincrono(validarParaCompra));
+  // Interno: auth-service al eliminar una cuenta.
+  router.post('/:id/anonimizar', requiereRol('administrador'), soloLlamadaInterna, asincrono(anonimizarCliente));
 
   app.use('/', router);
 };

@@ -4,6 +4,7 @@ Primer documento de la especificación del Trabajo Final. Consolida el problema 
 
 Marcas usadas:
 - 🆕 requisito nuevo del Trabajo Final. Los de las Fases 2 y 3 ya están implementados: RF-35 (correo SMTP) y RF-37 (Swagger UI) en la Fase 2, y RF-ASIS-01 a 10 en la Fase 3 ([`03-asistente-virtual.md`](03-asistente-virtual.md)). RNF-11 y RNF-23 (despliegue en frío y CI) quedan para la Fase 5.
+- **F5b** requisito agregado tras la prueba del equipo en la Fase 5 (tienda **SerByTek**, solo tecnología): perfil y direcciones, eliminar la cuenta, dirección del pedido, administración de usuarios, tema oscuro y asistente reforzado. Cubiertos por `test:e2e:ui` (CA-13 a CA-18), `test:http`, `test:seguridad` y `test:unit`.
 - Los demás requisitos ya están implementados y cubiertos por `test:http`, `test:e2e` o `test:concurrencia`.
 
 ---
@@ -25,7 +26,7 @@ El sistema objetivo es una plataforma de **alta concurrencia** (meta del anális
 | Actor | Tipo | Qué hace |
 |---|---|---|
 | **Cliente** | Persona | Se registra, busca, mantiene un carrito, compra, consulta y cancela sus pedidos. Usa la web o la app móvil |
-| **Vendedor** | Persona (rol interno) | Registra entradas de stock, consulta alertas y movimientos, crea y edita productos, cambia el estado de los pedidos |
+| **Vendedor** | Persona (rol interno; personal de la tienda, no un comerciante: SerByTek es una sola tienda) | Registra entradas de stock, consulta alertas y movimientos, crea y edita productos, cambia el estado de los pedidos |
 | **Administrador** | Persona (rol interno) | Todo lo del vendedor; además crea usuarios internos, edita plantillas de notificación, consulta la bitácora de la saga y compra en nombre de un cliente (venta telefónica) |
 | **Pasarela de pagos** | Sistema externo | Autoriza o rechaza el cobro con un token de tarjeta. Hoy simulada (`pasarela.ts`) |
 | **Servidor de correo** | Sistema externo | Entrega los correos de confirmación y avisos. 🆕 Mailpit vía SMTP (Fase 2) |
@@ -46,23 +47,26 @@ La columna **Rol** usa: *pública* (sin sesión), *sesión* (cualquier usuario a
 | RF-04 | Cerrar sesión revocando el refresh token | `POST /api/auth/logout` | sesión |
 | RF-05 | Consultar el perfil del usuario autenticado | `GET /api/auth/perfil` | sesión |
 | RF-06 | Crear usuarios internos (vendedor, administrador) | `POST /api/auth/usuarios` | administrador |
+| RF-38 F5b | Eliminar la propia cuenta confirmando la contraseña: se rechaza si hay pedidos creados, pagados, en preparación o enviados; si procede, se **anonimiza** (perfil sin datos personales ni direcciones, cuenta inactiva, sesiones revocadas) y los pedidos se conservan sin datos personales | `DELETE /api/auth/cuenta` | cliente |
+| RF-39 F5b | Listar usuarios, cambiar el rol de una cuenta interna (vendedor ↔ administrador) y activarla o desactivarla, revocando sus sesiones; nadie se cambia ni se desactiva a sí mismo | `GET /api/auth/usuarios`, `PATCH /api/auth/usuarios/:id` | administrador |
 
 ### Clientes (`clientes-service`)
 
 | ID | Requisito | Endpoint | Rol |
 |---|---|---|---|
 | RF-07 | Crear el perfil de cliente | `POST /api/clientes` | pública |
-| RF-08 | Consultar y actualizar el propio perfil | `GET`, `PATCH /api/clientes/:id` | sesión (solo el propio) |
-| RF-09 | Gestionar direcciones de envío | `GET`, `POST /api/clientes/:id/direcciones` | sesión (solo el propio) |
+| RF-08 | Consultar y actualizar el propio perfil (nombre, apellido, teléfono y documento; F5b) | `GET`, `PATCH /api/clientes/:id` | sesión (solo el propio) |
+| RF-09 | Gestionar direcciones de envío: agregar, editar, eliminar y elegir la predeterminada, con departamento de la lista oficial y ciudad (F5b: edición, eliminación y departamento obligatorio) | `GET`, `POST /api/clientes/:id/direcciones`, `PATCH`, `DELETE /api/clientes/:id/direcciones/:direccionId` | sesión (solo el propio) |
+| RF-40 F5b | Consultar los departamentos de Colombia (lista única que usan la web y la validación) | `GET /api/clientes/departamentos` | pública |
 | RF-10 | Consultar el historial de compras (alimentado por eventos) | `GET /api/clientes/:id/historial` | sesión (solo el propio) |
 
 ### Catálogo (`catalogo-service`)
 
 | ID | Requisito | Endpoint | Rol |
 |---|---|---|---|
-| RF-11 | Buscar y filtrar productos (texto, categoría, precio) con disponibilidad | `GET /api/catalogo/productos` | pública |
+| RF-11 | Buscar y filtrar productos (texto, categoría, subcategoría, precio, ofertas) con disponibilidad. F5b: si el índice de texto no encuentra nada, búsqueda tolerante a palabras incompletas, plural y tildes | `GET /api/catalogo/productos` | pública |
 | RF-12 | Ver el detalle de un producto | `GET /api/catalogo/productos/:sku` | pública |
-| RF-13 | Listar categorías | `GET /api/catalogo/categorias` | pública |
+| RF-13 | Listar categorías con sus subcategorías, conteos y sinónimos (F5b: 1 categoría, tecnología, y 10 subcategorías) | `GET /api/catalogo/categorias` | pública |
 | RF-14 | Consultar una promoción por código | `GET /api/catalogo/promociones/:codigo` | sesión |
 | RF-15 | Crear y editar productos | `POST`, `PATCH /api/catalogo/productos` | administrador, vendedor |
 
@@ -94,6 +98,8 @@ La columna **Rol** usa: *pública* (sin sesión), *sesión* (cualquier usuario a
 | RF-27 | Cancelar un pedido `creado` o `pagado` (el cliente, solo los suyos) | `POST /api/pedidos/:id/cancelar` | sesión |
 | RF-28 | Cambiar el estado según las transiciones permitidas y notificar | `PATCH /api/pedidos/:id/estado` | administrador, vendedor |
 | RF-29 | Consultar la bitácora de la saga de un pedido | `GET /api/pedidos/:id/saga` | administrador |
+| RF-41 F5b | Elegir al pagar la dirección de envío entre las guardadas o agregar una nueva | `POST /api/pedidos/checkout` (`direccion_id`) | cliente |
+| RF-42 F5b | Cambiar la dirección de envío de un pedido como máximo 2 veces, mientras esté creado, pagado o en preparación, con aviso por correo | `PATCH /api/pedidos/:id/direccion` | cliente (solo el propio) |
 
 ### Pagos (`pagos-service`)
 
@@ -118,20 +124,31 @@ La columna **Rol** usa: *pública* (sin sesión), *sesión* (cualquier usuario a
 | RF-36 | Salud agregada de todos los servicios | `GET /api/health` | pública |
 | RF-37 🆕 | Documentación interactiva de la API (OpenAPI 3 + Swagger UI), desactivable en producción | `GET /api/docs` | pública si `EXPONER_DOCS=true` |
 
+### Interfaz web (F5b)
+
+| ID | Requisito | Dónde | Rol |
+|---|---|---|---|
+| RF-43 F5b | Identidad SerByTek (nombre, logotipo, paleta verde y fuente Space Grotesk) en la web y la app móvil; catálogo con marcas reales, una foto ilustrativa por sección (Unsplash, con créditos) y aviso de tienda de demostración | `clients/web`, `clients/mobile` | pública |
+| RF-44 F5b | Tema claro u oscuro, que sigue al sistema operativo y recuerda la elección | cabecera de la web | pública |
+| RF-45 F5b | Mostrar u ocultar la contraseña con un botón accesible en el inicio de sesión, el registro y la eliminación de la cuenta | formularios | pública |
+| RF-46 F5b | Si el servidor rechaza la sesión guardada, la web vuelve al modo visitante y lo avisa; el catálogo y el chat siguen respondiendo (H-F5-02) | `servicios/api.js` | pública |
+
 ### Asistente virtual (`asistente-service`, Fase 3) 🆕
 
 | ID | Requisito | Rol |
 |---|---|---|
 | RF-ASIS-01 | Saludar, ofrecer ayuda y un menú de opciones rápidas | pública |
 | RF-ASIS-02 | Responder preguntas frecuentes (envío, envío gratis, IVA, medios de pago, entrega, devoluciones, horario). Los valores numéricos salen de la configuración, nunca escritos a mano | pública |
-| RF-ASIS-03 | Buscar productos por nombre o categoría y mostrarlos como tarjetas con "agregar al carrito" | pública |
+| RF-ASIS-03 | Buscar productos por nombre, sección o rango de precio ("portátiles de menos de 3 millones", "algo barato") y mostrarlos como tarjetas con "agregar al carrito". F5b: entiende plural y errores de tipeo, y las secciones, sus sinónimos y las marcas salen del catálogo en vivo (un producto, una sección o una marca nueva no exige cambiar el asistente) | pública |
 | RF-ASIS-04 | Informar el precio vigente y la disponibilidad de un SKU o producto | pública |
 | RF-ASIS-05 | Informar el estado de **mis** pedidos o de uno concreto, con la identidad del usuario: un pedido ajeno responde "no encontrado" | sesión |
 | RF-ASIS-06 | Guiar la cancelación de un pedido según su estado | sesión |
 | RF-ASIS-07 | Escalar a un humano: registrar un ticket y avisar a operaciones (evento `asistente.escalamiento`) | pública |
 | RF-ASIS-08 | Mantener el contexto de varios turnos (p. ej., pedir el número de pedido y usarlo en la respuesta siguiente) | pública |
-| RF-ASIS-09 | Ante una frase no entendida, pedir reformulación y mostrar el menú; con la IA activa, usarla como respaldo solo para preguntas generales | pública |
+| RF-ASIS-09 | Ante una frase no entendida: con la IA activa, usarla como respaldo para preguntas generales; F5b: si no, buscar en el catálogo con las palabras del mensaje, luego sugerir las intenciones más cercanas y solo al final mostrar el menú | pública |
 | RF-ASIS-10 | Consultar los tickets de escalamiento | administrador, vendedor |
+| RF-ASIS-11 F5b | Mostrar las ofertas vigentes, de una sección o de todo el catálogo, con el mayor descuento primero | pública |
+| RF-ASIS-12 F5b | Responder preguntas de la tienda y de la cuenta: secciones del catálogo, cupones, crear cuenta, contraseña, dirección, eliminar cuenta, seguridad de los pagos, factura y quiénes somos | pública |
 
 ## 1.4 Atributos de calidad como escenarios medibles
 
@@ -185,7 +202,7 @@ Cada escenario sigue la plantilla del SEI: **fuente y estímulo → entorno → 
 |---|---|---|---|---|---|
 | RNF-18 | Un usuario nuevo completa una compra | Primera visita | Termina sin ayuda externa | ≥ 90 % de las tareas completadas; SUS ≥ 68 | Prueba con evaluadores (⚠️ PENDIENTE: dato humano) |
 | RNF-19 | Auditoría de accesibilidad | Web | Sin violaciones WCAG 2.2 AA graves | 0 violaciones *serious* o *critical* de axe | `usabilidad:recorrido` |
-| RNF-20 🆕 | Preguntas al asistente en lenguaje natural | Frases de prueba | Intención correcta | Tasa de acierto ≥ 85 % sobre ≥ 40 frases | `test:asistente` + matriz de confusión |
+| RNF-20 🆕 | Preguntas al asistente en lenguaje natural | Frases de prueba | Intención correcta | Tasa de acierto ≥ 85 % sobre ≥ 40 frases (F5b: ≥ 90 % sobre las 50 frases de SerByTek y las 27 de marcas, escritas antes de cada cambio del motor) | `test:asistente`, `test:unit` + matriz de confusión |
 
 ### Mantenibilidad
 

@@ -9,7 +9,9 @@ import {
   exigirCampos,
   textoDeConsulta
 } from '@ecommerce/shared';
-import { coleccionProductos, coleccionPromociones } from './db';
+import { Sort } from 'mongodb';
+import { filtroTolerante } from './busqueda';
+import { coleccionCategorias, coleccionProductos, coleccionPromociones } from './db';
 
 const log = crearLogger('catalogo-service');
 
@@ -74,6 +76,7 @@ const proyectar = (producto: Record<string, unknown>, disp: Disponibilidad | nul
   nombre: producto.nombre,
   descripcion: producto.descripcion,
   categoria: producto.categoria,
+  subcategoria: producto.subcategoria ?? null,
   marca: producto.marca,
   precio: producto.precio,
   descuento_porcentaje: producto.descuento_porcentaje ?? 0,
@@ -87,17 +90,21 @@ const proyectar = (producto: Record<string, unknown>, disp: Disponibilidad | nul
 
 /**
  * GET /productos
- * Busqueda y filtrado por categoria, marca, precio y texto (seccion 5.5).
+ * Busqueda y filtrado por categoria, subcategoria, marca, precio, oferta y
+ * texto (seccion 5.5). Si el indice de texto no encuentra nada, se repite con
+ * la busqueda tolerante (palabras a medio escribir, plurales, tildes).
  */
 export const listarProductos = async (req: PeticionAutenticada, res: Response): Promise<void> => {
   // Solo texto: un objeto como ?categoria[$ne]=x llegaria al filtro de
   // MongoDB como operador (inyeccion NoSQL, hallazgo S-05).
   const parametro = (nombre: string) => textoDeConsulta(req.query[nombre], nombre);
-  const q = parametro('q');
+  const q = parametro('q')?.trim();
   const categoria = parametro('categoria');
+  const subcategoria = parametro('subcategoria');
   const marca = parametro('marca');
   const precio_min = parametro('precio_min');
   const precio_max = parametro('precio_max');
+  const en_oferta = parametro('en_oferta');
   const orden = parametro('orden');
   const pagina = parametro('pagina') ?? '1';
   const limite = parametro('limite') ?? '20';
@@ -105,35 +112,47 @@ export const listarProductos = async (req: PeticionAutenticada, res: Response): 
   const porPagina = Math.min(Number(limite) || 20, 100);
   const saltar = (Math.max(Number(pagina) || 1, 1) - 1) * porPagina;
 
-  const filtro: Record<string, unknown> = { activo: true };
-  if (categoria) filtro.categoria = categoria;
-  if (marca) filtro.marca = marca;
+  const base: Record<string, unknown> = { activo: true };
+  if (categoria) base.categoria = categoria;
+  if (subcategoria) base.subcategoria = subcategoria;
+  if (marca) base.marca = marca;
   if (precio_min || precio_max) {
-    filtro.precio = {
+    base.precio = {
       ...(precio_min ? { $gte: Number(precio_min) } : {}),
       ...(precio_max ? { $lte: Number(precio_max) } : {})
     };
   }
-  if (q) filtro.$text = { $search: q };
+  if (en_oferta === 'true') base.descuento_porcentaje = { $gt: 0 };
 
-  const ordenamiento: Record<string, 1 | -1> =
+  const ordenFijo: Record<string, 1 | -1> | undefined =
     orden === 'precio_asc' ? { precio: 1 }
     : orden === 'precio_desc' ? { precio: -1 }
     : orden === 'nombre' ? { nombre: 1 }
-    : q ? { score: -1 } // relevancia cuando hay busqueda de texto
-    : { creado_en: -1 };
+    : orden === 'descuento' ? { descuento_porcentaje: -1, precio: 1 }
+    : undefined;
 
   const coleccion = coleccionProductos();
-  const consulta = coleccion.find(filtro);
+  const buscar = (filtro: Record<string, unknown>, porRelevancia: boolean) => {
+    const consulta = coleccion.find(filtro);
+    if (porRelevancia) consulta.project({ score: { $meta: 'textScore' } });
+    // Relevancia cuando hay busqueda de texto; si no, los mas recientes.
+    const ordenamiento = ordenFijo ?? (porRelevancia ? { score: { $meta: 'textScore' } } : { creado_en: -1 });
+    return Promise.all([
+      consulta.sort(ordenamiento as Sort).skip(saltar).limit(porPagina).toArray(),
+      coleccion.countDocuments(filtro)
+    ]);
+  };
 
-  if (q) {
-    consulta.project({ score: { $meta: 'textScore' } });
+  let [productos, total] = q ? await buscar({ ...base, $text: { $search: q } }, true) : await buscar(base, false);
+  let busqueda: 'texto' | 'tolerante' | undefined = q ? 'texto' : undefined;
+
+  if (q && total === 0) {
+    const tolerante = filtroTolerante(q);
+    if (tolerante) {
+      [productos, total] = await buscar({ ...base, ...tolerante }, false);
+      busqueda = 'tolerante';
+    }
   }
-
-  const [productos, total] = await Promise.all([
-    consulta.sort(ordenamiento).skip(saltar).limit(porPagina).toArray(),
-    coleccion.countDocuments(filtro)
-  ]);
 
   const disponibilidad = await consultarDisponibilidad(
     productos.map((p) => String(p.sku)),
@@ -144,6 +163,7 @@ export const listarProductos = async (req: PeticionAutenticada, res: Response): 
     total,
     pagina: Number(pagina) || 1,
     por_pagina: porPagina,
+    ...(busqueda ? { busqueda } : {}),
     productos: productos.map((p) => proyectar(p, disponibilidad.get(String(p.sku)) ?? null))
   });
 };
@@ -181,18 +201,99 @@ export const precioVigente = async (req: PeticionAutenticada, res: Response): Pr
   });
 };
 
-/** GET /categorias */
+interface DefinicionSubcategoria {
+  slug: string;
+  nombre: string;
+  orden?: number;
+  sinonimos?: string[];
+}
+
+interface Conteo {
+  productos: number;
+  precio_min: number;
+}
+
+/**
+ * GET /categorias
+ * Cada categoria con su conteo de productos activos y sus subcategorias, en el
+ * orden definido en catalogo_db.categorias. Los sinonimos de cada subcategoria
+ * los usa el asistente para entender "audifonos" o "laptop": una subcategoria
+ * nueva no exige tocar las reglas del asistente.
+ */
 export const listarCategorias = async (_req: PeticionAutenticada, res: Response): Promise<void> => {
-  const agregado = await coleccionProductos()
-    .aggregate([
-      { $match: { activo: true } },
-      { $group: { _id: '$categoria', productos: { $sum: 1 }, precio_min: { $min: '$precio' } } },
-      { $sort: { _id: 1 } }
-    ])
-    .toArray();
+  const [conteos, definiciones, marcas] = await Promise.all([
+    coleccionProductos()
+      .aggregate([
+        { $match: { activo: true } },
+        {
+          $group: {
+            _id: { categoria: '$categoria', subcategoria: '$subcategoria' },
+            productos: { $sum: 1 },
+            precio_min: { $min: '$precio' }
+          }
+        }
+      ])
+      .toArray(),
+    coleccionCategorias().find({}).sort({ orden: 1 }).toArray(),
+    coleccionProductos()
+      .aggregate([
+        { $match: { activo: true } },
+        { $group: { _id: { categoria: '$categoria', marca: '$marca' }, productos: { $sum: 1 } } },
+        { $sort: { '_id.marca': 1 } }
+      ])
+      .toArray()
+  ]);
+
+  const porCategoria = new Map<string, Conteo & { subs: Map<string, Conteo> }>();
+  for (const c of conteos) {
+    const clave = String(c._id.categoria);
+    const actual = porCategoria.get(clave) ?? { productos: 0, precio_min: Number.MAX_SAFE_INTEGER, subs: new Map() };
+    actual.productos += c.productos;
+    actual.precio_min = Math.min(actual.precio_min, c.precio_min);
+    if (c._id.subcategoria) actual.subs.set(String(c._id.subcategoria), { productos: c.productos, precio_min: c.precio_min });
+    porCategoria.set(clave, actual);
+  }
+
+  const definidas = new Map(definiciones.map((d) => [String(d.slug), d]));
+  // Primero las definidas (en su orden), luego las que solo existen en los productos.
+  const claves = [
+    ...definiciones.map((d) => String(d.slug)).filter((slug) => porCategoria.has(slug)),
+    ...[...porCategoria.keys()].filter((slug) => !definidas.has(slug)).sort()
+  ];
 
   res.status(200).json(
-    agregado.map((c) => ({ categoria: c._id, productos: c.productos, precio_min: c.precio_min }))
+    claves.map((slug) => {
+      const datos = porCategoria.get(slug)!;
+      const definicion = definidas.get(slug);
+      const subDefinidas = ((definicion?.subcategorias ?? []) as DefinicionSubcategoria[])
+        .slice()
+        .sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
+      const conocidas = new Set(subDefinidas.map((s) => s.slug));
+      const subcategorias = [
+        ...subDefinidas.filter((s) => datos.subs.has(s.slug)),
+        ...[...datos.subs.keys()]
+          .filter((s) => !conocidas.has(s))
+          .sort()
+          .map((s): DefinicionSubcategoria => ({ slug: s, nombre: s }))
+      ].map((s) => ({
+        slug: s.slug,
+        nombre: s.nombre,
+        productos: datos.subs.get(s.slug)!.productos,
+        precio_min: datos.subs.get(s.slug)!.precio_min,
+        sinonimos: s.sinonimos ?? []
+      }));
+      return {
+        categoria: slug,
+        // Marcas de la categoria: el asistente las reconoce sin reglas propias.
+        marcas: marcas
+          .filter((m) => String(m._id.categoria) === slug && m._id.marca)
+          .map((m) => ({ nombre: String(m._id.marca), productos: m.productos })),
+        nombre: String(definicion?.nombre ?? slug),
+        productos: datos.productos,
+        precio_min: datos.precio_min,
+        subcategorias
+      };
+    })
   );
 };
 
@@ -206,6 +307,7 @@ export const crearProducto = async (req: PeticionAutenticada, res: Response): Pr
     nombre: req.body.nombre,
     descripcion: req.body.descripcion ?? '',
     categoria: req.body.categoria,
+    ...(req.body.subcategoria ? { subcategoria: String(req.body.subcategoria) } : {}),
     marca: req.body.marca ?? 'Sin marca',
     precio: Number(req.body.precio),
     descuento_porcentaje: Number(req.body.descuento_porcentaje ?? 0),
@@ -229,7 +331,7 @@ export const crearProducto = async (req: PeticionAutenticada, res: Response): Pr
 
 /** PATCH /productos/:sku - actualiza precio, descuento o estado. */
 export const actualizarProducto = async (req: PeticionAutenticada, res: Response): Promise<void> => {
-  const permitidos = ['nombre', 'descripcion', 'precio', 'descuento_porcentaje', 'activo', 'imagenes', 'atributos', 'marca'];
+  const permitidos = ['nombre', 'descripcion', 'precio', 'descuento_porcentaje', 'activo', 'imagenes', 'atributos', 'marca', 'subcategoria'];
   const cambios: Record<string, unknown> = {};
   for (const campo of permitidos) {
     if (req.body?.[campo] !== undefined) cambios[campo] = req.body[campo];

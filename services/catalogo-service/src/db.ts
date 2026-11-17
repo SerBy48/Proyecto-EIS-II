@@ -28,6 +28,7 @@ const exigirBase = (): Db => {
 };
 
 export const coleccionProductos = (): Collection<Document> => exigirBase().collection('productos');
+export const coleccionCategorias = (): Collection<Document> => exigirBase().collection('categorias');
 export const coleccionPromociones = (): Collection<Document> => exigirBase().collection('promociones');
 
 export const verificarMongo = async (): Promise<boolean> => {

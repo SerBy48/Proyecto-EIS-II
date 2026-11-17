@@ -4,7 +4,20 @@ import frases from '../../../tests/asistente/frases.json';
 import { completarPlantilla, enmascarar } from '../src/configuracion';
 import datos from '../src/datos/intenciones.json';
 import { ClienteIa, responderConIa } from '../src/ia';
-import { Intencion, NO_ENTENDIDO, clasificar, extraerConsultaProducto, extraerEntidades, normalizar } from '../src/motor';
+import serbytek from '../../../tests/asistente/frases-serbytek.json';
+import frasesMarcas from '../../../tests/asistente/frases-marcas.json';
+import { vocabularioDelCatalogo } from '../../../tests/asistente/vocabulario';
+import {
+  Intencion,
+  NO_ENTENDIDO,
+  clasificar,
+  extraerConsultaProducto,
+  extraerEntidades,
+  extraerPrecio,
+  formasDeMarca,
+  normalizar,
+  singular
+} from '../src/motor';
 
 const intenciones = datos.intenciones as Intencion[];
 
@@ -60,6 +73,82 @@ describe('clasificar', () => {
   });
 });
 
+describe('SerByTek: plural, errores de tipeo, vocabulario del catalogo y precios', () => {
+  const vocabulario = vocabularioDelCatalogo();
+
+  it('singular: celulares, monitores, redes y disponibles (el defecto de la primera medicion)', () => {
+    expect(['celulares', 'monitores', 'redes', 'disponibles', 'audifonos', 'tablets'].map(singular)).toEqual([
+      'celular', 'monitor', 'red', 'disponible', 'audifono', 'tablet'
+    ]);
+  });
+
+  it('la frase compuesta que fallaba: "Hay audífonos disponibles?" pregunta por la seccion Audio', () => {
+    const r = clasificar('Hay audífonos disponibles?', intenciones, undefined, vocabulario);
+    expect(r).toMatchObject({ intencion: 'precio_disponibilidad', entidades: { subcategoria: 'audio' } });
+  });
+
+  it('un producto nombrado sin verbo es una busqueda y se reconoce su seccion', () => {
+    expect(clasificar('router wifi', intenciones, undefined, vocabulario)).toMatchObject({ intencion: 'buscar_producto', entidades: { subcategoria: 'redes' } });
+    expect(clasificar('portatil gamer', intenciones, undefined, vocabulario).entidades.subcategoria).toBe('computadores');
+  });
+
+  it('tolera un error de tipeo, pero no confunde palabras conocidas ("cuesta" no es "cuenta")', () => {
+    expect(clasificar('audifnos inalambricos', intenciones, undefined, vocabulario).entidades.subcategoria).toBe('audio');
+    expect(clasificar('cuanto cuesta el mouse', intenciones, undefined, vocabulario).intencion).toBe('precio_disponibilidad');
+  });
+
+  it('un termino y su plural cuentan una vez ("quiero cancelar mi pedido" es cancelar)', () => {
+    expect(clasificar('quiero cancelar mi pedido', intenciones).intencion).toBe('cancelar_pedido');
+  });
+
+  it('extrae rangos de precio en pesos', () => {
+    expect(extraerPrecio('portátiles de menos de 3 millones')).toEqual({ precio_max: 3_000_000 });
+    expect(extraerPrecio('algo hasta 500 mil')).toEqual({ precio_max: 500_000 });
+    expect(extraerPrecio('entre 1 y 2,5 millones')).toEqual({ precio_min: 1_000_000, precio_max: 2_500_000 });
+    expect(extraerPrecio('más de $1.200.000')).toEqual({ precio_min: 1_200_000 });
+    expect(extraerPrecio('desde cuanto el envio es gratis')).toEqual({});
+  });
+
+  it('sin intencion clara sugiere las mas cercanas', () => {
+    const r = clasificar('quiero saber algo del envio de mi pedido urgente', intenciones.filter((i) => i.clave !== 'estado_pedido'), undefined, vocabulario);
+    expect(r.intencion === 'no_entendido' ? r.sugerencias?.length : 1).toBeGreaterThan(0);
+  });
+
+  it('la consulta de producto quita precios y palabras vacias', () => {
+    expect(extraerConsultaProducto('quiero ver portátiles de menos de 3 millones')).toBe('portatiles');
+  });
+});
+
+describe('marcas del catalogo', () => {
+  const vocabulario = vocabularioDelCatalogo();
+
+  it('reconoce la marca con su nombre exacto, tambien escrita de otras formas o con un error', () => {
+    expect(formasDeMarca('TP-Link')).toEqual(['tp-link', 'tp link', 'tplink']);
+    expect(clasificar('manejan tp link?', intenciones, undefined, vocabulario).entidades.marca).toBe('TP-Link');
+    expect(clasificar('Samsumg', intenciones, undefined, vocabulario).entidades.marca).toBe('Samsung');
+    expect(clasificar('base Cooler Master', intenciones, undefined, vocabulario).entidades.marca).toBe('Cooler Master');
+  });
+
+  it('una marca sola es una busqueda; con "disponibles" es precio y disponibilidad', () => {
+    expect(clasificar('Logitech', intenciones, undefined, vocabulario).intencion).toBe('buscar_producto');
+    expect(clasificar('hay audífonos Sony disponibles?', intenciones, undefined, vocabulario)).toMatchObject({
+      intencion: 'precio_disponibilidad',
+      entidades: { subcategoria: 'audio', marca: 'Sony' }
+    });
+  });
+
+  it('las entidades confirman una intencion, no la crean: "que tienen de Logitech" no es la lista de secciones', () => {
+    expect(clasificar('¿qué tienen de Logitech?', intenciones, undefined, vocabulario).intencion).toBe('buscar_producto');
+    expect(clasificar('¿qué tienen?', intenciones, undefined, vocabulario).intencion).toBe('categorias');
+  });
+
+  it('evaluacion de marcas (tests/asistente/frases-marcas.json): al menos 90 %', () => {
+    const m = medir(frasesMarcas.evaluacion as Caso[]);
+    expect(m.total).toBe(27);
+    expect(m.tasa).toBeGreaterThanOrEqual(0.9);
+  });
+});
+
 describe('tasa de acierto (tests/asistente/frases.json)', () => {
   it('desarrollo: todas las frases (es el conjunto con el que se ajustan los terminos)', () => {
     const m = medir(frases.desarrollo as Caso[]);
@@ -70,6 +159,12 @@ describe('tasa de acierto (tests/asistente/frases.json)', () => {
     const m = medir(frases.evaluacion as Caso[]);
     expect(m.total).toBeGreaterThanOrEqual(30);
     expect(m.tasa).toBeGreaterThanOrEqual(0.85);
+  });
+
+  it('evaluacion SerByTek (tests/asistente/frases-serbytek.json): al menos 90 %', () => {
+    const m = medir(serbytek.evaluacion as Caso[]);
+    expect(m.total).toBe(50);
+    expect(m.tasa).toBeGreaterThanOrEqual(0.9);
   });
 });
 

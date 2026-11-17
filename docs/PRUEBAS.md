@@ -6,9 +6,9 @@ electrónico.
 
 | | |
 |---|---|
-| **Última ejecución** | 16 de noviembre de 2026, Fase 5: sistema completo en contenedores (perfil de laboratorio, y `test:e2e:ui` también sobre el perfil prod), secretos propios en `.env` |
-| **Casos ejecutados** | 320: 205 de integración (33 de concurrencia + 73 por HTTP + 53 extremo a extremo + 46 del asistente) y 115 unitarias. Además, 12 criterios de aceptación en la interfaz (`test:e2e:ui`), 355 comprobaciones de cobertura de OpenAPI y 21 verificaciones de seguridad |
-| **Resultado** | 320 pasan, 0 fallan; 12/12 criterios de aceptación; las 355 comprobaciones de OpenAPI pasan; seguridad: 1 hallazgo de 21 (S-09, aceptado). Evidencia de la Fase 5: [`evidencia/trabajo-final/regresion-f5/`](evidencia/trabajo-final/regresion-f5/) |
+| **Última ejecución** | 16 de noviembre de 2026, ajustes de SerByTek (F5b): sistema completo en contenedores desde volúmenes vacíos, secretos propios en `.env` |
+| **Casos ejecutados** | 340: 205 de integración (33 de concurrencia + 73 por HTTP + 53 extremo a extremo + 46 del asistente) y 135 unitarias. Además, 18 criterios de aceptación en la interfaz (`test:e2e:ui`), 409 comprobaciones de cobertura de OpenAPI, 23 verificaciones de seguridad y axe en los temas claro y oscuro |
+| **Resultado** | 340 pasan, 0 fallan; 18/18 criterios de aceptación; las 409 comprobaciones de OpenAPI pasan; seguridad: 1 hallazgo de 23 (S-09, aceptado); axe: 0 reglas WCAG incumplidas en 21 pantallas. Evidencia: [`evidencia/trabajo-final/regresion-f5b/`](evidencia/trabajo-final/regresion-f5b/) (sección 4.36) |
 | **Entorno** | Windows 11, Node 25, Docker: PostgreSQL 16 (puerto 5434 del host), MongoDB 7, Redis 7, RabbitMQ 3 y Mailpit 1.27. Infraestructura completa |
 | **Evidencia** | [`evidencia/`](evidencia/) — salida literal de cada suite |
 
@@ -869,6 +869,103 @@ Lo mismo pasaba cuando el personal cambiaba el estado de un pedido: el aviso «f
 - CORS: el 8081 no estaba entre los orígenes permitidos;
 - una espera que no aguardaba al inicio de sesión;
 - `waitForFunction`, que la CSP de la web bloquea (`unsafe-eval`).
+
+### 4.33 Una sesión que el servidor ya no aceptaba dejaba la web «con sesión» y el chat «no disponible» (H-F5-02)
+
+Lo encontró el equipo al probar la web en `localhost:5173` después de que las bases se recrearon durante la regresión de la Fase 5.
+
+**Síntoma:**
+- la cabecera seguía mostrando la sesión iniciada;
+- el asistente respondía «El asistente no está disponible en este momento» a cualquier mensaje;
+- el carrito y «Salir» respondían 401.
+
+**Causa.** El navegador conservaba en `localStorage` un token que el servidor ya no aceptaba (`TOKEN_INVALIDO`, o un refresh revocado). `api.js` solo manejaba `TOKEN_EXPIRADO` con una renovación exitosa; en los demás casos lanzaba el error sin borrar la sesión. El chat es público, pero enviaba ese token, el asistente respondía 401 y la web lo mostraba como servicio caído.
+
+**Corrección** (`clients/web/src/servicios/api.js` y `App.jsx`):
+- si el servidor rechaza el token o la renovación falla, se borra la sesión y se emite el evento `sesion-expirada`;
+- `App` vuelve al modo visitante y avisa «Tu sesión expiró. Inicia sesión de nuevo.»;
+- las peticiones marcadas `publica: true` (catálogo y chat) se repiten una vez sin token.
+
+**Verificación:** CA-18 de `test:e2e:ui` (token inválido en `localStorage` → aviso, botón «Iniciar sesión» y el chat responde como visitante).
+
+### 4.34 `singular()` convertía «disponibles» en «disponibl»
+
+Lo encontró la **primera medición** del conjunto de evaluación de SerByTek (`tests/asistente/frases-serbytek.json`, 50 frases escritas antes del motor nuevo): 49/50. La frase fallida era justamente la del equipo, «Hay audífonos disponibles?».
+
+**Causa.** La regla del plural quitaba «es» después de cualquier l, r, n, d, z o j. «disponibles» termina en «-bles»: la «l» va precedida de una consonante, así que el singular correcto es quitar solo la «s».
+
+**Corrección.** Se quita «es» solo tras vocal + l/r/n/d/z/j (celular-es, monitor-es, red-es); en los demás casos, solo la «s». El mismo defecto estaba en la búsqueda tolerante del catálogo (`busqueda.ts`) y se corrigió igual. **No se tocaron los términos de las intenciones.**
+
+**Verificación:** 50/50 en la medición posterior; `motor.test.ts` fija los casos (celulares, monitores, redes, disponibles, audífonos, tablets). El informe de métricas registra las dos cifras: [`evidencia/trabajo-final/asistente-metricas.md`](evidencia/trabajo-final/asistente-metricas.md).
+
+### 4.35 Hallazgos al construir los cambios de SerByTek (F5b)
+
+Los encontraron las pruebas de humo y de aceptación antes de la regresión; ninguno llegó a `develop`.
+
+| Hallazgo | Causa | Corrección |
+|---|---|---|
+| «Muéstrame Celulares, tablets y relojes» devolvía 1 de 6 productos | El índice de texto de MongoDB, con su lematizador de español, no hace coincidir «celulares» con «Celular» | Si el mensaje solo nombra una sección (todas sus palabras son sinónimos de esa misma sección), el asistente lista la sección completa sin buscar el texto |
+| El segundo cambio de dirección de un pedido no habría enviado correo | La clave de deduplicación de notificaciones es evento + pedido + estado, igual para los dos cambios | La clave incluye el número de cambio (`datos.cambio`) |
+| Eliminar la cuenta respondía 503 | `auth-service` no tenía `URL_PEDIDOS` ni `URL_CARRITO` en `docker-compose.yml` | Variables agregadas |
+| `GET /api/clientes/departamentos` respondía 401 a un visitante | El gateway exige sesión fuera de su lista blanca | La ruta se agregó a `RUTAS_PUBLICAS` (el registro la necesita) |
+| Un administrador podía llamar `POST /clientes/:id/anonimizar` desde afuera | `requiereRol('administrador')` deja pasar al administrador con su token | Nuevo guardia `soloLlamadaInterna` en `@ecommerce/shared`; verificado por V-22 de `test:seguridad` |
+
+### 4.36 Regresión de SerByTek (F5b)
+
+**Cambios que se probaron:**
+- catálogo solo de tecnología (60 productos, 10 subcategorías) con búsqueda tolerante;
+- asistente reforzado (plural, errores de tipeo, vocabulario del catálogo, precios, ofertas, búsqueda de respaldo y sugerencias);
+- perfil, direcciones con departamento, eliminar la cuenta (anonimizar), dirección al pagar y dos cambios posteriores;
+- administración de usuarios; tema oscuro; contraseña visible; identidad SerByTek en la web y la app móvil;
+- H-F5-02.
+
+Desde volúmenes vacíos (`docker compose down -v` y `npm run infra:normal`): 16/16 contenedores sanos en 98 s con las imágenes en caché. Tras agregar la fuente (que invalida la caché de las imágenes) la reconstrucción tomó 464 s; `--wait` venció con notificaciones *unhealthy* porque RabbitMQ seguía arrancando, y el servicio se recuperó solo unos 25 s después (el bus reconecta y vuelve a declarar su cola), sin intervención.
+
+| Suite | Resultado | Evidencia |
+|---|---|---|
+| `typecheck` | sin errores | `regresion-f5b/typecheck.txt` |
+| `test:unit` | 135/135 (20 nuevas: motor del asistente, marcas, búsqueda tolerante, semilla del catálogo y sus fotos) | `regresion-f5b/test-unit.txt` |
+| `test:openapi` | 409/409 (68 rutas: 57 públicas + 11 internas) | `regresion-f5b/test-openapi.txt` |
+| `build:web` | compila | `regresion-f5b/build-web.txt` |
+| `test:salud` | 10/10 servicios | `regresion-f5b/test-salud.txt` |
+| `test:http` | 73/73 | `regresion-f5b/test-http.txt` |
+| `test:concurrencia` | 33/33 | `regresion-f5b/test-concurrencia.txt` |
+| `test:e2e` | 53/53 | `regresion-f5b/test-e2e.txt` |
+| `test:asistente` | 46/46 con `ASISTENTE_PROBAR_DEGRADACION=1` | `regresion-f5b/test-asistente.txt` |
+| `asistente:metricas` | SerByTek 50/50 (primera medición 49/50, 4.34); marcas 27/27 (4.37); Fase 3 35/36; desarrollo 57/57 | `trabajo-final/asistente-metricas.md` |
+| `test:seguridad` | 22 seguras (2 nuevas: V-22 y V-23) y 1 hallazgo aceptado (V-13 / S-09) | `regresion-f5b/test-seguridad.txt` |
+| **`test:e2e:ui`** | **18/18 criterios** (6 nuevos: CA-13 a CA-18) | `trabajo-final/e2e-ui/` |
+| `usabilidad:recorrido` (axe, tema claro; `ETIQUETA=f5b` para no pisar la evidencia de la Fase 4) | 14 pantallas, 0 reglas WCAG incumplidas | `regresion-f5b/usabilidad-recorrido.txt`, `no-funcionales/usabilidad/*-f5b*` |
+| axe, tema oscuro (`tests/usabilidad/axe-tema-oscuro.ts`) | 7 pantallas, 0 reglas incumplidas | `regresion-f5b/axe-tema-oscuro.json` |
+| `flutter analyze` (app móvil) | sin problemas | — |
+| `npm audit --omit=dev --audit-level=high` | 0 vulnerabilidades | `regresion-f5b/npm-audit.txt` |
+| Lint de OpenAPI (Redocly) | válido, sin advertencias | `regresion-f5b/docs-openapi.txt` |
+
+**Ajustes a las pruebas** (por el catálogo nuevo, no por defectos): los SKU de hogar y deportes se reemplazaron por `SKU-TEC-006` a `010` con el mismo stock, precio y descuento; los filtros `categoria=hogar|deportes` pasaron a `subcategoria=accesorios|gaming`; `test:http` desactiva al terminar el producto de evidencia (U-17). En el recorrido de usabilidad, E6 ahora espera a que el token renovado quede guardado: si E7 escribía sus tokens antes, la renovación en curso los sobrescribía (carrera de la prueba, no de la tienda). Estable en 3 ejecuciones seguidas. La tarea T2 elige la sección con su botón, porque el catálogo ya no tiene la lista «Todas las secciones».
+
+
+### 4.37 Marcas reales, reconocimiento de marcas y fuente Space Grotesk (F5b)
+
+**Cambios.** El catálogo pasa a productos y marcas reales (Lenovo, ASUS, Logitech, Samsung, Sony, TP-Link…) con precios de referencia y los mismos SKU, stock y papeles de prueba; el pie aclara que es una tienda de demostración. El catálogo publica las marcas en `GET /api/catalogo/categorias` y el asistente las reconoce como entidad (con plural, error de tipeo y formas como «tp link»), las combina con la sección y el precio y abre el catálogo filtrado por marca. La web usa Space Grotesk (OFL 1.1), empaquetada con la web porque la CSP solo admite fuentes del propio sitio.
+
+**Medición del asistente** (`tests/asistente/frases-marcas.json`, 27 frases escritas y versionadas antes del reconocimiento de marcas):
+
+| Momento | Marcas | SerByTek |
+|---|---|---|
+| Línea base, sin reconocer marcas | 20/27 | 50/50 |
+| Primera medición con el reconocimiento | 26/27 | 50/50 |
+| Intento descartado: los mismos refuerzos para precio_disponibilidad | 19/27 | 46/50 |
+| Regla final: las entidades confirman una intención sugerida por palabras, no la crean | **27/27** | **50/50** |
+
+No se tocaron los pesos de los términos. La regla final evita que una marca o sección sueltas inclinen la intención; esos mensajes los resuelve la regla «solo nombra productos → búsqueda».
+
+**Fallo intermitente de CA-01.** En las tres primeras ejecuciones de `test:e2e:ui` tras la reconstrucción, CA-01 falló con `page.goto: Timeout`. La traza mostró el CSS sin respuesta en el navegador, aunque nginx lo registró servido (200) y el navegador pidió la fuente que ese CSS declara. No se reprodujo de forma aislada (con y sin traza, y con la misma secuencia de inicios de sesión) y las tres ejecuciones siguientes pasaron 18/18. Causa sin identificar; queda en observación. En la regresión siguiente (tras agregar las fotos y reconstruir desde volúmenes vacíos) `test:e2e:ui` pasó 18/18 a la primera.
+
+### 4.38 Fotos de los productos (F5b)
+
+Una foto ilustrativa por sección (10 en total, unos 200 KB en WebP) en `clients/web/public/productos/`, servidas por la propia web porque la CSP solo admite imágenes del sitio. Son de Unsplash bajo su licencia (uso libre, sin atribución obligatoria); se acreditan por cortesía en `clients/web/public/productos/CREDITOS.md` y se descartaron las de Unsplash+, con personas identificables o con logotipos destacados. La semilla asigna a cada producto la foto de su sección; la web la muestra como imagen decorativa (`alt=""`, porque no es el modelo exacto y el nombre está en el título), con carga diferida y el ícono de la sección si no carga. El asistente muestra la miniatura en sus tarjetas.
+
+Verificación: `test:unit` comprueba que cada producto de la semilla tenga su archivo; 20/20 fotos cargan en la primera página en los dos temas; axe sin reglas incumplidas (14 pantallas en tema claro y 7 en oscuro); `test:e2e:ui` 18/18. La reconstrucción falló una vez por el caché de compilación de Docker («parent snapshot … does not exist»), un error del entorno; el reintento construyó y dejó 16/16 contenedores sanos.
 
 ---
 

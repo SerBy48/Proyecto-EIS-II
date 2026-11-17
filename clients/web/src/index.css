@@ -1,3 +1,224 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/*
+ * Colores de SerByTek (tailwind.config.js los lee como variables). Tema claro
+ * en :root y oscuro en .dark, que pone o quita src/servicios/tema.js. Los
+ * pasos 50 a 300 se usan como fondos suaves y bordes; del 600 al 900, como
+ * texto. Por eso en el tema oscuro la escala se invierte: un texto "700" debe
+ * ser claro sobre un fondo oscuro. Contrastes revisados con axe en los dos
+ * temas (npm run usabilidad:recorrido).
+ */
+@layer base {
+  :root {
+    color-scheme: light;
+    --superficie: 255 255 255;
+
+    --gray-50: 247 250 248;
+    --gray-100: 240 244 242;
+    --gray-200: 226 232 229;
+    --gray-300: 205 213 209;
+    --gray-400: 150 160 155;
+    --gray-500: 100 112 106;
+    --gray-600: 74 85 80;
+    --gray-700: 52 64 58;
+    --gray-800: 30 41 36;
+    --gray-900: 15 23 20;
+
+    --marca-50: 236 253 245;
+    --marca-100: 209 250 229;
+    --marca-200: 167 243 208;
+    --marca-300: 110 231 183;
+    --marca-400: 52 211 153;
+    --marca-500: 16 185 129;
+    --marca-600: 4 120 87;
+    --marca-700: 6 95 70;
+    --marca-800: 6 78 59;
+    --marca-900: 2 44 34;
+
+    --red-50: 254 242 242;
+    --red-100: 254 226 226;
+    --red-200: 254 202 202;
+    --red-300: 252 165 165;
+    --red-400: 248 113 113;
+    --red-500: 239 68 68;
+    --red-600: 220 38 38;
+    --red-700: 185 28 28;
+    --red-800: 153 27 27;
+    --red-900: 127 29 29;
+
+    --green-50: 240 253 244;
+    --green-100: 220 252 231;
+    --green-200: 187 247 208;
+    --green-300: 134 239 172;
+    --green-400: 74 222 128;
+    --green-500: 34 197 94;
+    --green-600: 22 163 74;
+    --green-700: 21 128 61;
+    --green-800: 22 101 52;
+    --green-900: 20 83 45;
+
+    --amber-50: 255 251 235;
+    --amber-100: 254 243 199;
+    --amber-200: 253 230 138;
+    --amber-300: 252 211 77;
+    --amber-400: 251 191 36;
+    --amber-500: 245 158 11;
+    --amber-600: 217 119 6;
+    --amber-700: 180 83 9;
+    --amber-800: 146 64 14;
+    --amber-900: 120 53 15;
+
+    --blue-50: 239 246 255;
+    --blue-100: 219 234 254;
+    --blue-200: 191 219 254;
+    --blue-300: 147 197 253;
+    --blue-400: 96 165 250;
+    --blue-500: 59 130 246;
+    --blue-600: 37 99 235;
+    --blue-700: 29 78 216;
+    --blue-800: 30 64 175;
+    --blue-900: 30 58 138;
+  }
+
+  .dark {
+    color-scheme: dark;
+    --superficie: 20 28 25;
+
+    --gray-50: 11 16 14;
+    --gray-100: 28 37 33;
+    --gray-200: 42 54 49;
+    --gray-300: 62 76 70;
+    --gray-400: 122 137 130;
+    --gray-500: 160 174 167;
+    --gray-600: 182 194 188;
+    --gray-700: 206 215 211;
+    --gray-800: 227 233 230;
+    --gray-900: 243 246 244;
+
+    --marca-50: 14 44 34;
+    --marca-100: 18 60 46;
+    --marca-200: 28 86 64;
+    --marca-300: 38 112 84;
+    --marca-400: 52 160 120;
+    --marca-500: 16 185 129;
+    --marca-600: 52 211 153;
+    --marca-700: 110 231 183;
+    --marca-800: 167 243 208;
+    --marca-900: 209 250 229;
+
+    --red-50: 48 18 18;
+    --red-100: 64 22 22;
+    --red-200: 104 36 36;
+    --red-300: 132 46 46;
+    --red-400: 239 68 68;
+    --red-500: 239 68 68;
+    --red-600: 248 113 113;
+    --red-700: 252 165 165;
+    --red-800: 254 202 202;
+    --red-900: 254 226 226;
+
+    --green-50: 14 40 26;
+    --green-100: 20 55 35;
+    --green-200: 30 85 52;
+    --green-300: 40 110 68;
+    --green-400: 34 197 94;
+    --green-500: 34 197 94;
+    --green-600: 74 222 128;
+    --green-700: 134 239 172;
+    --green-800: 187 247 208;
+    --green-900: 220 252 231;
+
+    --amber-50: 45 33 10;
+    --amber-100: 62 46 12;
+    --amber-200: 106 79 18;
+    --amber-300: 140 102 22;
+    --amber-400: 245 158 11;
+    --amber-500: 245 158 11;
+    --amber-600: 251 191 36;
+    --amber-700: 252 211 77;
+    --amber-800: 253 230 138;
+    --amber-900: 254 243 199;
+
+    --blue-50: 15 28 56;
+    --blue-100: 24 40 84;
+    --blue-200: 34 56 112;
+    --blue-300: 48 80 150;
+    --blue-400: 96 165 250;
+    --blue-500: 59 130 246;
+    --blue-600: 96 165 250;
+    --blue-700: 147 197 253;
+    --blue-800: 191 219 254;
+    --blue-900: 219 234 254;
+  }
+
+  body {
+    @apply bg-gray-50 text-gray-900 antialiased;
+  }
+
+  /* Listas desplegables con flecha propia: la nativa de Windows se pinta
+     blanca al pasar el mouse en el tema oscuro. La flecha sigue el tema. */
+  select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%2364706a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.65rem center;
+    background-size: 1.1rem;
+    padding-right: 2.25rem !important;
+    cursor: pointer;
+  }
+  .dark select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%23a0aea7' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+  }
+}
+
+/* Botones solidos: colores fijos con texto blanco (contraste AA en los dos temas). */
+@layer components {
+  .btn-primario {
+    @apply text-white font-semibold rounded-lg transition-colors;
+    background-color: #047857;
+  }
+  .btn-primario:hover:not(:disabled) {
+    background-color: #065f46;
+  }
+  .btn-peligro {
+    @apply text-white font-semibold rounded-lg transition-colors;
+    background-color: #b91c1c;
+  }
+  .btn-peligro:hover:not(:disabled) {
+    background-color: #991b1b;
+  }
+  .btn-advertencia {
+    @apply text-white font-semibold rounded-lg transition-colors;
+    background-color: #b45309;
+  }
+  .btn-advertencia:hover:not(:disabled) {
+    background-color: #92400e;
+  }
+  .btn-oscuro {
+    @apply text-white rounded transition-colors;
+    background-color: #1e2924;
+  }
+  .dark .btn-oscuro {
+    background-color: #2f5e4c;
+  }
+  .btn-oscuro:hover:not(:disabled) {
+    background-color: #0f1714;
+  }
+  .dark .btn-oscuro:hover:not(:disabled) {
+    background-color: #3b7560;
+  }
+  /* Deshabilitado: gris legible en los dos temas, no el color de marca desvaido. */
+  .btn-primario:disabled,
+  .btn-peligro:disabled,
+  .btn-advertencia:disabled,
+  .btn-oscuro:disabled,
+  .dark .btn-oscuro:disabled {
+    @apply cursor-not-allowed bg-gray-200 text-gray-600;
+  }
+  .burbuja-usuario {
+    @apply text-white;
+    background-color: #047857;
+  }
+}

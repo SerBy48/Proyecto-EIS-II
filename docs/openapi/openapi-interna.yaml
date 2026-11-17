@@ -15,6 +15,8 @@ tags:
   - { name: interna, description: Uso exclusivo entre servicios }
 paths:
   /api/clientes/{id}/validar: { $ref: 'rutas/internas.yaml#/validar' }
+  /api/clientes/{id}/anonimizar: { $ref: 'rutas/internas.yaml#/anonimizar' }
+  /api/pedidos/internos/clientes/{clienteId}/pendientes: { $ref: 'rutas/internas.yaml#/pendientes' }
   /api/catalogo/productos/{sku}/precio: { $ref: 'rutas/internas.yaml#/precio' }
   /api/carrito/{clienteId}/checkout: { $ref: 'rutas/internas.yaml#/carritoCheckout' }
   /api/inventario/reservas: { $ref: 'rutas/internas.yaml#/reservas' }

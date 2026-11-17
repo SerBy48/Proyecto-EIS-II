@@ -36,7 +36,7 @@ const resumir = (nombre: string, muestras: Array<{ ms: number; estado: number }>
 };
 
 const correo = (i: number) => `carga${String(61 + (i % 30)).padStart(3, '0')}@correo.co`;
-const terminos = ['portatil', 'cafetera', 'bicicleta', 'monitor', 'licuadora', 'mancuernas'];
+const terminos = ['portatil', 'mouse', 'audifonos', 'monitor', 'router', 'celular'];
 
 const principal = async () => {
   const lineas: string[] = [];
@@ -73,7 +73,7 @@ const principal = async () => {
   const muestrasCheckout = [];
   for (let i = 0; i < N; i++) {
     await llamar(`/carrito/${sesiones[i].cliente}/items`, {
-      method: 'POST', headers: auth(i), body: JSON.stringify({ sku: 'SKU-HOG-001', cantidad: 1 })
+      method: 'POST', headers: auth(i), body: JSON.stringify({ sku: 'SKU-TEC-006', cantidad: 1 })
     });
     muestrasCheckout.push(
       await llamar('/pedidos/checkout', {

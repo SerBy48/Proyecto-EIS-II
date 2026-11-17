@@ -27,7 +27,39 @@
     },
     {
       "clave": "faq_horario",
-      "respuesta": "La tienda en línea funciona todo el día. Nuestros asesores atienden {{horario_atencion}}. Si quieres, te comunico con uno."
+      "respuesta": "SerByTek funciona en línea todo el día. Nuestros asesores atienden {{horario_atencion}}. Si quieres, te comunico con uno."
+    },
+    {
+      "clave": "faq_cupones",
+      "respuesta": "Escribe el cupón en el carrito, en el campo \"Cupón\", y pulsa Aplicar. El descuento se aplica antes del IVA y no te hace perder el envío gratis. Por ejemplo, BIENVENIDA10 da 10 % de descuento en compras desde $100.000."
+    },
+    {
+      "clave": "faq_cuenta",
+      "respuesta": "Pulsa \"Iniciar sesión\" y luego \"Crear cuenta\". Necesitas tu nombre, tu correo, una contraseña de al menos 8 caracteres y tu dirección de envío con departamento y ciudad. Al terminar quedas con la sesión iniciada y listo para comprar."
+    },
+    {
+      "clave": "faq_contrasena",
+      "respuesta": "Por seguridad, el restablecimiento de la contraseña lo hace un asesor después de verificar tu identidad. Escribe \"hablar con un asesor\" y te contactamos al correo de tu cuenta. Tras varios intentos fallidos seguidos, la tienda te pide esperar un momento antes de intentar de nuevo."
+    },
+    {
+      "clave": "faq_direccion",
+      "respuesta": "Tus direcciones se administran en \"Mi perfil\": puedes tener varias, con departamento y ciudad, y elegir la predeterminada. Al pagar eliges a cuál enviar o agregas una nueva. Si ya hiciste el pedido, en \"Mis pedidos\" puedes cambiar la dirección hasta 2 veces mientras no haya salido de la bodega."
+    },
+    {
+      "clave": "faq_eliminar_cuenta",
+      "respuesta": "Puedes eliminar tu cuenta desde \"Mi perfil\", confirmando con tu contraseña. Si tienes pedidos pendientes de pago, pagados, en preparación o enviados, primero deben entregarse o cancelarse. Al eliminarla borramos tus datos personales y cerramos tus sesiones; los pedidos se conservan sin tus datos por obligaciones contables."
+    },
+    {
+      "clave": "faq_tienda",
+      "respuesta": "SerByTek es una tienda en línea colombiana especializada en tecnología: computadores, componentes, periféricos, monitores, audio, celulares, redes, gaming y accesorios. Vendemos solo en línea, sin tienda física, y enviamos a todo Colombia en {{dias_entrega}} días hábiles."
+    },
+    {
+      "clave": "faq_seguridad",
+      "respuesta": "Sí. Nunca guardamos el número de tu tarjeta, el CVV ni la fecha de vencimiento: la pasarela de pagos los procesa directamente y SerByTek solo recibe una referencia del pago. Cada compra lleva una clave única, así que un doble clic no cobra dos veces."
+    },
+    {
+      "clave": "faq_factura",
+      "respuesta": "Con cada compra recibes un correo de confirmación con el número del pedido y el total, y el detalle queda en \"Mis pedidos\". Si necesitas la factura a nombre de una empresa, pídesela a un asesor con el número del pedido."
     }
   ]
 }
