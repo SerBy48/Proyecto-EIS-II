@@ -1,0 +1,32 @@
+{
+  "_descripcion": "Conjunto de evaluacion de MARCAS de SerByTek, escrito el 2026-11-16 ANTES de implementar el reconocimiento de marcas, con el catalogo de marcas reales ya definido (infra/mongo/init-mongo.js). No se usa para ajustar terminos: es la tasa que se reporta. El motor se mide con el vocabulario del catalogo (secciones, sinonimos y marcas). Incluye frases de control sin marca para comprobar que las marcas no rompen otras intenciones.",
+  "evaluacion": [
+    { "frase": "¿qué tienen de Logitech?", "esperada": "buscar_producto" },
+    { "frase": "Logitech", "esperada": "buscar_producto" },
+    { "frase": "productos Samsung", "esperada": "buscar_producto" },
+    { "frase": "busco un mouse Logitech", "esperada": "buscar_producto" },
+    { "frase": "hay audífonos Sony disponibles?", "esperada": "precio_disponibilidad" },
+    { "frase": "cuánto cuesta el Galaxy S24", "esperada": "precio_disponibilidad" },
+    { "frase": "precio de la tarjeta gráfica ASUS", "esperada": "precio_disponibilidad" },
+    { "frase": "tienen portátiles Lenovo de menos de 4 millones", "esperada": "buscar_producto" },
+    { "frase": "monitores LG", "esperada": "buscar_producto" },
+    { "frase": "ofertas de Samsung", "esperada": "ofertas" },
+    { "frase": "qué productos de Xiaomi están en oferta", "esperada": "ofertas" },
+    { "frase": "algo de Razer", "esperada": "buscar_producto" },
+    { "frase": "manejan TP-Link?", "esperada": "buscar_producto" },
+    { "frase": "quiero un control de Xbox", "esperada": "buscar_producto" },
+    { "frase": "Samsumg", "esperada": "buscar_producto" },
+    { "frase": "parlante jbl", "esperada": "buscar_producto" },
+    { "frase": "cargador anker", "esperada": "buscar_producto" },
+    { "frase": "hay stock del teclado Keychron?", "esperada": "precio_disponibilidad" },
+    { "frase": "venden HyperX?", "esperada": "buscar_producto" },
+    { "frase": "quiero algo marca Corsair", "esperada": "buscar_producto" },
+    { "frase": "Audio-Technica", "esperada": "buscar_producto" },
+    { "frase": "lo más barato de Anker", "esperada": "buscar_producto" },
+    { "frase": "tienen iPhone?", "esperada": "buscar_producto" },
+    { "frase": "cómo pago con PSE", "esperada": "faq_pagos" },
+    { "frase": "cuánto cuesta el envío a Neiva", "esperada": "faq_envio" },
+    { "frase": "quiero cancelar mi pedido", "esperada": "cancelar_pedido" },
+    { "frase": "cuál es la capital de Francia", "esperada": "no_entendido" }
+  ]
+}
