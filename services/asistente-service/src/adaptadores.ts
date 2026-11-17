@@ -42,6 +42,7 @@ export interface ProductoResumen {
 /** Filtros de la busqueda (los mismos parametros de GET /api/catalogo/productos). */
 export interface FiltrosBusqueda {
   subcategoria?: string;
+  marca?: string;
   precio_min?: number;
   precio_max?: number;
   en_oferta?: boolean;
@@ -57,6 +58,7 @@ export interface CategoriaCatalogo {
   categoria: string;
   nombre: string;
   productos: number;
+  marcas?: Array<{ nombre: string; productos: number }>;
   subcategorias: Array<{ slug: string; nombre: string; productos: number; precio_min: number; sinonimos: string[] }>;
 }
 
@@ -90,6 +92,7 @@ export const buscarProductos = async (
   const parametros = new URLSearchParams({ limite: String(limite) });
   if (consulta) parametros.set('q', consulta);
   if (filtros.subcategoria) parametros.set('subcategoria', filtros.subcategoria);
+  if (filtros.marca) parametros.set('marca', filtros.marca);
   if (filtros.precio_min !== undefined) parametros.set('precio_min', String(filtros.precio_min));
   if (filtros.precio_max !== undefined) parametros.set('precio_max', String(filtros.precio_max));
   if (filtros.en_oferta) parametros.set('en_oferta', 'true');

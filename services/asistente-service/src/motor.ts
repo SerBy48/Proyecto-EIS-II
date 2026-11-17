@@ -48,6 +48,8 @@ export interface Entidades {
   pedido?: string;
   /** Slug de la subcategoria del catalogo que nombra el mensaje. */
   subcategoria?: string;
+  /** Marca del catalogo que nombra el mensaje, con su nombre exacto ("Logitech"). */
+  marca?: string;
   /** El mensaje nombra la categoria completa ("tecnologia"). */
   categoria?: string;
   precio_min?: number;
@@ -58,7 +60,7 @@ export interface Entidades {
   oferta?: boolean;
 }
 
-export type ClaveEntidad = 'sku' | 'pedido' | 'subcategoria' | 'categoria' | 'precio' | 'economico' | 'oferta';
+export type ClaveEntidad = 'sku' | 'pedido' | 'subcategoria' | 'marca' | 'categoria' | 'precio' | 'economico' | 'oferta';
 
 /** Subcategoria tal como la publica GET /api/catalogo/categorias. */
 export interface Subcategoria {
@@ -71,9 +73,11 @@ export interface Subcategoria {
 export interface Vocabulario {
   categorias: string[];
   subcategorias: Subcategoria[];
+  /** Marcas del catalogo (nombre como esta en los productos: "TP-Link", "Audio-Technica"). */
+  marcas?: string[];
 }
 
-export const VOCABULARIO_VACIO: Vocabulario = { categorias: [], subcategorias: [] };
+export const VOCABULARIO_VACIO: Vocabulario = { categorias: [], subcategorias: [], marcas: [] };
 
 /** Lo que la conversacion espera del siguiente mensaje. */
 export interface Pendiente {
@@ -148,7 +152,7 @@ const PALABRAS_VACIAS = new Set(
     'ver dame saber bueno buena buenos buenas mejor mejores barato barata baratos baratas economico economica economicos ' +
     'oferta ofertas descuento descuentos promocion promociones rebaja rebajas menos mas hasta desde entre maximo minimo ' +
     'millon millones mil pesos tecnologia tecnologicos tecnologico tienda serbytek aqui ahi interesa interesan ' +
-    'puedo puede pueden podria sirve sirva tipo clase marca'
+    'puedo puede pueden podria sirve sirva tipo clase marca marcas'
   ).split(' ')
 );
 
@@ -158,6 +162,7 @@ const palabrasConocidas = (intenciones: Intencion[], vocabulario: Vocabulario): 
   const agregar = (texto: string) => normalizar(texto.replace(/\*$/, '')).split(' ').forEach((p) => conocidas.add(p));
   for (const intencion of intenciones) for (const t of intencion.terminos) agregar(t.texto);
   for (const s of vocabulario.subcategorias) [s.slug, s.nombre, ...(s.sinonimos ?? [])].forEach(agregar);
+  for (const m of vocabulario.marcas ?? []) formasDeMarca(m).forEach(agregar);
   return conocidas;
 };
 
@@ -235,6 +240,28 @@ export const extraerPrecio = (texto: string): Pick<Entidades, 'precio_min' | 'pr
 const PALABRAS_ECONOMICO = ['barato', 'barata', 'economico', 'economica', 'bajo costo', 'buen precio', 'precio bajo', 'asequible'];
 const PALABRAS_OFERTA = ['oferta', 'descuento', 'promocion', 'rebaja', 'liquidacion', 'black friday'];
 
+/** "TP-Link" se escribe tambien "tp link" o "tplink". */
+export const formasDeMarca = (marca: string): string[] => {
+  const base = normalizar(marca);
+  return [...new Set([base, base.replace(/-/g, ' '), base.replace(/[-\s]/g, '')])];
+};
+
+/** Marca del catalogo que nombra el mensaje; a igual posicion, la mas larga ("Cooler Master"). */
+export const extraerMarca = (palabras: string[], vocabulario: Vocabulario, conocidas: Set<string>): string | undefined => {
+  let mejor: { marca: string; posicion: number; largo: number } | undefined;
+  for (const marca of vocabulario.marcas ?? []) {
+    for (const forma of formasDeMarca(marca)) {
+      const posicion = posicionDe(palabras, forma, conocidas);
+      if (posicion < 0) continue;
+      const largo = forma.length;
+      if (!mejor || posicion < mejor.posicion || (posicion === mejor.posicion && largo > mejor.largo)) {
+        mejor = { marca, posicion, largo };
+      }
+    }
+  }
+  return mejor?.marca;
+};
+
 /** Subcategoria que nombra el mensaje: la que aparece primero; a igual posicion, la frase mas larga. */
 export const extraerSubcategoria = (palabras: string[], vocabulario: Vocabulario, conocidas: Set<string>): string | undefined => {
   let mejor: { slug: string; posicion: number; largo: number } | undefined;
@@ -275,6 +302,8 @@ export const extraerEntidades = (
   const palabras = normalizado.split(' ').filter(Boolean);
   const subcategoria = extraerSubcategoria(palabras, vocabulario, conocidas);
   if (subcategoria) entidades.subcategoria = subcategoria;
+  const marca = extraerMarca(palabras, vocabulario, conocidas);
+  if (marca) entidades.marca = marca;
   const categoria = vocabulario.categorias.find((c) => posicionDe(palabras, c) >= 0 || posicionDe(palabras, `${c}*`) >= 0);
   if (categoria) entidades.categoria = categoria;
 
@@ -290,7 +319,7 @@ const tieneEntidad = (entidades: Entidades, clave: ClaveEntidad): boolean =>
 
 /** ¿El mensaje habla de productos aunque no use un verbo de busqueda? */
 const nombraProductos = (e: Entidades): boolean =>
-  Boolean(e.subcategoria || e.categoria || e.precio_min !== undefined || e.precio_max !== undefined || e.economico);
+  Boolean(e.subcategoria || e.marca || e.categoria || e.precio_min !== undefined || e.precio_max !== undefined || e.economico);
 
 // ---------------------------------------------------------------- clasificar
 
@@ -317,9 +346,14 @@ export const clasificar = (
       }
       const coincidencias = [...porForma.values()];
       const porTerminos = coincidencias.reduce((suma, t) => suma + t.peso, 0);
+      // Las entidades CONFIRMAN una intencion que el mensaje ya sugiere con
+      // palabras; no la crean. Un mensaje que solo nombra productos ("Logitech",
+      // "monitores LG") o un SKU suelto tiene su propia regla mas abajo.
       let puntaje = porTerminos;
-      for (const [entidad, extra] of Object.entries(intencion.refuerzos ?? {})) {
-        if (tieneEntidad(entidades, entidad as ClaveEntidad)) puntaje += extra ?? 0;
+      if (porTerminos > 0) {
+        for (const [entidad, extra] of Object.entries(intencion.refuerzos ?? {})) {
+          if (tieneEntidad(entidades, entidad as ClaveEntidad)) puntaje += extra ?? 0;
+        }
       }
       return { intencion, puntaje, porTerminos, coincidencias: coincidencias.map((t) => t.texto) };
     })

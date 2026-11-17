@@ -5,6 +5,7 @@ import { completarPlantilla, enmascarar } from '../src/configuracion';
 import datos from '../src/datos/intenciones.json';
 import { ClienteIa, responderConIa } from '../src/ia';
 import serbytek from '../../../tests/asistente/frases-serbytek.json';
+import frasesMarcas from '../../../tests/asistente/frases-marcas.json';
 import { vocabularioDelCatalogo } from '../../../tests/asistente/vocabulario';
 import {
   Intencion,
@@ -13,6 +14,7 @@ import {
   extraerConsultaProducto,
   extraerEntidades,
   extraerPrecio,
+  formasDeMarca,
   normalizar,
   singular
 } from '../src/motor';
@@ -114,6 +116,36 @@ describe('SerByTek: plural, errores de tipeo, vocabulario del catalogo y precios
 
   it('la consulta de producto quita precios y palabras vacias', () => {
     expect(extraerConsultaProducto('quiero ver portátiles de menos de 3 millones')).toBe('portatiles');
+  });
+});
+
+describe('marcas del catalogo', () => {
+  const vocabulario = vocabularioDelCatalogo();
+
+  it('reconoce la marca con su nombre exacto, tambien escrita de otras formas o con un error', () => {
+    expect(formasDeMarca('TP-Link')).toEqual(['tp-link', 'tp link', 'tplink']);
+    expect(clasificar('manejan tp link?', intenciones, undefined, vocabulario).entidades.marca).toBe('TP-Link');
+    expect(clasificar('Samsumg', intenciones, undefined, vocabulario).entidades.marca).toBe('Samsung');
+    expect(clasificar('base Cooler Master', intenciones, undefined, vocabulario).entidades.marca).toBe('Cooler Master');
+  });
+
+  it('una marca sola es una busqueda; con "disponibles" es precio y disponibilidad', () => {
+    expect(clasificar('Logitech', intenciones, undefined, vocabulario).intencion).toBe('buscar_producto');
+    expect(clasificar('hay audífonos Sony disponibles?', intenciones, undefined, vocabulario)).toMatchObject({
+      intencion: 'precio_disponibilidad',
+      entidades: { subcategoria: 'audio', marca: 'Sony' }
+    });
+  });
+
+  it('las entidades confirman una intencion, no la crean: "que tienen de Logitech" no es la lista de secciones', () => {
+    expect(clasificar('¿qué tienen de Logitech?', intenciones, undefined, vocabulario).intencion).toBe('buscar_producto');
+    expect(clasificar('¿qué tienen?', intenciones, undefined, vocabulario).intencion).toBe('categorias');
+  });
+
+  it('evaluacion de marcas (tests/asistente/frases-marcas.json): al menos 90 %', () => {
+    const m = medir(frasesMarcas.evaluacion as Caso[]);
+    expect(m.total).toBe(27);
+    expect(m.tasa).toBeGreaterThanOrEqual(0.9);
   });
 });
 

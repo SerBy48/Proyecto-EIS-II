@@ -10,8 +10,8 @@ describe('busqueda tolerante del catalogo', () => {
 
   it('el patron encuentra la palabra con o sin tildes', () => {
     const regex = new RegExp(patronSinTildes('audifono'), 'i');
-    expect(regex.test('Audífonos Nimbus')).toBe(true);
-    expect(regex.test('Parlante Eco')).toBe(false);
+    expect(regex.test('Audífonos Sony WH-1000XM5')).toBe(true);
+    expect(regex.test('Parlante Bluetooth JBL Flip 6')).toBe(false);
   });
 
   it('lo que escribe el usuario no llega como expresion regular: los simbolos se descartan', () => {

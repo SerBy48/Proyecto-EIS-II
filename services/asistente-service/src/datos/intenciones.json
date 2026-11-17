@@ -1,5 +1,5 @@
 {
-  "_descripcion": "Intenciones del asistente de SerByTek. Se siembran en asistente_db.intenciones: las que faltan se agregan al arrancar y las que el administrador no ha editado (editada != true) se actualizan con esta version; las editadas con PATCH /api/asistente/intenciones/:clave se respetan. Terminos sin tildes y en minusculas (el motor normaliza el texto y acepta plural y errores de tipeo). Un termino que termina en * coincide por prefijo. Mayor prioridad gana los empates. Los nombres de productos y subcategorias NO van aqui: salen del catalogo (GET /api/catalogo/categorias).",
+  "_descripcion": "Intenciones del asistente de SerByTek. Se siembran en asistente_db.intenciones: las que faltan se agregan al arrancar y las que el administrador no ha editado (editada != true) se actualizan con esta version; las editadas con PATCH /api/asistente/intenciones/:clave se respetan. Terminos sin tildes y en minusculas (el motor normaliza el texto y acepta plural y errores de tipeo). Un termino que termina en * coincide por prefijo. Mayor prioridad gana los empates. Los nombres de productos, subcategorias y marcas NO van aqui: salen del catalogo (GET /api/catalogo/categorias).",
   "intenciones": [
     {
       "clave": "saludo",
@@ -55,7 +55,7 @@
       "descripcion": "Productos en oferta",
       "ejemplo": "¿Qué productos están en oferta?",
       "prioridad": 5,
-      "refuerzos": { "oferta": 3, "subcategoria": 1 },
+      "refuerzos": { "oferta": 3, "subcategoria": 1, "marca": 1 },
       "terminos": [
         { "texto": "oferta", "peso": 3 }, { "texto": "ofertas", "peso": 3 }, { "texto": "en oferta", "peso": 4 },
         { "texto": "rebaja", "peso": 3 }, { "texto": "rebajas", "peso": 3 }, { "texto": "liquidacion", "peso": 3 },
@@ -241,7 +241,7 @@
       "descripcion": "Buscar productos en el catálogo",
       "ejemplo": "Quiero buscar un producto",
       "prioridad": 3,
-      "refuerzos": { "subcategoria": 2, "precio": 2, "economico": 1 },
+      "refuerzos": { "subcategoria": 2, "marca": 2, "precio": 2, "economico": 1 },
       "terminos": [
         { "texto": "tienen", "peso": 2 }, { "texto": "tienes", "peso": 2 }, { "texto": "venden", "peso": 3 },
         { "texto": "manejan", "peso": 2 }, { "texto": "busco", "peso": 3 }, { "texto": "buscar", "peso": 2 },

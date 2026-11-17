@@ -90,7 +90,11 @@ const vocabularioDelCatalogo = async (requestId?: string): Promise<Vocabulario> 
     const categorias = await listarCategorias(requestId);
     vocabulario = {
       hasta: Date.now() + VIGENCIA_VOCABULARIO_MS,
-      datos: { categorias: categorias.map((c) => c.categoria), subcategorias: categorias.flatMap((c) => c.subcategorias) }
+      datos: {
+        categorias: categorias.map((c) => c.categoria),
+        subcategorias: categorias.flatMap((c) => c.subcategorias),
+        marcas: [...new Set(categorias.flatMap((c) => (c.marcas ?? []).map((m) => m.nombre)))]
+      }
     };
   } catch (error) {
     log.con({ request_id: requestId }).warn('Vocabulario del catalogo no disponible; se usa el ultimo conocido', {

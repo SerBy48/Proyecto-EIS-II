@@ -40,6 +40,8 @@ export default function Catalogo({ usuario, alAgregar, filtrosIniciales }) {
   const [filtros, setFiltros] = useState(() => ({
     q: filtrosIniciales?.q ?? '',
     subcategoria: filtrosIniciales?.subcategoria ?? '',
+    // La marca solo llega desde el asistente ("Ver los N en el catalogo").
+    marca: filtrosIniciales?.marca ?? '',
     en_oferta: Boolean(filtrosIniciales?.en_oferta),
     orden: ''
   }));
@@ -58,6 +60,7 @@ export default function Catalogo({ usuario, alAgregar, filtrosIniciales }) {
       const parametros = new URLSearchParams();
       if (filtros.q) parametros.set('q', filtros.q);
       if (filtros.subcategoria) parametros.set('subcategoria', filtros.subcategoria);
+      if (filtros.marca) parametros.set('marca', filtros.marca);
       if (filtros.en_oferta) parametros.set('en_oferta', 'true');
       if (filtros.orden) parametros.set('orden', filtros.orden);
       parametros.set('pagina', String(pagina));
@@ -83,7 +86,7 @@ export default function Catalogo({ usuario, alAgregar, filtrosIniciales }) {
     const temporizador = setTimeout(cargar, filtros.q ? 350 : 0);
     return () => clearTimeout(temporizador);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtros.q, filtros.subcategoria, filtros.en_oferta, filtros.orden, pagina]);
+  }, [filtros.q, filtros.subcategoria, filtros.marca, filtros.en_oferta, filtros.orden, pagina]);
 
   // Un filtro nuevo siempre empieza en la primera pagina.
   const cambiarFiltro = (cambio) => {
@@ -173,9 +176,9 @@ export default function Catalogo({ usuario, alAgregar, filtrosIniciales }) {
       <nav aria-label="Secciones del catálogo" className="mb-6">
         <div className="flex flex-wrap gap-2">
           <button
-            onClick={() => cambiarFiltro({ subcategoria: '', en_oferta: false })}
-            aria-pressed={!filtros.subcategoria && !filtros.en_oferta}
-            className={chip(!filtros.subcategoria && !filtros.en_oferta)}
+            onClick={() => cambiarFiltro({ subcategoria: '', en_oferta: false, marca: '' })}
+            aria-pressed={!filtros.subcategoria && !filtros.en_oferta && !filtros.marca}
+            className={chip(!filtros.subcategoria && !filtros.en_oferta && !filtros.marca)}
           >
             Todo
           </button>
@@ -196,6 +199,11 @@ export default function Catalogo({ usuario, alAgregar, filtrosIniciales }) {
               <span aria-hidden="true">{icono(s.slug)}</span> {s.nombre}
             </button>
           ))}
+          {filtros.marca && (
+            <button onClick={() => cambiarFiltro({ marca: '' })} className={chip(true)} aria-label={`Quitar el filtro de la marca ${filtros.marca}`}>
+              Marca: {filtros.marca} <span aria-hidden="true">✕</span>
+            </button>
+          )}
         </div>
       </nav>
 
@@ -203,6 +211,7 @@ export default function Catalogo({ usuario, alAgregar, filtrosIniciales }) {
         <p className="text-sm text-gray-600 mb-4" aria-live="polite">
           Mostrando {(pagina - 1) * POR_PAGINA + 1}–{Math.min(pagina * POR_PAGINA, total)} de {total} productos
           {filtros.subcategoria && <> en {nombreSeccion(filtros.subcategoria)}</>}
+          {filtros.marca && <> de {filtros.marca}</>}
           {filtros.en_oferta && <> en oferta</>}
           {filtros.q && <> para «{filtros.q}»</>}
         </p>

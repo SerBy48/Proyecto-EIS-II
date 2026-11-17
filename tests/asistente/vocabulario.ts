@@ -1,6 +1,6 @@
 /**
- * Vocabulario del catalogo para medir el motor sin servicios: las subcategorias
- * y sus sinonimos se leen de la MISMA semilla que carga MongoDB
+ * Vocabulario del catalogo para medir el motor sin servicios: las subcategorias,
+ * sus sinonimos y las marcas se leen de la MISMA semilla que carga MongoDB
  * (infra/mongo/init-mongo.js), ejecutandola contra una base simulada. Asi las
  * pruebas no mantienen una copia que pueda desalinearse con la tienda.
  */
@@ -35,9 +35,10 @@ export const semillaDelCatalogo = (): { categorias: Documento[]; productos: Docu
 };
 
 export const vocabularioDelCatalogo = (): Vocabulario => {
-  const { categorias } = semillaDelCatalogo();
+  const { categorias, productos } = semillaDelCatalogo();
   return {
     categorias: categorias.map((c) => String(c.slug)),
-    subcategorias: categorias.flatMap((c) => c.subcategorias ?? [])
+    subcategorias: categorias.flatMap((c) => c.subcategorias ?? []),
+    marcas: [...new Set(productos.map((p) => String(p.marca)))]
   };
 };

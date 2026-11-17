@@ -221,7 +221,7 @@ interface Conteo {
  * nueva no exige tocar las reglas del asistente.
  */
 export const listarCategorias = async (_req: PeticionAutenticada, res: Response): Promise<void> => {
-  const [conteos, definiciones] = await Promise.all([
+  const [conteos, definiciones, marcas] = await Promise.all([
     coleccionProductos()
       .aggregate([
         { $match: { activo: true } },
@@ -234,7 +234,14 @@ export const listarCategorias = async (_req: PeticionAutenticada, res: Response)
         }
       ])
       .toArray(),
-    coleccionCategorias().find({}).sort({ orden: 1 }).toArray()
+    coleccionCategorias().find({}).sort({ orden: 1 }).toArray(),
+    coleccionProductos()
+      .aggregate([
+        { $match: { activo: true } },
+        { $group: { _id: { categoria: '$categoria', marca: '$marca' }, productos: { $sum: 1 } } },
+        { $sort: { '_id.marca': 1 } }
+      ])
+      .toArray()
   ]);
 
   const porCategoria = new Map<string, Conteo & { subs: Map<string, Conteo> }>();
@@ -277,6 +284,10 @@ export const listarCategorias = async (_req: PeticionAutenticada, res: Response)
       }));
       return {
         categoria: slug,
+        // Marcas de la categoria: el asistente las reconoce sin reglas propias.
+        marcas: marcas
+          .filter((m) => String(m._id.categoria) === slug && m._id.marca)
+          .map((m) => ({ nombre: String(m._id.marca), productos: m.productos })),
         nombre: String(definicion?.nombre ?? slug),
         productos: datos.productos,
         precio_min: datos.precio_min,

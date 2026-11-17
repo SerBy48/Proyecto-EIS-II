@@ -15,6 +15,9 @@ export default {
   darkMode: 'class',
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['"Space Grotesk Variable"', '"Space Grotesk"', 'ui-sans-serif', 'system-ui', 'sans-serif']
+      },
       colors: {
         superficie: 'rgb(var(--superficie) / <alpha-value>)',
         marca: escala('marca'),

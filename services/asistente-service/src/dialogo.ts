@@ -21,6 +21,7 @@ import {
   Subcategoria,
   Vocabulario,
   extraerConsultaProducto,
+  formasDeMarca,
   normalizar,
   singular
 } from './motor';
@@ -39,10 +40,11 @@ const log = crearLogger('asistente-service');
  * menu.
  */
 
-/** Filtros con los que la web abre el catalogo (accion ir_catalogo). */
+/** Filtros con los que la web abre el catalogo (accion ir_catalogo); la web entiende q, subcategoria, marca y en_oferta. */
 export interface FiltrosCatalogo {
   q?: string;
   subcategoria?: string;
+  marca?: string;
   en_oferta?: boolean;
 }
 
@@ -152,8 +154,10 @@ const opcionesDeSecciones = async (ctx: Contexto): Promise<Opcion[]> => {
  * indica). Una consulta hecha solo de ellas es generica: "audifonos" o
  * "celulares, tablets y relojes" piden la seccion, no un producto.
  */
-const palabrasDeSecciones = (ctx: Contexto, slug?: string): Set<string> => {
+const palabrasDeSecciones = (ctx: Contexto, slug?: string, marca?: string): Set<string> => {
   const palabras = new Set<string>();
+  // La marca pedida tambien es parte del filtro, no del nombre del producto.
+  if (marca) formasDeMarca(marca).forEach((forma) => forma.split(' ').forEach((p) => palabras.add(singular(p))));
   for (const s of subcategoriasDe(ctx).filter((x) => !slug || x.slug === slug)) {
     for (const frase of [s.slug, s.nombre, ...(s.sinonimos ?? [])]) {
       normalizar(frase).split(' ').forEach((p) => palabras.add(singular(p)));
@@ -164,6 +168,7 @@ const palabrasDeSecciones = (ctx: Contexto, slug?: string): Set<string> => {
 
 const filtrosDe = (r: Resultado): FiltrosBusqueda => ({
   ...(r.entidades.subcategoria ? { subcategoria: r.entidades.subcategoria } : {}),
+  ...(r.entidades.marca ? { marca: r.entidades.marca } : {}),
   ...(r.entidades.precio_min !== undefined ? { precio_min: r.entidades.precio_min } : {}),
   ...(r.entidades.precio_max !== undefined ? { precio_max: r.entidades.precio_max } : {}),
   ...(r.entidades.economico ? { orden: 'precio_asc' as const } : {})
@@ -174,6 +179,7 @@ const describirFiltros = (filtros: FiltrosBusqueda, ctx: Contexto): string => {
   const partes: string[] = [];
   const seccion = nombreSubcategoria(filtros.subcategoria, ctx);
   if (seccion) partes.push(`en ${seccion}`);
+  if (filtros.marca) partes.push(`de ${filtros.marca}`);
   if (filtros.precio_min !== undefined && filtros.precio_max !== undefined) {
     partes.push(`entre ${moneda(filtros.precio_min)} y ${moneda(filtros.precio_max)}`);
   } else if (filtros.precio_max !== undefined) partes.push(`por menos de ${moneda(filtros.precio_max)}`);
@@ -199,12 +205,13 @@ const buscarEscalonado = async (consulta: string, filtros: FiltrosBusqueda, ctx:
   // "Muestrame Audio": la seccion completa, sin buscar esas palabras en los
   // nombres (el indice de texto no siempre las encuentra: "celulares").
   // "portatil gamer" no es generica: "gamer" no es de Computadores.
-  const soloSeccion = Boolean(filtros.subcategoria && consulta && esGenerica(consulta, ctx, filtros.subcategoria));
+  // Lo mismo con una marca: "que tienen de Logitech" lista todo lo de Logitech.
+  const soloSeccion = Boolean((filtros.subcategoria || filtros.marca) && consulta && esGenerica(consulta, ctx, filtros.subcategoria, filtros.marca));
   if (consulta && !soloSeccion) {
     const exacto = await buscarProductos(consulta, ctx.requestId, LIMITE_PRODUCTOS, filtros);
     if (exacto.total) return { ...exacto, filtros, consulta };
   }
-  if (filtros.subcategoria) {
+  if (filtros.subcategoria || filtros.marca) {
     const seccion = await buscarProductos('', ctx.requestId, LIMITE_PRODUCTOS, filtros);
     if (seccion.total) {
       const nota = consulta && !soloSeccion && !esGenerica(consulta, ctx)
@@ -232,8 +239,9 @@ const buscarEscalonado = async (consulta: string, filtros: FiltrosBusqueda, ctx:
 };
 
 /** ¿La consulta solo nombra una seccion ("audifonos", "monitores") y no un producto concreto? */
-const esGenerica = (consulta: string, ctx: Contexto, slug?: string): boolean => {
-  const secciones = palabrasDeSecciones(ctx, slug);
+const esGenerica = (consulta: string, ctx: Contexto, slug?: string, marca?: string): boolean => {
+  // Con solo una marca (sin seccion), las palabras validas son las de la marca.
+  const secciones = slug || !marca ? palabrasDeSecciones(ctx, slug, marca) : palabrasDeSecciones(ctx, '__ninguna__', marca);
   return consulta.split(' ').every((p) => secciones.has(singular(p)));
 };
 
@@ -246,6 +254,7 @@ const opcionVerMas = (h: Hallazgo): Opcion[] =>
         filtros: {
           ...(h.consulta ? { q: h.consulta } : {}),
           ...(h.filtros.subcategoria ? { subcategoria: h.filtros.subcategoria } : {}),
+          ...(h.filtros.marca ? { marca: h.filtros.marca } : {}),
           ...(h.filtros.en_oferta ? { en_oferta: true } : {})
         }
       }]

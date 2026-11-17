@@ -3741,6 +3741,23 @@
             "type": "number",
             "example": 59000
           },
+          "marcas": {
+            "type": "array",
+            "description": "Marcas de la categoria; el asistente las reconoce sin reglas propias.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "nombre": {
+                  "type": "string",
+                  "example": "Logitech"
+                },
+                "productos": {
+                  "type": "integer",
+                  "example": 5
+                }
+              }
+            }
+          },
           "subcategorias": {
             "type": "array",
             "items": {

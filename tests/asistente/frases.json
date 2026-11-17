@@ -25,22 +25,8 @@
     { "frase": "quiero cancelar mi pedido", "esperada": "cancelar_pedido" },
     { "frase": "quiero hablar con un asesor", "esperada": "humano" },
     { "frase": "asdfgh qwerty", "esperada": "no_entendido" },
-    {
-      "frase": "PED-202611-001105",
-      "esperada": "estado_pedido",
-      "contexto": {
-        "intencion": "estado_pedido",
-        "espera": "pedido"
-      }
-    },
-    {
-      "frase": "audifonos",
-      "esperada": "buscar_producto",
-      "contexto": {
-        "intencion": "buscar_producto",
-        "espera": "producto"
-      }
-    },
+    { "frase": "PED-202611-001105", "esperada": "estado_pedido", "contexto": { "intencion": "estado_pedido", "espera": "pedido" } },
+    { "frase": "audifonos", "esperada": "buscar_producto", "contexto": { "intencion": "buscar_producto", "espera": "producto" } },
     { "frase": "muéstrame las categorías", "esperada": "categorias" },
     { "frase": "qué secciones tiene la tienda", "esperada": "categorias" },
     { "frase": "ver ofertas", "esperada": "ofertas" },
@@ -68,7 +54,10 @@
     { "frase": "monitores en oferta", "esperada": "ofertas" },
     { "frase": "soporte técnico", "esperada": "humano" },
     { "frase": "listo, muchas gracias", "esperada": "despedida" },
-    { "frase": "pedido no me ha llegado", "esperada": "estado_pedido" }
+    { "frase": "pedido no me ha llegado", "esperada": "estado_pedido" },
+    { "frase": "quedan unidades del mouse Razer?", "esperada": "precio_disponibilidad" },
+    { "frase": "cosas de Lenovo", "esperada": "buscar_producto" },
+    { "frase": "tp link", "esperada": "buscar_producto" }
   ],
   "evaluacion": [
     { "frase": "Hola, buenas tardes", "esperada": "saludo" },
@@ -103,37 +92,9 @@
     { "frase": "pásame con una persona por favor", "esperada": "humano" },
     { "frase": "tengo una queja", "esperada": "humano" },
     { "frase": "cuál es la capital de Francia", "esperada": "no_entendido" },
-    {
-      "frase": "el 106",
-      "esperada": "estado_pedido",
-      "contexto": {
-        "intencion": "estado_pedido",
-        "espera": "pedido"
-      }
-    },
-    {
-      "frase": "PED-202611-001100",
-      "esperada": "cancelar_pedido",
-      "contexto": {
-        "intencion": "cancelar_pedido",
-        "espera": "pedido"
-      }
-    },
-    {
-      "frase": "una bicicleta",
-      "esperada": "buscar_producto",
-      "contexto": {
-        "intencion": "buscar_producto",
-        "espera": "producto"
-      }
-    },
-    {
-      "frase": "el portátil Aurora",
-      "esperada": "precio_disponibilidad",
-      "contexto": {
-        "intencion": "precio_disponibilidad",
-        "espera": "producto"
-      }
-    }
+    { "frase": "el 106", "esperada": "estado_pedido", "contexto": { "intencion": "estado_pedido", "espera": "pedido" } },
+    { "frase": "PED-202611-001100", "esperada": "cancelar_pedido", "contexto": { "intencion": "cancelar_pedido", "espera": "pedido" } },
+    { "frase": "una bicicleta", "esperada": "buscar_producto", "contexto": { "intencion": "buscar_producto", "espera": "producto" } },
+    { "frase": "el portátil Aurora", "esperada": "precio_disponibilidad", "contexto": { "intencion": "precio_disponibilidad", "espera": "producto" } }
   ]
 }

@@ -353,6 +353,9 @@ function PiePagina() {
         <p className="max-w-7xl mx-auto px-4 sm:px-6 pt-4 pb-24 text-xs text-gray-500 flex flex-wrap gap-x-4 gap-y-1 justify-between">
           <span>© {new Date().getFullYear()} SerByTek. Todos los derechos reservados.</span>
           <span>Precios en pesos colombianos; el IVA (19 %) se suma en el carrito.</span>
+          <span className="w-full">
+            Tienda de demostración: los precios son de referencia y las marcas y productos mencionados pertenecen a sus respectivos dueños.
+          </span>
         </p>
       </div>
     </footer>
