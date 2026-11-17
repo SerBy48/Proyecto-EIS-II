@@ -40,6 +40,16 @@ describe('semilla del catalogo de SerByTek', () => {
     expect(productos.every((p) => p.categoria === 'tecnologia' && subcategorias.has(String(p.subcategoria)))).toBe(true);
   });
 
+  it('cada producto tiene su foto en la web (clients/web/public)', async () => {
+    const { existsSync } = await import('node:fs');
+    const path = await import('node:path');
+    const faltan = productos.filter((p) => {
+      const url = (p.imagenes as string[] | undefined)?.[0];
+      return !url || !existsSync(path.resolve(__dirname, '../../../clients/web/public', `.${url}`));
+    });
+    expect(faltan.map((p) => p.sku)).toEqual([]);
+  });
+
   it('cada producto tiene stock en la semilla de inventario y viceversa', async () => {
     const { readFileSync } = await import('node:fs');
     const path = await import('node:path');

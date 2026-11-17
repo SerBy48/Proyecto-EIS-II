@@ -1,5 +1,6 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { api, moneda } from '../servicios/api';
+import { FotoProducto } from '../paginas/Catalogo.jsx';
 
 /**
  * Asistente virtual: boton flotante y panel de chat, visible en todas las vistas.
@@ -220,7 +221,9 @@ function Respuesta({ r, esCliente, alAgregar, alElegir, deshabilitado }) {
     return (
       <ul className="space-y-2" aria-label="Productos">
         {r.productos.map((p) => (
-          <li key={p.sku} className="border border-gray-200 rounded-lg p-3">
+          <li key={p.sku} className="border border-gray-200 rounded-lg p-3 flex gap-3">
+            <FotoProducto producto={p} className="w-16 h-16 rounded-md shrink-0 !text-2xl" />
+            <div className="min-w-0">
             <p className="font-semibold text-gray-900">{p.nombre}</p>
             <p className="text-gray-600">
               {moneda(p.precio_final)}
@@ -237,6 +240,7 @@ function Respuesta({ r, esCliente, alAgregar, alElegir, deshabilitado }) {
                 Agregar al carrito
               </button>
             )}
+            </div>
           </li>
         ))}
       </ul>

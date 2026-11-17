@@ -34,6 +34,7 @@ export interface ProductoResumen {
   subcategoria?: string | null;
   precio?: number;
   descuento_porcentaje?: number;
+  imagenes?: string[];
   precio_final: number;
   disponible: number | null;
   hay_stock: boolean | null;
@@ -77,6 +78,7 @@ const resumir = (p: ProductoResumen): ProductoResumen => ({
   subcategoria: p.subcategoria ?? null,
   precio: p.precio,
   descuento_porcentaje: p.descuento_porcentaje ?? 0,
+  imagenes: (p.imagenes ?? []).slice(0, 1),
   precio_final: p.precio_final,
   disponible: p.disponible ?? null,
   hay_stock: p.hay_stock ?? null

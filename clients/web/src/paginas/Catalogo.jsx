@@ -32,6 +32,35 @@ const ICONOS = {
 };
 const icono = (subcategoria) => ICONOS[subcategoria] ?? '🔋';
 
+/**
+ * Foto del producto. Es ilustrativa de la seccion, no del modelo exacto: por
+ * eso es decorativa (alt vacio) y el nombre sigue en el titulo. Si no hay foto
+ * o no carga, se muestra el icono de la seccion.
+ */
+export function FotoProducto({ producto, className = '' }) {
+  const [fallo, setFallo] = useState(false);
+  const url = producto.imagenes?.[0];
+  if (!url || fallo) {
+    return (
+      <div aria-hidden="true" className={`bg-gradient-to-br from-marca-50 to-gray-100 flex items-center justify-center text-5xl ${className}`}>
+        {icono(producto.subcategoria)}
+      </div>
+    );
+  }
+  return (
+    <img
+      src={url}
+      alt=""
+      loading="lazy"
+      decoding="async"
+      width="800"
+      height="520"
+      onError={() => setFallo(true)}
+      className={`object-cover bg-gray-100 ${className}`}
+    />
+  );
+}
+
 const POR_PAGINA = 20;
 
 export default function Catalogo({ usuario, alAgregar, filtrosIniciales }) {
@@ -245,12 +274,7 @@ export default function Catalogo({ usuario, alAgregar, filtrosIniciales }) {
               key={p.sku}
               className="bg-superficie rounded-xl border border-gray-200 p-4 flex flex-col hover:shadow-md hover:border-marca-300 transition"
             >
-              <div
-                aria-hidden="true"
-                className="h-32 bg-gradient-to-br from-marca-50 to-gray-100 rounded-lg mb-4 flex items-center justify-center text-5xl"
-              >
-                {icono(p.subcategoria)}
-              </div>
+              <FotoProducto producto={p} className="w-full h-40 rounded-lg mb-4" />
 
               <p className="text-xs text-gray-600 uppercase tracking-wide">
                 {p.marca}
