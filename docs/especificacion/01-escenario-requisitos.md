@@ -128,7 +128,7 @@ La columna **Rol** usa: *pública* (sin sesión), *sesión* (cualquier usuario a
 
 | ID | Requisito | Dónde | Rol |
 |---|---|---|---|
-| RF-43 F5b | Identidad SerByTek (nombre, logotipo y paleta verde) en la web y la app móvil | `clients/web`, `clients/mobile` | pública |
+| RF-43 F5b | Identidad SerByTek (nombre, logotipo, paleta verde y fuente Space Grotesk) en la web y la app móvil; catálogo con marcas reales y aviso de tienda de demostración | `clients/web`, `clients/mobile` | pública |
 | RF-44 F5b | Tema claro u oscuro, que sigue al sistema operativo y recuerda la elección | cabecera de la web | pública |
 | RF-45 F5b | Mostrar u ocultar la contraseña con un botón accesible en el inicio de sesión, el registro y la eliminación de la cuenta | formularios | pública |
 | RF-46 F5b | Si el servidor rechaza la sesión guardada, la web vuelve al modo visitante y lo avisa; el catálogo y el chat siguen respondiendo (H-F5-02) | `servicios/api.js` | pública |
@@ -139,7 +139,7 @@ La columna **Rol** usa: *pública* (sin sesión), *sesión* (cualquier usuario a
 |---|---|---|
 | RF-ASIS-01 | Saludar, ofrecer ayuda y un menú de opciones rápidas | pública |
 | RF-ASIS-02 | Responder preguntas frecuentes (envío, envío gratis, IVA, medios de pago, entrega, devoluciones, horario). Los valores numéricos salen de la configuración, nunca escritos a mano | pública |
-| RF-ASIS-03 | Buscar productos por nombre, sección o rango de precio ("portátiles de menos de 3 millones", "algo barato") y mostrarlos como tarjetas con "agregar al carrito". F5b: entiende plural y errores de tipeo, y las secciones y sus sinónimos salen del catálogo en vivo (un producto o una sección nueva no exige cambiar el asistente) | pública |
+| RF-ASIS-03 | Buscar productos por nombre, sección o rango de precio ("portátiles de menos de 3 millones", "algo barato") y mostrarlos como tarjetas con "agregar al carrito". F5b: entiende plural y errores de tipeo, y las secciones, sus sinónimos y las marcas salen del catálogo en vivo (un producto, una sección o una marca nueva no exige cambiar el asistente) | pública |
 | RF-ASIS-04 | Informar el precio vigente y la disponibilidad de un SKU o producto | pública |
 | RF-ASIS-05 | Informar el estado de **mis** pedidos o de uno concreto, con la identidad del usuario: un pedido ajeno responde "no encontrado" | sesión |
 | RF-ASIS-06 | Guiar la cancelación de un pedido según su estado | sesión |
@@ -202,7 +202,7 @@ Cada escenario sigue la plantilla del SEI: **fuente y estímulo → entorno → 
 |---|---|---|---|---|---|
 | RNF-18 | Un usuario nuevo completa una compra | Primera visita | Termina sin ayuda externa | ≥ 90 % de las tareas completadas; SUS ≥ 68 | Prueba con evaluadores (⚠️ PENDIENTE: dato humano) |
 | RNF-19 | Auditoría de accesibilidad | Web | Sin violaciones WCAG 2.2 AA graves | 0 violaciones *serious* o *critical* de axe | `usabilidad:recorrido` |
-| RNF-20 🆕 | Preguntas al asistente en lenguaje natural | Frases de prueba | Intención correcta | Tasa de acierto ≥ 85 % sobre ≥ 40 frases (F5b: ≥ 90 % sobre las 50 frases de SerByTek, escritas antes del motor nuevo) | `test:asistente`, `test:unit` + matriz de confusión |
+| RNF-20 🆕 | Preguntas al asistente en lenguaje natural | Frases de prueba | Intención correcta | Tasa de acierto ≥ 85 % sobre ≥ 40 frases (F5b: ≥ 90 % sobre las 50 frases de SerByTek y las 27 de marcas, escritas antes de cada cambio del motor) | `test:asistente`, `test:unit` + matriz de confusión |
 
 ### Mantenibilidad
 

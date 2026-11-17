@@ -64,4 +64,6 @@ La prueba del equipo mostró el límite señalado en las consecuencias: «Hay au
 
 **Medición.** Un conjunto de evaluación nuevo, de 50 frases de SerByTek, escrito y versionado **antes** del motor nuevo. Primera medición: 49/50; la frase fallida reveló un defecto en `singular()` (docs/PRUEBAS.md, 4.34). Tras corregir la regla, no los términos: 50/50.
 
+**Marcas.** Con el catálogo de marcas reales, las marcas también se leen del catálogo (`marcas` en `/categorias`) y se reconocen como entidad. Para que una entidad no incline la intención por sí sola, los refuerzos por entidad solo se suman a una intención que el mensaje ya sugiere con palabras; los mensajes que solo nombran productos («Logitech», «monitores LG») van por la regla de búsqueda. Conjunto de marcas, escrito antes: 20/27 sin el reconocimiento y 27/27 con él (docs/PRUEBAS.md, 4.37).
+
 **Lo que no cambia.** La clave de IA **no** es necesaria para buscar productos: por diseño, la IA no recibe el catálogo ni tiene herramientas. Activarla solo mejora las preguntas generales que no son de la tienda.

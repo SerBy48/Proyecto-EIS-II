@@ -61,8 +61,8 @@
 [90m===================================================[0m
   [32mPASA[0m  SKU-TEC-004 tiene exactamente 1 unidad disponible
   [90mAmbos pulsan "Pagar" en el mismo instante[0m
-  [90mAna:   HTTP 409[0m
-  [90mBruno: HTTP 201[0m
+  [90mAna:   HTTP 201[0m
+  [90mBruno: HTTP 409[0m
   [32mPASA[0m  Exactamente UNA compra se completa
   [32mPASA[0m  La otra recibe 409 por falta de stock
   [32mPASA[0m  El motivo del rechazo es explicito

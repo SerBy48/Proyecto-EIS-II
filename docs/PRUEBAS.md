@@ -7,8 +7,8 @@ electrónico.
 | | |
 |---|---|
 | **Última ejecución** | 16 de noviembre de 2026, ajustes de SerByTek (F5b): sistema completo en contenedores desde volúmenes vacíos, secretos propios en `.env` |
-| **Casos ejecutados** | 335: 205 de integración (33 de concurrencia + 73 por HTTP + 53 extremo a extremo + 46 del asistente) y 130 unitarias. Además, 18 criterios de aceptación en la interfaz (`test:e2e:ui`), 409 comprobaciones de cobertura de OpenAPI, 23 verificaciones de seguridad y axe en los temas claro y oscuro |
-| **Resultado** | 335 pasan, 0 fallan; 18/18 criterios de aceptación; las 409 comprobaciones de OpenAPI pasan; seguridad: 1 hallazgo de 23 (S-09, aceptado); axe: 0 reglas WCAG incumplidas en 21 pantallas. Evidencia: [`evidencia/trabajo-final/regresion-f5b/`](evidencia/trabajo-final/regresion-f5b/) (sección 4.36) |
+| **Casos ejecutados** | 339: 205 de integración (33 de concurrencia + 73 por HTTP + 53 extremo a extremo + 46 del asistente) y 134 unitarias. Además, 18 criterios de aceptación en la interfaz (`test:e2e:ui`), 409 comprobaciones de cobertura de OpenAPI, 23 verificaciones de seguridad y axe en los temas claro y oscuro |
+| **Resultado** | 339 pasan, 0 fallan; 18/18 criterios de aceptación; las 409 comprobaciones de OpenAPI pasan; seguridad: 1 hallazgo de 23 (S-09, aceptado); axe: 0 reglas WCAG incumplidas en 21 pantallas. Evidencia: [`evidencia/trabajo-final/regresion-f5b/`](evidencia/trabajo-final/regresion-f5b/) (sección 4.36) |
 | **Entorno** | Windows 11, Node 25, Docker: PostgreSQL 16 (puerto 5434 del host), MongoDB 7, Redis 7, RabbitMQ 3 y Mailpit 1.27. Infraestructura completa |
 | **Evidencia** | [`evidencia/`](evidencia/) — salida literal de cada suite |
 
@@ -919,12 +919,12 @@ Los encontraron las pruebas de humo y de aceptación antes de la regresión; nin
 - administración de usuarios; tema oscuro; contraseña visible; identidad SerByTek en la web y la app móvil;
 - H-F5-02.
 
-Desde volúmenes vacíos (`docker compose down -v` y `npm run infra:normal`): 16/16 contenedores sanos en 98 s, con las imágenes en caché.
+Desde volúmenes vacíos (`docker compose down -v` y `npm run infra:normal`): 16/16 contenedores sanos en 98 s con las imágenes en caché. Tras agregar la fuente (que invalida la caché de las imágenes) la reconstrucción tomó 464 s; `--wait` venció con notificaciones *unhealthy* porque RabbitMQ seguía arrancando, y el servicio se recuperó solo unos 25 s después (el bus reconecta y vuelve a declarar su cola), sin intervención.
 
 | Suite | Resultado | Evidencia |
 |---|---|---|
 | `typecheck` | sin errores | `regresion-f5b/typecheck.txt` |
-| `test:unit` | 130/130 (15 nuevas: motor del asistente, búsqueda tolerante y semilla del catálogo) | `regresion-f5b/test-unit.txt` |
+| `test:unit` | 134/134 (19 nuevas: motor del asistente, marcas, búsqueda tolerante y semilla del catálogo) | `regresion-f5b/test-unit.txt` |
 | `test:openapi` | 409/409 (68 rutas: 57 públicas + 11 internas) | `regresion-f5b/test-openapi.txt` |
 | `build:web` | compila | `regresion-f5b/build-web.txt` |
 | `test:salud` | 10/10 servicios | `regresion-f5b/test-salud.txt` |
@@ -932,7 +932,7 @@ Desde volúmenes vacíos (`docker compose down -v` y `npm run infra:normal`): 16
 | `test:concurrencia` | 33/33 | `regresion-f5b/test-concurrencia.txt` |
 | `test:e2e` | 53/53 | `regresion-f5b/test-e2e.txt` |
 | `test:asistente` | 46/46 con `ASISTENTE_PROBAR_DEGRADACION=1` | `regresion-f5b/test-asistente.txt` |
-| `asistente:metricas` | SerByTek 50/50 (primera medición 49/50, 4.34); Fase 3 35/36; desarrollo 54/54 | `trabajo-final/asistente-metricas.md` |
+| `asistente:metricas` | SerByTek 50/50 (primera medición 49/50, 4.34); marcas 27/27 (4.37); Fase 3 35/36; desarrollo 57/57 | `trabajo-final/asistente-metricas.md` |
 | `test:seguridad` | 22 seguras (2 nuevas: V-22 y V-23) y 1 hallazgo aceptado (V-13 / S-09) | `regresion-f5b/test-seguridad.txt` |
 | **`test:e2e:ui`** | **18/18 criterios** (6 nuevos: CA-13 a CA-18) | `trabajo-final/e2e-ui/` |
 | `usabilidad:recorrido` (axe, tema claro; `ETIQUETA=f5b` para no pisar la evidencia de la Fase 4) | 14 pantallas, 0 reglas WCAG incumplidas | `regresion-f5b/usabilidad-recorrido.txt`, `no-funcionales/usabilidad/*-f5b*` |
@@ -942,6 +942,24 @@ Desde volúmenes vacíos (`docker compose down -v` y `npm run infra:normal`): 16
 | Lint de OpenAPI (Redocly) | válido, sin advertencias | `regresion-f5b/docs-openapi.txt` |
 
 **Ajustes a las pruebas** (por el catálogo nuevo, no por defectos): los SKU de hogar y deportes se reemplazaron por `SKU-TEC-006` a `010` con el mismo stock, precio y descuento; los filtros `categoria=hogar|deportes` pasaron a `subcategoria=accesorios|gaming`; `test:http` desactiva al terminar el producto de evidencia (U-17). En el recorrido de usabilidad, E6 ahora espera a que el token renovado quede guardado: si E7 escribía sus tokens antes, la renovación en curso los sobrescribía (carrera de la prueba, no de la tienda). Estable en 3 ejecuciones seguidas. La tarea T2 elige la sección con su botón, porque el catálogo ya no tiene la lista «Todas las secciones».
+
+
+### 4.37 Marcas reales, reconocimiento de marcas y fuente Space Grotesk (F5b)
+
+**Cambios.** El catálogo pasa a productos y marcas reales (Lenovo, ASUS, Logitech, Samsung, Sony, TP-Link…) con precios de referencia y los mismos SKU, stock y papeles de prueba; el pie aclara que es una tienda de demostración. El catálogo publica las marcas en `GET /api/catalogo/categorias` y el asistente las reconoce como entidad (con plural, error de tipeo y formas como «tp link»), las combina con la sección y el precio y abre el catálogo filtrado por marca. La web usa Space Grotesk (OFL 1.1), empaquetada con la web porque la CSP solo admite fuentes del propio sitio.
+
+**Medición del asistente** (`tests/asistente/frases-marcas.json`, 27 frases escritas y versionadas antes del reconocimiento de marcas):
+
+| Momento | Marcas | SerByTek |
+|---|---|---|
+| Línea base, sin reconocer marcas | 20/27 | 50/50 |
+| Primera medición con el reconocimiento | 26/27 | 50/50 |
+| Intento descartado: los mismos refuerzos para precio_disponibilidad | 19/27 | 46/50 |
+| Regla final: las entidades confirman una intención sugerida por palabras, no la crean | **27/27** | **50/50** |
+
+No se tocaron los pesos de los términos. La regla final evita que una marca o sección sueltas inclinen la intención; esos mensajes los resuelve la regla «solo nombra productos → búsqueda».
+
+**Fallo intermitente de CA-01.** En las tres primeras ejecuciones de `test:e2e:ui` tras la reconstrucción, CA-01 falló con `page.goto: Timeout`. La traza mostró el CSS sin respuesta en el navegador, aunque nginx lo registró servido (200) y el navegador pidió la fuente que ese CSS declara. No se reprodujo de forma aislada (con y sin traza, y con la misma secuencia de inicios de sesión) y las tres ejecuciones siguientes pasaron 18/18. Causa sin identificar; queda en observación.
 
 ---
 

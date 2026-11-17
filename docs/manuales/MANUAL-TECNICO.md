@@ -190,10 +190,10 @@ Al cambiar `JWT_SECRET` o `JWT_REFRESH_SECRET`, todas las sesiones abiertas deja
 |---|---|---|
 | Intenciones (términos, prioridad) | `services/asistente-service/src/datos/intenciones.json` | Al arrancar se agregan las nuevas y se actualizan las que el administrador no editó; `PATCH /api/asistente/intenciones/:clave` (administrador, sin desplegar) las marca como editadas y desde entonces se respetan |
 | Preguntas frecuentes | `src/datos/faq.json` | Igual, con las rutas de FAQ del asistente |
-| Productos y secciones | Catálogo: `infra/mongo/init-mongo.js` (subcategorías con `sinonimos`) o `POST /api/catalogo/productos` con `subcategoria` | **No se toca el asistente**: lee las secciones y sinónimos de `GET /api/catalogo/categorias` cada minuto y busca los productos en vivo |
+| Productos y secciones | Catálogo: `infra/mongo/init-mongo.js` (subcategorías con `sinonimos`) o `POST /api/catalogo/productos` con `subcategoria` | **No se toca el asistente**: lee las secciones, los sinónimos y las marcas de `GET /api/catalogo/categorias` cada minuto y busca los productos en vivo |
 | Cifras (envío, IVA, plazos) | `.env` (`COSTO_ENVIO_BASE`, `DIAS_ENTREGA`…) | Son las mismas que usa el carrito |
 | Tickets de escalamiento | `GET /api/asistente/tickets` | administrador y vendedor |
-| Tasa de acierto | `npm run asistente:metricas` | matriz de confusión; la cifra que se reporta es la del conjunto de SerByTek (`tests/asistente/frases-serbytek.json`, 50 frases que no se usan para ajustar) |
+| Tasa de acierto | `npm run asistente:metricas` | matriz de confusión; las cifras que se reportan son las de los conjuntos de SerByTek (`frases-serbytek.json`, 50 frases) y de marcas (`frases-marcas.json`, 27), que no se usan para ajustar |
 | IA opcional | `ASISTENTE_IA=anthropic` y `ANTHROPIC_API_KEY` | Solo para preguntas generales; nunca recibe datos personales |
 
 Los términos van sin tildes y en minúsculas, porque el motor normaliza el texto. Un término terminado en `*` coincide por prefijo. El motor acepta el plural y un error de tipeo (solo en palabras que no conoce), y reconoce rangos de precio, «barato» y «oferta». Si no reconoce la intención, busca en el catálogo con las palabras del mensaje y luego sugiere las intenciones más cercanas.
@@ -205,7 +205,7 @@ Los términos van sin tildes y en minúsculas, porque el motor normaliza el text
 | Comando | Qué verifica | Requiere |
 |---|---|---|
 | `npm run typecheck` | Tipos de todos los paquetes | — |
-| `npm run test:unit` (`:cobertura`) | 130 pruebas unitarias con Vitest: saga, circuit breaker, bus, totales, asistente, búsqueda del catálogo y coherencia de la semilla… | — |
+| `npm run test:unit` (`:cobertura`) | 134 pruebas unitarias con Vitest: saga, circuit breaker, bus, totales, asistente, búsqueda del catálogo y coherencia de la semilla… | — |
 | `npm run test:openapi` | La especificación cubre exactamente las rutas del código y sus `x-roles` | — |
 | `npm run test:salud` | Los diez servicios responden | laboratorio |
 | `npm run test:http` | 73 casos: auth, RBAC, aislamiento, idempotencia, pasarela, PCI-DSS (**borra los pedidos**) | laboratorio |

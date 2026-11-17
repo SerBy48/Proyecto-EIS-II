@@ -16,7 +16,7 @@ Trabajo Final, Fase 5. Une cada requisito de [`01-escenario-requisitos.md`](../e
 | `test:asistente` | 46 comprobaciones |
 | `test:seguridad` | 23 verificaciones (22 seguras + S-09 aceptado) |
 | `test:openapi` | 409 comprobaciones |
-| `test:unit` | 130 pruebas |
+| `test:unit` | 134 pruebas |
 | axe (temas claro y oscuro) | 21 pantallas, 0 reglas WCAG incumplidas |
 
 **Convenciones de la tabla:**

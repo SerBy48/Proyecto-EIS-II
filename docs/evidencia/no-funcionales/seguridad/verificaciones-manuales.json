@@ -1,5 +1,5 @@
 {
-  "fecha": "2026-11-16T21:00:03.429Z",
+  "fecha": "2026-11-17T01:51:29.614Z",
   "gateway": "http://localhost:8080",
   "web": "http://localhost:4173",
   "resultados": [
@@ -60,13 +60,13 @@
       "area": "Validación de entradas",
       "titulo": "Inyección SQL en /pedidos/:id",
       "resultado": "SEGURO",
-      "detalle": "Estados: 404 (45 ms), 404 (18 ms), 404 (15 ms). Las consultas son parametrizadas (invariante 8) y pg_sleep no se ejecuta.",
+      "detalle": "Estados: 404 (70 ms), 404 (26 ms), 404 (23 ms). Las consultas son parametrizadas (invariante 8) y pg_sleep no se ejecuta.",
       "evidencia": {
         "cargas": [
           {
             "carga": "1'OR'1'='1",
             "estado": 404,
-            "ms": 45,
+            "ms": 70,
             "cuerpo": {
               "mensaje": "Pedido no encontrado.",
               "codigo": "NO_ENCONTRADO"
@@ -75,7 +75,7 @@
           {
             "carga": "1 OR 1=1",
             "estado": 404,
-            "ms": 18,
+            "ms": 26,
             "cuerpo": {
               "mensaje": "Pedido no encontrado.",
               "codigo": "NO_ENCONTRADO"
@@ -84,7 +84,7 @@
           {
             "carga": "1;SELECT pg_sleep(3)--",
             "estado": 404,
-            "ms": 15,
+            "ms": 23,
             "cuerpo": {
               "mensaje": "Pedido no encontrado.",
               "codigo": "NO_ENCONTRADO"
@@ -144,12 +144,12 @@
           "access-control-allow-credentials": "true",
           "access-control-expose-headers": "x-request-id",
           "connection": "keep-alive",
-          "content-length": "8168",
+          "content-length": "8402",
           "content-type": "application/json; charset=utf-8",
           "cross-origin-opener-policy": "same-origin",
           "cross-origin-resource-policy": "cross-origin",
-          "date": "Mon, 16 Nov 2026 21:00:01 GMT",
-          "etag": "W/\"1fe8-HfSuyfZBnQftFfPcoNJVeIhSYCk\"",
+          "date": "Tue, 17 Nov 2026 01:51:25 GMT",
+          "etag": "W/\"20d2-l3YMwzMCgkdFCJwX0rfNu0kQZy8\"",
           "origin-agent-cluster": "?1",
           "ratelimit": "limit=300, remaining=288, reset=59",
           "ratelimit-policy": "300;w=60",
@@ -161,7 +161,7 @@
           "x-download-options": "noopen",
           "x-frame-options": "SAMEORIGIN",
           "x-permitted-cross-domain-policies": "none",
-          "x-request-id": "c0281c36-3b41-42e3-81bd-da1a300ff313",
+          "x-request-id": "62fadf8f-c017-4bea-bf71-2d87ea758c5b",
           "x-xss-protection": "0"
         }
       }
@@ -260,8 +260,8 @@
           "cross-origin-embedder-policy": "require-corp",
           "cross-origin-opener-policy": "same-origin",
           "cross-origin-resource-policy": "same-origin",
-          "date": "Mon, 16 Nov 2026 21:00:01 GMT",
-          "etag": "W/\"284-ySEsOqo3rvf9VIxjpsLkz5VkWxg\"",
+          "date": "Tue, 17 Nov 2026 01:51:26 GMT",
+          "etag": "W/\"284-Wl89+IgcsEl63ZDqpusVJ/KiMSM\"",
           "keep-alive": "timeout=5",
           "permissions-policy": "camera=(), microphone=(), geolocation=(), payment=()",
           "referrer-policy": "strict-origin-when-cross-origin",
@@ -319,7 +319,7 @@
       "area": "Validación de entradas",
       "titulo": "El registro acepta un correo sin formato de correo",
       "resultado": "SEGURO",
-      "detalle": "POST /auth/registro con email \"no-es-un-correo-1794862802056\" → 400. El escaneo activo creó además 115 usuarios administradores con \"correos\" como http://www.google.com/ o plantillas de inyección por POST /auth/usuarios.",
+      "detalle": "POST /auth/registro con email \"no-es-un-correo-1794880287354\" → 400. El escaneo activo creó además 115 usuarios administradores con \"correos\" como http://www.google.com/ o plantillas de inyección por POST /auth/usuarios.",
       "evidencia": {
         "estado": 400,
         "cuerpo": {

@@ -231,9 +231,10 @@ Contraseña `Password123` en todas las cuentas:
 `admin@tienda.co` (administrador), `vendedor@tienda.co` (vendedor),
 `ana@correo.co`, `bruno@correo.co`, `carla@correo.co` (clientes 1, 2 y 3).
 
-Catálogo: 60 productos de tecnología (`SKU-TEC-001` a `060`) en 10 subcategorías,
-definidas con sus sinónimos en `infra/mongo/init-mongo.js` (el asistente los lee
-del catálogo). **`SKU-TEC-004` tiene una sola unidad** a propósito: es el producto
+Catálogo: 60 productos de tecnología de marcas reales con precios de referencia
+(`SKU-TEC-001` a `060`) en 10 subcategorías, definidas con sus sinónimos en
+`infra/mongo/init-mongo.js`. El asistente lee del catálogo las secciones, los
+sinónimos y las marcas: un producto o una marca nueva no exige tocar sus reglas. **`SKU-TEC-004` tiene una sola unidad** a propósito: es el producto
 con el que se prueba la disputa por la última unidad. **`SKU-TEC-007`** está bajo
 el mínimo para disparar la alerta de reposición. `test:unit` verifica que cada
 producto tenga stock en `06-datos-prueba.sql` y viceversa.
@@ -253,10 +254,10 @@ Tokens de la pasarela simulada (resultado determinista):
 
 **Verificado y funcionando** (ver `docs/PRUEBAS.md` para el detalle y la
 evidencia; última ejecución el 2026-11-16, ajustes de SerByTek (F5b), desde
-volúmenes vacíos): 205 casos de integración y 130 unitarios, todos pasan, y los 18
+volúmenes vacíos): 205 casos de integración y 134 unitarios, todos pasan, y los 18
 criterios de aceptación de `test:e2e:ui`; `test:openapi` pasa sus 409 comprobaciones y
-`test:asistente` sus 46. El asistente acierta 50/50 frases de SerByTek
-(`asistente:metricas`) y axe no encuentra reglas WCAG incumplidas en los temas claro
+`test:asistente` sus 46. El asistente acierta 50/50 frases de SerByTek y
+27/27 de marcas (`asistente:metricas`) y axe no encuentra reglas WCAG incumplidas en los temas claro
 y oscuro. Los diez servicios compilan y arrancan sanos; la prueba
 de concurrencia pasa sus 33 comprobaciones (20 compradores simultáneos por 5
 unidades → exactamente 5 ganan); `test:http` pasa sus 73 casos sobre
