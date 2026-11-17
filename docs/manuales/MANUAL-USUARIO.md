@@ -44,7 +44,7 @@ La página principal es el catálogo: 60 productos de tecnología de marcas reco
 - **Secciones**: los botones bajo el buscador muestran una sola sección; **Todo** vuelve al catálogo completo y **Ofertas** muestra solo los productos con descuento.
 - **Orden**: más recientes (o más relevantes si buscó algo), precio, mayor descuento o nombre.
 
-Cada tarjeta muestra:
+Cada tarjeta muestra una foto ilustrativa de la sección (no es la foto del modelo exacto) y además:
 - el precio vigente, con el descuento si tiene uno;
 - la disponibilidad: «Disponible», «Últimas N unidades» o «Agotado».
 

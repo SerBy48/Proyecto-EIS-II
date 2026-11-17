@@ -1,5 +1,5 @@
 {
-  "fecha": "2026-11-17T02:20:28.003Z",
+  "fecha": "2026-11-17T03:02:09.822Z",
   "web": "http://localhost:4173",
   "navegador": "Chromium (Playwright 1.48.2), 1280 x 800",
   "klm": {
@@ -47,7 +47,7 @@
           "accion": "Esperar la sesion iniciada",
           "operadores": "",
           "segundos_usuario": 0,
-          "r_sistema_s": 0.43
+          "r_sistema_s": 0.38
         }
       ],
       "conteo": {
@@ -59,7 +59,7 @@
       },
       "klm_usuario_s": 17.6,
       "r_sistema_s": 0.4,
-      "klm_total_s": 18,
+      "klm_total_s": 17.9,
       "observaciones": [
         "Correo y contrasena se escriben; las cuentas de prueba aparecen como ayuda plegable."
       ]
@@ -80,7 +80,7 @@
           "accion": "Esperar los resultados (la busqueda se lanza sola tras 350 ms)",
           "operadores": "",
           "segundos_usuario": 0,
-          "r_sistema_s": 0.06
+          "r_sistema_s": 0.02
         },
         {
           "accion": "Pulsar la seccion Computadores",
@@ -92,7 +92,7 @@
           "accion": "Esperar la lista filtrada",
           "operadores": "",
           "segundos_usuario": 0,
-          "r_sistema_s": 0.9
+          "r_sistema_s": 0.76
         },
         {
           "accion": "Revisar la lista resultante",
@@ -109,8 +109,8 @@
         "M": 3
       },
       "klm_usuario_s": 9.7,
-      "r_sistema_s": 1,
-      "klm_total_s": 10.6,
+      "r_sistema_s": 0.8,
+      "klm_total_s": 10.5,
       "observaciones": [
         "La busqueda muestra 3 producto(s) e indica \"Mostrando 1–3 de 3 productos en Computadores para «portatil»\"."
       ]
@@ -131,7 +131,7 @@
           "accion": "Esperar el aviso de agregado",
           "operadores": "",
           "segundos_usuario": 0,
-          "r_sistema_s": 0.99
+          "r_sistema_s": 0.18
         },
         {
           "accion": "Agregar el producto 2 al carrito",
@@ -143,7 +143,7 @@
           "accion": "Esperar el aviso de agregado",
           "operadores": "",
           "segundos_usuario": 0,
-          "r_sistema_s": 0.04
+          "r_sistema_s": 0.01
         },
         {
           "accion": "Ir al carrito",
@@ -155,7 +155,7 @@
           "accion": "Esperar el carrito",
           "operadores": "",
           "segundos_usuario": 0,
-          "r_sistema_s": 0.11
+          "r_sistema_s": 0.02
         },
         {
           "accion": "Aumentar la cantidad del primer producto",
@@ -167,7 +167,7 @@
           "accion": "Esperar la cantidad 2",
           "operadores": "",
           "segundos_usuario": 0,
-          "r_sistema_s": 0.47
+          "r_sistema_s": 0.84
         }
       ],
       "conteo": {
@@ -178,8 +178,8 @@
         "M": 4
       },
       "klm_usuario_s": 10.6,
-      "r_sistema_s": 1.6,
-      "klm_total_s": 12.2,
+      "r_sistema_s": 1.1,
+      "klm_total_s": 11.7,
       "observaciones": [
         "El aviso de confirmacion dice \"Portátil Lenovo IdeaPad Slim 5 14\" agregado al carrito.\": nombra el producto y flota bajo la cabecera (U-07 corregido)."
       ]
@@ -206,7 +206,7 @@
           "accion": "Esperar la linea de descuento",
           "operadores": "",
           "segundos_usuario": 0,
-          "r_sistema_s": 1.09
+          "r_sistema_s": 0.95
         },
         {
           "accion": "Comprobar el descuento en el resumen",
@@ -223,8 +223,8 @@
         "M": 3
       },
       "klm_usuario_s": 10.8,
-      "r_sistema_s": 1.1,
-      "klm_total_s": 11.9,
+      "r_sistema_s": 0.9,
+      "klm_total_s": 11.8,
       "observaciones": [
         "No hay mensaje de confirmacion: el unico indicio es la linea \"Descuento\" en el resumen. Tampoco hay forma de quitar el cupon."
       ]
@@ -251,7 +251,7 @@
           "accion": "Esperar la confirmacion (saga completa)",
           "operadores": "",
           "segundos_usuario": 0,
-          "r_sistema_s": 0.15
+          "r_sistema_s": 1.07
         }
       ],
       "conteo": {
@@ -262,8 +262,8 @@
         "M": 2
       },
       "klm_usuario_s": 4,
-      "r_sistema_s": 0.1,
-      "klm_total_s": 4.2,
+      "r_sistema_s": 1.1,
+      "klm_total_s": 5.1,
       "observaciones": []
     },
     {
@@ -282,10 +282,10 @@
           "accion": "Esperar la lista de pedidos",
           "operadores": "",
           "segundos_usuario": 0,
-          "r_sistema_s": 0.36
+          "r_sistema_s": 0.07
         },
         {
-          "accion": "Encontrar el pedido PED-202611-001059 en la tabla",
+          "accion": "Encontrar el pedido PED-202611-001016 en la tabla",
           "operadores": "M",
           "segundos_usuario": 1.35,
           "r_sistema_s": 0
@@ -300,7 +300,7 @@
           "accion": "Esperar el detalle",
           "operadores": "",
           "segundos_usuario": 0,
-          "r_sistema_s": 0.59
+          "r_sistema_s": 1.02
         },
         {
           "accion": "Pulsar Cancelar pedido",
@@ -324,7 +324,7 @@
           "accion": "Esperar el estado cancelado",
           "operadores": "",
           "segundos_usuario": 0,
-          "r_sistema_s": 1.19
+          "r_sistema_s": 0.93
         },
         {
           "accion": "Comprobar el nuevo estado en la tabla",
@@ -341,8 +341,8 @@
         "M": 6
       },
       "klm_usuario_s": 13.3,
-      "r_sistema_s": 2.1,
-      "klm_total_s": 15.4,
+      "r_sistema_s": 2,
+      "klm_total_s": 15.3,
       "observaciones": [
         "La cancelacion pide confirmacion y termina con un aviso de exito."
       ]
@@ -363,7 +363,7 @@
           "accion": "Esperar el catalogo",
           "operadores": "",
           "segundos_usuario": 0,
-          "r_sistema_s": 0.65
+          "r_sistema_s": 0.42
         },
         {
           "accion": "Agregar un producto",
@@ -375,7 +375,7 @@
           "accion": "Esperar el aviso",
           "operadores": "",
           "segundos_usuario": 0,
-          "r_sistema_s": 0.53
+          "r_sistema_s": 0.57
         },
         {
           "accion": "Ir al carrito",
@@ -387,7 +387,7 @@
           "accion": "Esperar el carrito",
           "operadores": "",
           "segundos_usuario": 0,
-          "r_sistema_s": 0.06
+          "r_sistema_s": 0.02
         },
         {
           "accion": "Elegir el token que rechaza el pago",
@@ -405,7 +405,7 @@
           "accion": "Esperar el resultado",
           "operadores": "",
           "segundos_usuario": 0,
-          "r_sistema_s": 0.97
+          "r_sistema_s": 0.94
         },
         {
           "accion": "Leer el mensaje del rechazo",
@@ -434,8 +434,8 @@
         "M": 8
       },
       "klm_usuario_s": 19.9,
-      "r_sistema_s": 2.2,
-      "klm_total_s": 22.1,
+      "r_sistema_s": 1.9,
+      "klm_total_s": 21.8,
       "observaciones": [
         "La pantalla explica que el pedido quedo cancelado, que no hubo cobro y que el carrito se conserva."
       ]
@@ -480,13 +480,13 @@
           "accion": "Esperar la sesion iniciada",
           "operadores": "",
           "segundos_usuario": 0,
-          "r_sistema_s": 1.62
+          "r_sistema_s": 0.84
         },
         {
           "accion": "Esperar el panel",
           "operadores": "",
           "segundos_usuario": 0,
-          "r_sistema_s": 0.04
+          "r_sistema_s": 0.01
         },
         {
           "accion": "Abrir Inventario",
@@ -498,7 +498,7 @@
           "accion": "Esperar el formulario",
           "operadores": "",
           "segundos_usuario": 0,
-          "r_sistema_s": 0.03
+          "r_sistema_s": 0.02
         },
         {
           "accion": "Escribir el SKU",
@@ -522,7 +522,7 @@
           "accion": "Esperar la confirmacion",
           "operadores": "",
           "segundos_usuario": 0,
-          "r_sistema_s": 0.52
+          "r_sistema_s": 0.36
         },
         {
           "accion": "Abrir Pedidos",
@@ -534,7 +534,7 @@
           "accion": "Esperar la lista",
           "operadores": "",
           "segundos_usuario": 0,
-          "r_sistema_s": 0.05
+          "r_sistema_s": 0.02
         },
         {
           "accion": "Encontrar un pedido pagado",
@@ -552,7 +552,7 @@
           "accion": "Esperar el nuevo estado",
           "operadores": "",
           "segundos_usuario": 0,
-          "r_sistema_s": 0.1
+          "r_sistema_s": 0.01
         }
       ],
       "conteo": {
@@ -563,8 +563,8 @@
         "M": 11
       },
       "klm_usuario_s": 43.3,
-      "r_sistema_s": 2.4,
-      "klm_total_s": 45.6,
+      "r_sistema_s": 1.3,
+      "klm_total_s": 44.5,
       "observaciones": [
         "La tabla de pedidos muestra el id numerico del cliente, no su nombre; los cambios de estado no piden confirmacion."
       ]
@@ -609,7 +609,7 @@
           "accion": "Esperar la sesion iniciada",
           "operadores": "",
           "segundos_usuario": 0,
-          "r_sistema_s": 0.97
+          "r_sistema_s": 0.25
         },
         {
           "accion": "Abrir el asistente",
@@ -639,7 +639,7 @@
           "accion": "Esperar la respuesta del envio",
           "operadores": "",
           "segundos_usuario": 0,
-          "r_sistema_s": 0.55
+          "r_sistema_s": 0.19
         },
         {
           "accion": "Leer el costo y el umbral de envio gratis",
@@ -663,7 +663,7 @@
           "accion": "Esperar la respuesta del pedido",
           "operadores": "",
           "segundos_usuario": 0,
-          "r_sistema_s": 0.31
+          "r_sistema_s": 0.89
         },
         {
           "accion": "Leer el estado del ultimo pedido",
@@ -680,10 +680,10 @@
         "M": 10
       },
       "klm_usuario_s": 41.6,
-      "r_sistema_s": 1.9,
-      "klm_total_s": 43.5,
+      "r_sistema_s": 1.4,
+      "klm_total_s": 43,
       "observaciones": [
-        "El asistente responde con el numero y el estado del ultimo pedido (\"Tu último pedido, PED-202611-001060, está cancelado. Estos son los más...\") y lista los mas recientes.",
+        "El asistente responde con el numero y el estado del ultimo pedido (\"Tu último pedido, PED-202611-001017, está cancelado. Estos son los más...\") y lista los mas recientes.",
         "Los textos del asistente llevan tildes (U-13 corregido)."
       ]
     }

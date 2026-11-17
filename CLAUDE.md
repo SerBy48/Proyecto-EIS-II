@@ -217,6 +217,7 @@ petición queda colgada. Para los errores se usan los constructores de
 | Busqueda tolerante del catalogo | `services/catalogo-service/src/busqueda.ts` |
 | Cambio de direccion del pedido y pedidos en curso | `services/pedidos-service/src/direccion-pedido.ts` |
 | Eliminar la cuenta y administrar usuarios | `services/auth-service/src/controlador.ts` (`eliminarCuenta`, `actualizarUsuario`) |
+| Fotos de los productos (una por sección, Unsplash) | `clients/web/public/productos/` y su `CREDITOS.md` |
 | Perfil, direcciones y tema oscuro de la web | `clients/web/src/paginas/Perfil.jsx`, `componentes/FormularioDireccion.jsx`, `src/index.css` (variables de color) |
 | Especificación, C4 y ADR del Trabajo Final | `docs/especificacion/`, `docs/c4/`, `docs/adr/` |
 | Web en contenedor y perfil prod | `clients/web/{Dockerfile,nginx.conf}`, `docker-compose.prod.yml` |
@@ -254,7 +255,7 @@ Tokens de la pasarela simulada (resultado determinista):
 
 **Verificado y funcionando** (ver `docs/PRUEBAS.md` para el detalle y la
 evidencia; última ejecución el 2026-11-16, ajustes de SerByTek (F5b), desde
-volúmenes vacíos): 205 casos de integración y 134 unitarios, todos pasan, y los 18
+volúmenes vacíos): 205 casos de integración y 135 unitarios, todos pasan, y los 18
 criterios de aceptación de `test:e2e:ui`; `test:openapi` pasa sus 409 comprobaciones y
 `test:asistente` sus 46. El asistente acierta 50/50 frases de SerByTek y
 27/27 de marcas (`asistente:metricas`) y axe no encuentra reglas WCAG incumplidas en los temas claro

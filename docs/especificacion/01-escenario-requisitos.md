@@ -128,7 +128,7 @@ La columna **Rol** usa: *pública* (sin sesión), *sesión* (cualquier usuario a
 
 | ID | Requisito | Dónde | Rol |
 |---|---|---|---|
-| RF-43 F5b | Identidad SerByTek (nombre, logotipo, paleta verde y fuente Space Grotesk) en la web y la app móvil; catálogo con marcas reales y aviso de tienda de demostración | `clients/web`, `clients/mobile` | pública |
+| RF-43 F5b | Identidad SerByTek (nombre, logotipo, paleta verde y fuente Space Grotesk) en la web y la app móvil; catálogo con marcas reales, una foto ilustrativa por sección (Unsplash, con créditos) y aviso de tienda de demostración | `clients/web`, `clients/mobile` | pública |
 | RF-44 F5b | Tema claro u oscuro, que sigue al sistema operativo y recuerda la elección | cabecera de la web | pública |
 | RF-45 F5b | Mostrar u ocultar la contraseña con un botón accesible en el inicio de sesión, el registro y la eliminación de la cuenta | formularios | pública |
 | RF-46 F5b | Si el servidor rechaza la sesión guardada, la web vuelve al modo visitante y lo avisa; el catálogo y el chat siguen respondiendo (H-F5-02) | `servicios/api.js` | pública |

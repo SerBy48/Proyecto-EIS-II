@@ -5,23 +5,23 @@
 
 Aceptacion E2E de interfaz contra http://localhost:8081
 
-  [32mPASA[0m  CA-01 Registro de un cliente nuevo[90m — e2e-ui-1794881143427@correo.co con sesión iniciada y dirección (Neiva, Huila) lista para comprar[0m
+  [32mPASA[0m  CA-01 Registro de un cliente nuevo[90m — e2e-ui-1794884186469@correo.co con sesión iniciada y dirección (Neiva, Huila) lista para comprar[0m
   [32mPASA[0m  CA-02 Inicio de sesión (error y éxito)[90m — error: "Credenciales invalidas."; luego entra[0m
   [32mPASA[0m  CA-03 Búsqueda y filtro[90m — 3 portátiles, todos de la sección Computadores[0m
   [32mPASA[0m  CA-04 Carrito y cupón[90m — descuento de 314910 sobre 3149100[0m
-  [32mPASA[0m  CA-05 Compra aprobada[90m — PED-202611-001047 pagado; carrito vacío[0m
-  [32mPASA[0m  CA-09 Correo de confirmación[90m — correo de PED-202611-001047 para ana@correo.co[0m
-  [32mPASA[0m  CA-08 Cancelación[90m — PED-202611-001047 cancelado; aviso: "El pedido PED-202611-001047 fue cancelado. Si ya se había co…"[0m
-  [32mPASA[0m  CA-06 Compra rechazada con compensación[90m — stock de SKU-TEC-006: 50 antes y 50 después (devuelto)[0m
-  [32mPASA[0m  CA-07 Última unidad[90m — Ana compra SKU-ACE-416; Bruno ve "Se agoto el producto SKU-ACE-416 mientras completa…" y no se le cobra[0m
-  [32mPASA[0m  CA-10 Asistente virtual[90m — FAQ y "¿hay audífonos disponibles?" como visitante; Ana ve PED-202611-001050 y no ve PED-202611-001051 (de Bruno)[0m
-  [32mPASA[0m  CA-11 Vendedor: entrada de stock[90m — SKU-TEC-007: 53 -> 63[0m
-  [32mPASA[0m  CA-12 Administrador: estado y bitácora de la saga[90m — PED-202611-001052 en preparación; bitácora con 14 pasos[0m
+  [32mPASA[0m  CA-05 Compra aprobada[90m — PED-202611-001007 pagado; carrito vacío[0m
+  [32mPASA[0m  CA-09 Correo de confirmación[90m — correo de PED-202611-001007 para ana@correo.co[0m
+  [32mPASA[0m  CA-08 Cancelación[90m — PED-202611-001007 cancelado; aviso: "El pedido PED-202611-001007 fue cancelado. Si ya se había co…"[0m
+  [32mPASA[0m  CA-06 Compra rechazada con compensación[90m — stock de SKU-TEC-006: 47 antes y 47 después (devuelto)[0m
+  [32mPASA[0m  CA-07 Última unidad[90m — Ana compra SKU-ACE-682; Bruno ve "Se agoto el producto SKU-ACE-682 mientras completa…" y no se le cobra[0m
+  [32mPASA[0m  CA-10 Asistente virtual[90m — FAQ y "¿hay audífonos disponibles?" como visitante; Ana ve PED-202611-001010 y no ve PED-202611-001011 (de Bruno)[0m
+  [32mPASA[0m  CA-11 Vendedor: entrada de stock[90m — SKU-TEC-007: 3 -> 13[0m
+  [32mPASA[0m  CA-12 Administrador: estado y bitácora de la saga[90m — PED-202611-001012 en preparación; bitácora con 14 pasos[0m
   [32mPASA[0m  CA-13 Perfil: datos y direcciones[90m — 2 direcciones; "Oficina" (Bogotá D.C.) predeterminada; teléfono guardado[0m
-  [32mPASA[0m  CA-14 Dirección al pagar y dos cambios después[90m — PED-202611-001053 pagado con envío a Cali; 2 cambios hechos y el tercero rechazado (409)[0m
-  [32mPASA[0m  CA-15 Eliminar cuenta (bloqueada con pedidos en curso)[90m — bloqueada con PED-202611-001054 pagado; tras cancelarlo se elimina y el perfil queda anonimizado[0m
+  [32mPASA[0m  CA-14 Dirección al pagar y dos cambios después[90m — PED-202611-001013 pagado con envío a Cali; 2 cambios hechos y el tercero rechazado (409)[0m
+  [32mPASA[0m  CA-15 Eliminar cuenta (bloqueada con pedidos en curso)[90m — bloqueada con PED-202611-001014 pagado; tras cancelarlo se elimina y el perfil queda anonimizado[0m
   [32mPASA[0m  CA-16 Modo oscuro y contraseña visible[90m — tema oscuro recordado tras recargar; el ojo muestra y oculta la contraseña[0m
-  [32mPASA[0m  CA-17 Administrador: crear y desactivar un vendedor[90m — vendedor-1794881239357@serbytek.co creado como vendedor, entra; desactivado, ya no entra[0m
+  [32mPASA[0m  CA-17 Administrador: crear y desactivar un vendedor[90m — vendedor-1794884281338@serbytek.co creado como vendedor, entra; desactivado, ya no entra[0m
   [32mPASA[0m  CA-18 Sesión vencida: la web vuelve a modo visitante[90m — aviso de sesión vencida, botón "Iniciar sesión" y el chat responde como visitante[0m
 
 [32m18 de 18 criterios de aceptación pasan.[0m

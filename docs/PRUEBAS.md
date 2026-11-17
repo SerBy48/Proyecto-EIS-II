@@ -7,8 +7,8 @@ electrónico.
 | | |
 |---|---|
 | **Última ejecución** | 16 de noviembre de 2026, ajustes de SerByTek (F5b): sistema completo en contenedores desde volúmenes vacíos, secretos propios en `.env` |
-| **Casos ejecutados** | 339: 205 de integración (33 de concurrencia + 73 por HTTP + 53 extremo a extremo + 46 del asistente) y 134 unitarias. Además, 18 criterios de aceptación en la interfaz (`test:e2e:ui`), 409 comprobaciones de cobertura de OpenAPI, 23 verificaciones de seguridad y axe en los temas claro y oscuro |
-| **Resultado** | 339 pasan, 0 fallan; 18/18 criterios de aceptación; las 409 comprobaciones de OpenAPI pasan; seguridad: 1 hallazgo de 23 (S-09, aceptado); axe: 0 reglas WCAG incumplidas en 21 pantallas. Evidencia: [`evidencia/trabajo-final/regresion-f5b/`](evidencia/trabajo-final/regresion-f5b/) (sección 4.36) |
+| **Casos ejecutados** | 340: 205 de integración (33 de concurrencia + 73 por HTTP + 53 extremo a extremo + 46 del asistente) y 135 unitarias. Además, 18 criterios de aceptación en la interfaz (`test:e2e:ui`), 409 comprobaciones de cobertura de OpenAPI, 23 verificaciones de seguridad y axe en los temas claro y oscuro |
+| **Resultado** | 340 pasan, 0 fallan; 18/18 criterios de aceptación; las 409 comprobaciones de OpenAPI pasan; seguridad: 1 hallazgo de 23 (S-09, aceptado); axe: 0 reglas WCAG incumplidas en 21 pantallas. Evidencia: [`evidencia/trabajo-final/regresion-f5b/`](evidencia/trabajo-final/regresion-f5b/) (sección 4.36) |
 | **Entorno** | Windows 11, Node 25, Docker: PostgreSQL 16 (puerto 5434 del host), MongoDB 7, Redis 7, RabbitMQ 3 y Mailpit 1.27. Infraestructura completa |
 | **Evidencia** | [`evidencia/`](evidencia/) — salida literal de cada suite |
 
@@ -924,7 +924,7 @@ Desde volúmenes vacíos (`docker compose down -v` y `npm run infra:normal`): 16
 | Suite | Resultado | Evidencia |
 |---|---|---|
 | `typecheck` | sin errores | `regresion-f5b/typecheck.txt` |
-| `test:unit` | 134/134 (19 nuevas: motor del asistente, marcas, búsqueda tolerante y semilla del catálogo) | `regresion-f5b/test-unit.txt` |
+| `test:unit` | 135/135 (20 nuevas: motor del asistente, marcas, búsqueda tolerante, semilla del catálogo y sus fotos) | `regresion-f5b/test-unit.txt` |
 | `test:openapi` | 409/409 (68 rutas: 57 públicas + 11 internas) | `regresion-f5b/test-openapi.txt` |
 | `build:web` | compila | `regresion-f5b/build-web.txt` |
 | `test:salud` | 10/10 servicios | `regresion-f5b/test-salud.txt` |
@@ -959,7 +959,13 @@ Desde volúmenes vacíos (`docker compose down -v` y `npm run infra:normal`): 16
 
 No se tocaron los pesos de los términos. La regla final evita que una marca o sección sueltas inclinen la intención; esos mensajes los resuelve la regla «solo nombra productos → búsqueda».
 
-**Fallo intermitente de CA-01.** En las tres primeras ejecuciones de `test:e2e:ui` tras la reconstrucción, CA-01 falló con `page.goto: Timeout`. La traza mostró el CSS sin respuesta en el navegador, aunque nginx lo registró servido (200) y el navegador pidió la fuente que ese CSS declara. No se reprodujo de forma aislada (con y sin traza, y con la misma secuencia de inicios de sesión) y las tres ejecuciones siguientes pasaron 18/18. Causa sin identificar; queda en observación.
+**Fallo intermitente de CA-01.** En las tres primeras ejecuciones de `test:e2e:ui` tras la reconstrucción, CA-01 falló con `page.goto: Timeout`. La traza mostró el CSS sin respuesta en el navegador, aunque nginx lo registró servido (200) y el navegador pidió la fuente que ese CSS declara. No se reprodujo de forma aislada (con y sin traza, y con la misma secuencia de inicios de sesión) y las tres ejecuciones siguientes pasaron 18/18. Causa sin identificar; queda en observación. En la regresión siguiente (tras agregar las fotos y reconstruir desde volúmenes vacíos) `test:e2e:ui` pasó 18/18 a la primera.
+
+### 4.38 Fotos de los productos (F5b)
+
+Una foto ilustrativa por sección (10 en total, unos 200 KB en WebP) en `clients/web/public/productos/`, servidas por la propia web porque la CSP solo admite imágenes del sitio. Son de Unsplash bajo su licencia (uso libre, sin atribución obligatoria); se acreditan por cortesía en `clients/web/public/productos/CREDITOS.md` y se descartaron las de Unsplash+, con personas identificables o con logotipos destacados. La semilla asigna a cada producto la foto de su sección; la web la muestra como imagen decorativa (`alt=""`, porque no es el modelo exacto y el nombre está en el título), con carga diferida y el ícono de la sección si no carga. El asistente muestra la miniatura en sus tarjetas.
+
+Verificación: `test:unit` comprueba que cada producto de la semilla tenga su archivo; 20/20 fotos cargan en la primera página en los dos temas; axe sin reglas incumplidas (14 pantallas en tema claro y 7 en oscuro); `test:e2e:ui` 18/18. La reconstrucción falló una vez por el caché de compilación de Docker («parent snapshot … does not exist»), un error del entorno; el reintento construyó y dejó 16/16 contenedores sanos.
 
 ---
 

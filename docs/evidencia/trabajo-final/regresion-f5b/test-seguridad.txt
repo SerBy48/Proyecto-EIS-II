@@ -11,7 +11,7 @@ Verificaciones manuales de seguridad contra http://localhost:8080
   V-03   [32mSEGURO  [0m Búsqueda con q como objeto (q[$gt]=)
          Respondió 400. 
   V-04   [32mSEGURO  [0m Inyección SQL en /pedidos/:id
-         Estados: 404 (70 ms), 404 (26 ms), 404 (23 ms). Las consultas son parametrizadas (invariante 8) y pg_sleep no se ejecuta.
+         Estados: 404 (49 ms), 404 (19 ms), 404 (14 ms). Las consultas son parametrizadas (invariante 8) y pg_sleep no se ejecuta.
   V-05   [32mSEGURO  [0m XSS almacenado: texto del usuario en la web y en los correos
          Producto creado (201); la API guarda y devuelve el HTML tal cual. Web: no usa dangerouslySetInnerHTML ni innerHTML, React lo muestra como texto. Correo: los datos se escapan ("Hola &lt;img src=x onerror=&quot;alert(document.cookie)&quot;&gt;, recibimos tu pedido.").
   V-06   [32mSEGURO  [0m Contraseñas con bcrypt y el hash nunca expuesto
@@ -33,7 +33,7 @@ Verificaciones manuales de seguridad contra http://localhost:8080
   V-14   [32mSEGURO  [0m Los 404 de un usuario abren el circuit breaker de todos
          Tras 6 SKU inexistentes de Ana (404, 404, 404, 404, 404, 404), Bruno sigue agregando productos (200).
   V-15   [32mSEGURO  [0m El registro acepta un correo sin formato de correo
-         POST /auth/registro con email "no-es-un-correo-1794880287354" → 400. El escaneo activo creó además 115 usuarios administradores con "correos" como http://www.google.com/ o plantillas de inyección por POST /auth/usuarios.
+         POST /auth/registro con email "no-es-un-correo-1794884163919" → 400. El escaneo activo creó además 115 usuarios administradores con "correos" como http://www.google.com/ o plantillas de inyección por POST /auth/usuarios.
   V-16   [32mSEGURO  [0m Servicio interno alcanzable sin el gateway con el token interno por defecto
          Directo a http://localhost:3004 con el token interno publicado → 401: el servicio ya no acepta ese secreto. Los puertos de los servicios quedan ligados a 127.0.0.1 en docker-compose.yml.
   V-17   [32mSEGURO  [0m Asistente: un cliente consulta por el chat los pedidos de otro (IDOR)
