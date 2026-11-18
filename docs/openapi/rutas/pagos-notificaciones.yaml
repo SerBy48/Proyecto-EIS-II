@@ -102,10 +102,13 @@ bandeja:
     description: |
       RF-52: las ultimas notificaciones de quien consulta y cuantas no ha leido. El personal ve ademas el
       buzon de operaciones (alertas de reposicion y consultas de clientes); "leida" se guarda por persona.
+      La campana pide las 10 ultimas; la vista "Ver todas" pagina con pagina y filtra con solo_no_leidas.
     operationId: verBandeja
     x-roles: [sesion]
     parameters:
       - { name: limite, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 10 } }
+      - { name: pagina, in: query, schema: { type: integer, minimum: 1, maximum: 1000, default: 1 } }
+      - { name: solo_no_leidas, in: query, schema: { type: string, enum: ['true', 'false'] } }
     responses:
       '200':
         description: Bandeja.

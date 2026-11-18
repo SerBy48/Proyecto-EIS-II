@@ -69,7 +69,7 @@ const DESTINOS: Destino[] = [
  * gateway lo rechaza por defecto en lugar de dejarlo abierto.
  */
 const RUTAS_PUBLICAS: Array<{ metodo: string; patron: RegExp }> = [
-  { metodo: 'POST', patron: /^\/api\/auth\/(login|registro|renovar)$/ },
+  { metodo: 'POST', patron: /^\/api\/auth\/(login|registro|renovar|recuperar|restablecer)$/ },
   { metodo: 'POST', patron: /^\/api\/clientes\/?$/ },
   // Lista de departamentos para el formulario de registro.
   { metodo: 'GET',  patron: /^\/api\/clientes\/departamentos$/ },
@@ -195,6 +195,20 @@ const limiteLogin = rateLimit({
   message: { mensaje: 'Demasiados intentos de inicio de sesion. Espere 15 minutos.', codigo: 'LIMITE_LOGIN' }
 });
 
+/**
+ * Recuperacion de contrasena (RF-54): cada solicitud envia un correo, asi que
+ * se limita por IP, cuente o no la cuenta (la respuesta es la misma en ambos
+ * casos). El servicio limita ademas por cuenta.
+ */
+const limiteRecuperacion = rateLimit({
+  windowMs: 15 * 60_000,
+  limit: Number(process.env.LIMITE_RECUPERACION || 5),
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  keyGenerator: (req) => `recuperar:${req.ip}`,
+  message: { mensaje: 'Ya pediste varios enlaces. Espera 15 minutos antes de pedir otro.', codigo: 'LIMITE_RECUPERACION' }
+});
+
 const limiteCheckout = rateLimit({
   windowMs: 60_000,
   limit: Number(process.env.LIMITE_CHECKOUT || 10),
@@ -236,6 +250,9 @@ const limiteImagenes = rateLimit({
 const esImagenPublica = (req: Request): boolean => req.method === 'GET' && req.path.startsWith('/catalogo/imagenes/');
 
 app.use('/api/auth/login', limiteLogin);
+app.use('/api/auth/recuperar', limiteRecuperacion);
+// Un enlace adivinado tiene 256 bits: imposible, pero los intentos fallidos cuentan como los del login.
+app.use('/api/auth/restablecer', limiteLogin);
 app.use('/api/pedidos/checkout', limiteCheckout);
 app.use('/api/asistente/mensajes', limiteAsistente);
 app.use('/api/catalogo/imagenes', limiteImagenes);

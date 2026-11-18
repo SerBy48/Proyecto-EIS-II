@@ -63,7 +63,10 @@ export function FotoProducto({ producto, className = '' }) {
 
 const POR_PAGINA = 20;
 
-export default function Catalogo({ usuario, alAgregar, filtrosIniciales }) {
+export default function Catalogo({ usuario, alAgregar, filtrosIniciales, alIrAlPanel }) {
+  // El personal ve el catalogo tal como lo ve un cliente, sin poder comprar:
+  // SerByTek es una sola tienda y el vendedor es personal interno.
+  const vistaPrevia = Boolean(usuario) && usuario.rol !== 'cliente';
   const [productos, setProductos] = useState([]);
   const [subcategorias, setSubcategorias] = useState([]);
   const [filtros, setFiltros] = useState(() => ({
@@ -179,6 +182,31 @@ export default function Catalogo({ usuario, alAgregar, filtrosIniciales }) {
 
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto">
+      {vistaPrevia && (
+        <section
+          aria-labelledby="vista-previa-titulo"
+          className="mb-6 rounded-xl border-2 border-dashed border-amber-400 bg-amber-50 text-amber-900 px-4 py-3 flex flex-wrap items-center gap-3"
+        >
+          <svg aria-hidden="true" viewBox="0 0 24 24" className="w-6 h-6 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+          <div className="flex-1 min-w-[14rem]">
+            <h2 id="vista-previa-titulo" className="font-bold">
+              Vista previa: así ven la tienda los clientes
+            </h2>
+            <p className="text-sm">
+              Con una cuenta de {usuario.rol} no se compra: los botones de compra están desactivados. Los precios, las ofertas y la disponibilidad
+              son los que ve el cliente en este momento.
+            </p>
+          </div>
+          {alIrAlPanel && (
+            <button onClick={() => alIrAlPanel('productos')} className="border border-amber-500 bg-superficie text-amber-900 hover:bg-amber-100 px-3 py-1.5 rounded-lg text-sm font-semibold">
+              Editar productos en el panel
+            </button>
+          )}
+        </section>
+      )}
       <section className="mb-6 rounded-2xl border border-marca-200 bg-gradient-to-r from-marca-50 to-superficie px-5 py-6 sm:px-8">
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
           Tecnología para trabajar, estudiar y jugar
@@ -316,7 +344,8 @@ export default function Catalogo({ usuario, alAgregar, filtrosIniciales }) {
 
                 <button
                   onClick={() => agregar(p.sku)}
-                  disabled={!usuario || p.hay_stock === false || agregando === p.sku}
+                  disabled={!usuario || vistaPrevia || p.hay_stock === false || agregando === p.sku}
+                  title={vistaPrevia ? 'Vista previa: el personal no compra desde la tienda' : undefined}
                   className="w-full btn-primario text-sm py-2"
                 >
                   {agregando === p.sku
@@ -325,7 +354,9 @@ export default function Catalogo({ usuario, alAgregar, filtrosIniciales }) {
                       ? 'Inicie sesión para comprar'
                       : p.hay_stock === false
                         ? 'Agotado'
-                        : 'Agregar al carrito'}
+                        : vistaPrevia
+                          ? 'Vista de cliente (sin compra)'
+                          : 'Agregar al carrito'}
                   <span className="sr-only">: {p.nombre}</span>
                 </button>
               </div>

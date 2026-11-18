@@ -1,0 +1,22 @@
+Capturas del manual desde http://localhost:8081
+  01-catalogo.png
+  02-iniciar-sesion.png
+  03-registro.png
+  04-buscar-y-agregar.png
+  05-carrito-y-cupon.png
+  06-compra-confirmada.png
+  07-mis-pedidos.png
+  16-cambiar-direccion.png
+  08-cancelar-pedido.png
+  09-asistente.png
+  15-perfil.png
+  17-modo-oscuro.png
+  10-correo.png
+  11-vendedor-inventario.png
+  19-productos.png
+  12-admin-salud.png
+  13a-admin-pedidos.png
+  13b-admin-detalle-pedido.png
+  14-admin-notificaciones.png
+  18-admin-usuarios.png
+Listo: docs\manuales\img

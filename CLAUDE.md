@@ -55,7 +55,7 @@ npm run typecheck           # tipos de todos los paquetes
 npm run test:salud          # todos los servicios responden
 npm run test:concurrencia   # no hay sobreventa
 npm run test:e2e            # flujo de compra completo (incluye el correo en Mailpit)
-npm run test:e2e:ui         # 23 criterios de aceptacion en la web (Playwright, 8081, modo pruebas; GRABAR_VIDEO=1)
+npm run test:e2e:ui         # 27 criterios de aceptacion en la web (Playwright, 8081, modo pruebas; GRABAR_VIDEO=1)
 npm run prod:up             # perfil de produccion: solo la web publica puerto (prod:down, prod:logs)
 npm run tunel               # Cloudflare Quick Tunnel hacia la web (solo durante la defensa)
 npm run test:unit           # pruebas unitarias con Vitest (sin Docker); :cobertura para el reporte
@@ -65,7 +65,7 @@ npm run test:asistente      # asistente contra el gateway (ASISTENTE_PROBAR_DEGR
 npm run asistente:metricas  # tasa de acierto de intenciones y matriz de confusion (-- --guardar)
 npm run infra:asistente     # crea asistente_db en un volumen de Mongo que ya existe (idempotente)
 npm run infra:reset         # borra volúmenes y recrea desde cero
-npm run test:seguridad      # 26 verificaciones de seguridad, 5 del asistente (ver docs/calidad/SEGURIDAD.md)
+npm run test:seguridad      # 27 verificaciones de seguridad, 5 del asistente (ver docs/calidad/SEGURIDAD.md)
 npm run auditar:dependencias # npm audit de produccion con los avisos aceptados y su fecha de revision (CI)
 npm run usabilidad:recorrido # 9 tareas en Chromium: KLM, capturas y axe (vite preview en 4173 de build:web:pruebas)
 npm run build:web:pruebas   # build con los controles de la pasarela simulada (U-08); build:web los oculta
@@ -192,6 +192,12 @@ petición queda colgada. Para los errores se usan los constructores de
     pedidos en curso). Con solo `requiereRol('administrador')`, un administrador
     con su token borraría los datos de un cliente sin su contraseña (V-22).
 
+17. **El enlace de recuperación de contraseña solo existe en el correo.** auth
+    guarda su hash SHA-256 y lo publica en `auth.recuperacion_solicitada` con
+    `secretos: ['enlace']`; notificaciones lo envía pero guarda `[enlace enviado
+    solo al correo]` en el texto, el registro de envíos y `datos_evento`.
+    `POST /recuperar` responde lo mismo exista o no la cuenta (V-27).
+
 ---
 
 ## Dónde está cada cosa
@@ -227,6 +233,9 @@ petición queda colgada. Para los errores se usan los constructores de
 | Campana (bandeja de notificaciones) | `services/notificaciones-service/src/bandeja.ts`, `clients/web/src/componentes/Campana.jsx` |
 | Consultas al vendedor | `services/asistente-service/src/consultas.ts`, `clients/web/src/componentes/Consultas.jsx` |
 | Pestañas Productos e Inventario del panel | `clients/web/src/paginas/admin/` |
+| Recuperación de contraseña (enlace por correo) | `services/auth-service/src/recuperacion.ts`; web: `RecuperarContrasena` y `RestablecerContrasena` en `clients/web/src/App.jsx` |
+| Vista completa de notificaciones | `clients/web/src/componentes/Notificaciones.jsx` (Mi perfil y pestaña del panel); `bandeja.ts` pagina |
+| Salud del sistema (solo administrador) con medidas | `clients/web/src/paginas/admin/Salud.jsx` |
 | Especificación, C4 y ADR del Trabajo Final | `docs/especificacion/`, `docs/c4/`, `docs/adr/` |
 | Web en contenedor y perfil prod | `clients/web/{Dockerfile,nginx.conf}`, `docker-compose.prod.yml` |
 | Criterios de aceptación, trazabilidad y E2E de interfaz | `docs/aceptacion/`, `tests/e2e-ui/aceptacion.ts` |
@@ -262,9 +271,9 @@ Tokens de la pasarela simulada (resultado determinista):
 ## Estado y pendientes conocidos
 
 **Verificado y funcionando** (ver `docs/PRUEBAS.md` para el detalle y la
-evidencia; última ejecución el 2026-11-18, gestión de la tienda (F5c), desde
-volúmenes vacíos): 215 casos de integración y 154 unitarios, todos pasan, y los 23
-criterios de aceptación de `test:e2e:ui`; `test:openapi` pasa sus 505 comprobaciones y
+evidencia; última ejecución el 2026-11-18, ajustes de la revisión manual (F5d), desde
+volúmenes vacíos): 215 casos de integración y 160 unitarios, todos pasan, y los 27
+criterios de aceptación de `test:e2e:ui`; `test:openapi` pasa sus 517 comprobaciones y
 `test:asistente` sus 56. El asistente acierta 50/50 frases de SerByTek,
 27/27 de marcas y 13/15 de la validación de contactar al vendedor (`asistente:metricas`), y axe no encuentra reglas WCAG incumplidas en los temas claro
 y oscuro. `npm audit` reporta un aviso de `picomatch` sin corrección que no aplica al gateway: riesgo aceptado S-13 hasta el 2027-01-31 (`docs/calidad/SEGURIDAD.md` 11.2). Los diez servicios compilan y arrancan sanos; la prueba

@@ -261,6 +261,126 @@
         }
       }
     },
+    "/api/auth/recuperar": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Pedir un enlace para restablecer la contrasena (RF-54)",
+        "description": "Si el correo es de una cuenta activa, crea un enlace de un solo uso que vence en 30 minutos y lo envia por correo (evento auth.recuperacion_solicitada). La respuesta es la misma exista o no la cuenta, para no permitir enumerar correos. Limite de 5 solicitudes por IP cada 15 minutos (gateway) y 3 por cuenta.",
+        "operationId": "solicitarRecuperacion",
+        "security": [],
+        "x-roles": [
+          "publica"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "maxLength": 150
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Solicitud recibida (mismo mensaje exista o no la cuenta).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "mensaje": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/SolicitudInvalida"
+          },
+          "429": {
+            "$ref": "#/components/responses/LimiteExcedido"
+          }
+        }
+      }
+    },
+    "/api/auth/restablecer": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Crear la contrasena nueva con el enlace del correo (RF-54)",
+        "description": "Consume el enlace (una sola vez), cambia la contrasena, desbloquea la cuenta y revoca todas sus sesiones. Un enlace usado, vencido o inexistente responde 400 ENLACE_INVALIDO.",
+        "operationId": "restablecerContrasena",
+        "security": [],
+        "x-roles": [
+          "publica"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "token",
+                  "password"
+                ],
+                "properties": {
+                  "token": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$",
+                    "description": "El que trae el enlace (#restablecer=...)."
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Contrasena actualizada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "mensaje": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/SolicitudInvalida"
+          },
+          "429": {
+            "$ref": "#/components/responses/LimiteExcedido"
+          }
+        }
+      }
+    },
     "/api/auth/logout": {
       "post": {
         "tags": [
@@ -1144,6 +1264,15 @@
               "enum": [
                 "true"
               ]
+            }
+          },
+          {
+            "name": "skus",
+            "in": "query",
+            "description": "Lista de 1 a 100 SKU separados por comas: solo esos productos (el panel pone nombre a las alertas de reposicion y al historial de entradas).",
+            "schema": {
+              "type": "string",
+              "example": "SKU-TEC-004,SKU-TEC-007"
             }
           }
         ],
@@ -2984,7 +3113,7 @@
           "notificaciones"
         ],
         "summary": "Bandeja de la campana de la web",
-        "description": "RF-52: las ultimas notificaciones de quien consulta y cuantas no ha leido. El personal ve ademas el\nbuzon de operaciones (alertas de reposicion y consultas de clientes); \"leida\" se guarda por persona.\n",
+        "description": "RF-52: las ultimas notificaciones de quien consulta y cuantas no ha leido. El personal ve ademas el\nbuzon de operaciones (alertas de reposicion y consultas de clientes); \"leida\" se guarda por persona.\nLa campana pide las 10 ultimas; la vista \"Ver todas\" pagina con pagina y filtra con solo_no_leidas.\n",
         "operationId": "verBandeja",
         "x-roles": [
           "sesion"
@@ -2998,6 +3127,27 @@
               "minimum": 1,
               "maximum": 50,
               "default": 10
+            }
+          },
+          {
+            "name": "pagina",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000,
+              "default": 1
+            }
+          },
+          {
+            "name": "solo_no_leidas",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
             }
           }
         ],
@@ -5283,6 +5433,11 @@
             "type": "string",
             "format": "date-time"
           },
+          "actualizado_en": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Ultimo cambio (estado o direccion)."
+          },
           "cantidad_items": {
             "type": "integer"
           }
@@ -5592,6 +5747,16 @@
             "type": "integer",
             "example": 2
           },
+          "total": {
+            "type": "integer",
+            "description": "Cuantas hay con el filtro pedido."
+          },
+          "pagina": {
+            "type": "integer"
+          },
+          "paginas": {
+            "type": "integer"
+          },
           "notificaciones": {
             "type": "array",
             "items": {
@@ -5623,6 +5788,11 @@
                 "ticket": {
                   "type": "string",
                   "nullable": true
+                },
+                "pedido": {
+                  "type": "string",
+                  "nullable": true,
+                  "description": "Numero del pedido (PED-...) si la notificacion es de un pedido."
                 },
                 "de_operaciones": {
                   "type": "boolean"

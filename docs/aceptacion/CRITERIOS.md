@@ -1,6 +1,6 @@
 # Criterios de aceptación
 
-Trabajo Final, Fase 5 (CA-01 a CA-12) ajustes de SerByTek, F5b (CA-13 a CA-18), y gestión de la tienda, F5c (CA-19 a CA-23). Un criterio por historia principal, en formato **Dado / Cuando / Entonces**, derivado de los requisitos de [`01-escenario-requisitos.md`](../especificacion/01-escenario-requisitos.md).
+Trabajo Final, Fase 5 (CA-01 a CA-12) ajustes de SerByTek, F5b (CA-13 a CA-18), gestión de la tienda, F5c (CA-19 a CA-23), y ajustes de la revisión manual, F5d (CA-24 a CA-27). Un criterio por historia principal, en formato **Dado / Cuando / Entonces**, derivado de los requisitos de [`01-escenario-requisitos.md`](../especificacion/01-escenario-requisitos.md).
 
 Cada criterio se verifica en dos capas que se complementan:
 - **E2E de interfaz**: `npm run test:e2e:ui`, que usa Playwright contra la web en contenedor.
@@ -21,7 +21,7 @@ La [matriz de trazabilidad](TRAZABILIDAD.md) une cada requisito con su criterio,
 | **CA-09** | Correo de confirmación | una compra aprobada | el sistema procesa el evento `pedido.confirmado` | llega al buzón del cliente (Mailpit) un correo con el número del pedido |
 | **CA-10** | Asistente | un visitante y luego un cliente con sesión | preguntan por el costo del envío y «¿Hay audífonos disponibles?», piden el estado de su pedido y el de un pedido ajeno | el envío se responde con la cifra configurada; la pregunta compuesta responde «Sí, tenemos N productos en Audio» con sus tarjetas; el cliente ve **su** pedido y, del ajeno, «No encontré el pedido» |
 | **CA-11** | Vendedor: entrada de stock | un vendedor con sesión | registra 10 unidades de un SKU | ve la confirmación y el stock del SKU aumenta en 10 |
-| **CA-12** | Administrador: estado y bitácora | un administrador con sesión y un pedido pagado | lo marca en preparación y abre su bitácora | el pedido queda en preparación y la bitácora muestra los pasos de la saga, de `validar_cliente` a `confirmar_reserva` |
+| **CA-12** | Administrador: estado del pedido (F5d) | un administrador con sesión y un pedido pagado | lo marca en preparación y abre su detalle | el pedido queda en preparación y el detalle muestra la línea de tiempo de sus estados (Pagado → En preparación) con la fecha y la hora de cada cambio |
 | **CA-13** | Perfil y direcciones | un cliente con sesión | cambia su teléfono, agrega una dirección en Bogotá D.C. y la marca como predeterminada | ve la confirmación de cada paso y la API devuelve el teléfono nuevo y la dirección nueva como predeterminada |
 | **CA-14** | Dirección al pagar y después | un cliente con un producto en el carrito | agrega una dirección en Cali desde el carrito, paga y luego cambia dos veces la dirección del pedido | el pedido sale con la dirección de Cali; tras dos cambios la web dice «Ya usaste los 2 cambios» y un tercer cambio por la API recibe 409 |
 | **CA-15** | Eliminar la cuenta | un cliente con un pedido pagado | abre «Mi perfil»; luego cancela el pedido y elimina la cuenta con su contraseña | primero ve el botón bloqueado con el número del pedido; después la cuenta se elimina, la sesión se cierra, el correo ya no inicia sesión y el perfil queda anonimizado |
@@ -33,6 +33,10 @@ La [matriz de trazabilidad](TRAZABILIDAD.md) une cada requisito con su criterio,
 | **CA-21** | Entrada con proveedor (F5c) | un vendedor con sesión | registra 4 unidades con proveedor, costo unitario y factura | el stock sube en 4 y la entrada aparece en el historial con su proveedor, costo, factura y quién la registró |
 | **CA-22** | Límite por cliente (F5c) | un producto con 7 unidades y un cliente con 2 en el carrito | abre el carrito y luego intenta pagar 3 | ve «Puedes llevar hasta 2» con el botón + desactivado; con 3, el pago se rechaza (409 `LIMITE_POR_CLIENTE`) sin tocar el stock |
 | **CA-23** | Consulta al vendedor (F5c) | un cliente con sesión | escribe «quiero contactar al vendedor» en el asistente, envía su pregunta y el vendedor responde desde «Consultas» | la campana del cliente marca la respuesta sin leer y, al abrirla, lo lleva a «Mis consultas» con la respuesta |
+| **CA-24** | Recuperar la contraseña (F5d) | un cliente que olvidó su contraseña | pide el enlace desde «¿Olvidaste tu contraseña?», lo abre desde el correo (Mailpit) y crea una nueva | ve «Revisa tu correo», luego «Tu contraseña se actualizó» e inicia sesión con la nueva; el mismo enlace ya no sirve una segunda vez |
+| **CA-25** | Notificaciones completas (F5d) | un vendedor con una consulta nueva en el buzón de operaciones | abre la campana, pulsa «Ver todas las notificaciones» y «Responder la consulta» | llega a la consulta con el cursor en «Respuesta al cliente» y la responde |
+| **CA-26** | Cerrar sesión (F5d) | un cliente con sesión | pulsa «Salir» | ve «Cerrando sesión…», llega al inicio de sesión con «Cerraste sesión.» y puede seguir en la tienda como visitante |
+| **CA-27** | Vista del vendedor (F5d) | un vendedor con sesión | entra al panel, a Inventario y al Catálogo | no tiene la pestaña de salud (solo el administrador, que la ve con «Qué hacer si falla»); el inventario muestra el nombre del producto junto al SKU; el catálogo dice que es una vista previa y no deja comprar |
 
 ## Notas
 

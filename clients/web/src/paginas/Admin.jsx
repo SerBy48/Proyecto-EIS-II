@@ -1,32 +1,39 @@
-import React, { useEffect, useState } from 'react';
-import { api, BASE, moneda } from '../servicios/api';
+import React, { useEffect, useRef, useState } from 'react';
+import { api, moneda } from '../servicios/api';
 import Consultas from '../componentes/Consultas.jsx';
+import Notificaciones from '../componentes/Notificaciones.jsx';
+import { describirDireccion } from '../componentes/FormularioDireccion.jsx';
 import Inventario from './admin/Inventario.jsx';
 import Productos from './admin/Productos.jsx';
+import Salud from './admin/Salud.jsx';
 
 /**
  * Panel de administracion (seccion 5.1: panel utilizado por el personal
- * interno). Incluye la vista de salud del sistema, que es la herramienta con la
- * que el operador responde la pregunta 4 del analisis: ver de un vistazo que
- * servicio esta caido y que sigue funcionando.
+ * interno). La vista de salud del sistema es solo del administrador: es la
+ * herramienta con la que responde la pregunta 4 del analisis (que servicio
+ * esta caido, que sigue funcionando y que hacer). El vendedor entra a
+ * Productos.
  */
-export default function Admin({ usuario, pestanaInicial, consultaInicial }) {
-  const [vista, setVista] = useState(pestanaInicial ?? 'salud');
+export default function Admin({ usuario, pestanaInicial, consultaInicial, pedidoInicial, alAbrirNotificacion }) {
   const esAdministrador = usuario?.rol === 'administrador';
+  const pestanas = [
+    ...(esAdministrador ? [['salud', 'Salud del sistema']] : []),
+    ['productos', 'Productos'],
+    ['inventario', 'Inventario'],
+    ['pedidos', 'Pedidos'],
+    ['consultas', 'Consultas'],
+    ['notificaciones', 'Notificaciones'],
+    ...(esAdministrador ? [['usuarios', 'Usuarios']] : [])
+  ];
+  const [vista, setVista] = useState(() =>
+    pestanas.some(([id]) => id === pestanaInicial) ? pestanaInicial : esAdministrador ? 'salud' : 'productos'
+  );
 
   return (
     <div className="max-w-6xl mx-auto p-4 sm:p-6">
       <h1 className="sr-only">Panel de administración</h1>
       <nav aria-label="Secciones de administración" className="relative flex gap-2 mb-6 border-b border-gray-200 overflow-x-auto">
-        {[
-          ['salud', 'Salud del sistema'],
-          ['productos', 'Productos'],
-          ['inventario', 'Inventario'],
-          ['pedidos', 'Pedidos'],
-          ['consultas', 'Consultas'],
-          ['notificaciones', 'Notificaciones'],
-          ...(esAdministrador ? [['usuarios', 'Usuarios']] : [])
-        ].map(([id, etiqueta]) => (
+        {pestanas.map(([id, etiqueta]) => (
           <button
             key={id}
             onClick={() => setVista(id)}
@@ -42,12 +49,12 @@ export default function Admin({ usuario, pestanaInicial, consultaInicial }) {
         ))}
       </nav>
 
-      {vista === 'salud' && <Salud />}
+      {vista === 'salud' && esAdministrador && <Salud />}
       {vista === 'productos' && <Productos />}
       {vista === 'inventario' && <Inventario />}
       {vista === 'consultas' && <Consultas personal inicial={consultaInicial} />}
-      {vista === 'pedidos' && <PedidosAdmin />}
-      {vista === 'notificaciones' && <Notificaciones />}
+      {vista === 'pedidos' && <PedidosAdmin inicial={pedidoInicial} />}
+      {vista === 'notificaciones' && <PestanaNotificaciones esAdministrador={esAdministrador} alAbrir={alAbrirNotificacion} />}
       {vista === 'usuarios' && esAdministrador && <Usuarios yo={usuario} />}
     </div>
   );
@@ -221,112 +228,51 @@ function Usuarios({ yo }) {
   );
 }
 
-function Salud() {
-  const [datos, setDatos] = useState(null);
-  const [error, setError] = useState(null);
 
-  const cargar = async () => {
-    try {
-      // /api/health responde 503 cuando algo esta caido: eso no es un fallo de
-      // la consulta, es la informacion que se busca. Se lee el cuerpo igual.
-      const respuesta = await fetch(`${BASE}/health`);
-      setDatos(await respuesta.json());
-      setError(null);
-    } catch (e) {
-      setError(e.message);
-    }
-  };
+const NOMBRE_ESTADO = {
+  creado: 'Creado',
+  pagado: 'Pagado',
+  en_preparacion: 'En preparación',
+  enviado: 'Enviado',
+  entregado: 'Entregado',
+  cancelado: 'Cancelado'
+};
+const estadoLegible = (estado) => NOMBRE_ESTADO[estado] ?? estado;
+const fechaHora = (v) => (v ? new Date(v).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' }) : '—');
 
-  useEffect(() => {
-    cargar();
-    const intervalo = setInterval(cargar, 10000);
-    return () => clearInterval(intervalo);
-  }, []);
+const SIGUIENTE = {
+  pagado: 'en_preparacion',
+  en_preparacion: 'enviado',
+  enviado: 'entregado'
+};
 
-  if (error) return <p role="alert" className="text-red-700">No se pudo consultar la salud: {error}</p>;
-  if (!datos) return <p role="status" className="text-gray-500">Consultando...</p>;
-
-  return (
-    <div>
-      <h2 className="sr-only">Salud del sistema</h2>
-      <div className="flex flex-wrap gap-2 items-center justify-between mb-4">
-        <p className="text-sm text-gray-500">
-          Actualizado {new Date(datos.hora).toLocaleTimeString('es-CO')} · se refresca cada 10 s
-        </p>
-        {datos.servicios_caidos?.length > 0 && (
-          <span className="text-sm font-semibold text-red-700">
-            {datos.servicios_caidos.length} servicio(s) con problemas
-          </span>
-        )}
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {datos.servicios?.map((s) => (
-          <div
-            key={s.servicio}
-            className={`rounded-xl border p-4 ${
-              s.ok ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
-            }`}
-          >
-            <div className="flex items-center justify-between mb-2">
-              <p className="font-semibold capitalize">{s.servicio}</p>
-              <span
-                aria-hidden="true"
-                className={`w-2.5 h-2.5 rounded-full ${s.ok ? 'bg-green-500' : 'bg-red-500'}`}
-              />
-            </div>
-            <p className={`text-xs ${s.ok ? 'text-green-800' : 'text-red-800'}`}>{s.estado}</p>
-
-            {s.dependencias?.length > 0 && (
-              <ul className="mt-3 space-y-1">
-                {s.dependencias.map((d) => (
-                  <li key={d.nombre} className="text-xs flex items-center gap-1.5 text-gray-600">
-                    <span
-                      aria-hidden="true"
-                      className={d.ok ? 'text-green-600' : d.critica ? 'text-red-600' : 'text-amber-600'}
-                    >
-                      {d.ok ? '●' : '○'}
-                    </span>
-                    <span className="truncate">{d.nombre}</span>
-                    <span className="sr-only">{d.ok ? ': conectada' : ': caida'}</span>
-                    {!d.ok && !d.critica && <span className="text-amber-700">(no critica)</span>}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        ))}
-      </div>
-
-      <p className="mt-6 text-xs text-gray-500 leading-relaxed max-w-2xl">
-        Una dependencia marcada como no critica (por ejemplo el message broker) puede estar caida
-        sin que el servicio se considere fuera de línea: los eventos quedan pendientes y se
-        procesan al restablecerse, pero la venta sigue funcionando.
-      </p>
-    </div>
-  );
-}
-
-function PedidosAdmin() {
+/**
+ * Pedidos del sistema. Cada pedido muestra cuando se creo y cuando cambio por
+ * ultima vez; el detalle trae los productos, la direccion y la linea de tiempo
+ * de sus estados con fecha y hora (tabla historial_estados, que llena un
+ * trigger en cada transicion). Reemplaza la "bitacora de la saga", que era
+ * informacion tecnica del checkout y no ayudaba a atender un pedido.
+ */
+function PedidosAdmin({ inicial }) {
   const [pedidos, setPedidos] = useState([]);
   const [error, setError] = useState(null);
-  // Bitacora de la saga del pedido elegido (solo administrador: la API
-  // responde 403 a un vendedor).
-  const [saga, setSaga] = useState(null);
+  const [filtro, setFiltro] = useState('');
+  const [detalle, setDetalle] = useState(null);
+  const panel = useRef(null);
 
-  const verSaga = async (pedido) => {
+  const verDetalle = async (idONumero) => {
     try {
-      setSaga({ numero: pedido.numero, pasos: await api(`/pedidos/${pedido.id}/saga`) });
+      setDetalle(await api(`/pedidos/${encodeURIComponent(idONumero)}`));
       setError(null);
+      setTimeout(() => panel.current?.focus(), 0);
     } catch (e) {
-      setSaga(null);
-      setError(e.estado === 403 ? 'Solo un administrador puede ver la bitácora de la saga.' : e.message);
+      setError(e.message);
     }
   };
 
   const cargar = async () => {
     try {
-      setPedidos(await api('/pedidos'));
+      setPedidos(await api(`/pedidos${filtro ? `?estado=${filtro}` : ''}`));
       setError(null);
     } catch (e) {
       setError(e.message);
@@ -335,70 +281,86 @@ function PedidosAdmin() {
 
   useEffect(() => {
     cargar();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtro]);
+
+  // Desde una notificacion se abre el pedido indicado.
+  useEffect(() => {
+    if (inicial) verDetalle(inicial);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inicial]);
 
   const avanzar = async (id, estado) => {
     try {
       await api(`/pedidos/${id}/estado`, { metodo: 'PATCH', cuerpo: { estado } });
       await cargar();
+      if (detalle?.id === id) await verDetalle(id);
     } catch (e) {
       setError(e.message);
     }
   };
 
-  const SIGUIENTE = {
-    pagado: 'en_preparacion',
-    en_preparacion: 'enviado',
-    enviado: 'entregado'
-  };
-
   return (
-    <div>
-      <h2 className="font-bold mb-3">Pedidos del sistema</h2>
-      {error && <p role="alert" className="text-red-700 text-sm mb-3">{error}</p>}
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center gap-3">
+        <h2 className="font-bold mr-auto">Pedidos del sistema</h2>
+        <label className="text-sm text-gray-700">
+          <span className="mr-2">Estado</span>
+          <select value={filtro} onChange={(e) => setFiltro(e.target.value)} className="bg-superficie border border-gray-300 rounded-lg px-2 py-1">
+            <option value="">Todos</option>
+            {Object.entries(NOMBRE_ESTADO).map(([id, texto]) => (
+              <option key={id} value={id}>
+                {texto}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      {error && (
+        <p role="alert" className="text-red-700 text-sm">
+          {error}
+        </p>
+      )}
       <div className="relative bg-superficie border border-gray-200 rounded-xl overflow-x-auto">
         <table className="min-w-full text-sm whitespace-nowrap">
+          <caption className="sr-only">Pedidos del sistema</caption>
           <thead className="bg-gray-50 text-xs uppercase text-gray-500 text-left">
             <tr>
               <th className="px-4 py-2">Número</th>
               <th className="px-4 py-2">Cliente</th>
               <th className="px-4 py-2">Total</th>
               <th className="px-4 py-2">Estado</th>
+              <th className="px-4 py-2">Creado</th>
+              <th className="px-4 py-2">Último cambio</th>
               <th className="px-4 py-2">Acción</th>
             </tr>
           </thead>
           <tbody className="divide-y">
             {pedidos.map((p) => (
-              <tr key={p.id}>
+              <tr key={p.id} className={detalle?.id === p.id ? 'bg-marca-50' : ''}>
                 <td className="px-4 py-2 font-mono text-xs">{p.numero}</td>
                 <td className="px-4 py-2">{p.cliente_id}</td>
                 <td className="px-4 py-2 font-semibold">{moneda(p.total)}</td>
-                <td className="px-4 py-2">{p.estado.replace('_', ' ')}</td>
-                <td className="px-4 py-2">
-                  {SIGUIENTE[p.estado] ? (
-                    <button
-                      onClick={() => avanzar(p.id, SIGUIENTE[p.estado])}
-                      className="text-xs btn-oscuro px-2 py-1 rounded"
-                    >
-                      Marcar {SIGUIENTE[p.estado].replace('_', ' ')}
+                <td className="px-4 py-2">{estadoLegible(p.estado)}</td>
+                <td className="px-4 py-2 text-gray-600">{fechaHora(p.creado_en)}</td>
+                <td className="px-4 py-2 text-gray-600">{fechaHora(p.actualizado_en ?? p.creado_en)}</td>
+                <td className="px-4 py-2 space-x-2">
+                  {SIGUIENTE[p.estado] && (
+                    <button onClick={() => avanzar(p.id, SIGUIENTE[p.estado])} className="text-xs btn-oscuro px-2 py-1 rounded">
+                      Marcar {estadoLegible(SIGUIENTE[p.estado]).toLowerCase()}
                       <span className="sr-only"> el pedido {p.numero}</span>
                     </button>
-                  ) : (
-                    <span className="text-xs text-gray-500">sin acciones</span>
                   )}
-                  <button
-                    onClick={() => verSaga(p)}
-                    className="ml-2 text-xs border border-gray-300 hover:bg-gray-50 px-2 py-1 rounded"
-                  >
-                    Bitácora<span className="sr-only"> de la saga del pedido {p.numero}</span>
+                  <button onClick={() => verDetalle(p.id)} className="text-xs border border-gray-300 hover:bg-gray-50 px-2 py-1 rounded">
+                    Detalle<span className="sr-only"> del pedido {p.numero}</span>
                   </button>
                 </td>
               </tr>
             ))}
             {pedidos.length === 0 && (
               <tr>
-                <td colSpan="5" className="px-4 py-6 text-center text-gray-500">
-                  No hay pedidos.
+                <td colSpan="7" className="px-4 py-6 text-center text-gray-500">
+                  No hay pedidos{filtro ? ` en estado ${estadoLegible(filtro).toLowerCase()}` : ''}.
                 </td>
               </tr>
             )}
@@ -406,33 +368,124 @@ function PedidosAdmin() {
         </table>
       </div>
 
-      {saga && (
-        <section aria-label={`Bitácora de la saga del pedido ${saga.numero}`} className="mt-6 bg-superficie border border-gray-200 rounded-xl p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-bold">Bitácora de la saga · {saga.numero}</h3>
-            <button onClick={() => setSaga(null)} className="text-sm text-gray-600 hover:text-gray-900">
-              Cerrar
+      {detalle && (
+        <section
+          ref={panel}
+          tabIndex={-1}
+          aria-labelledby="detalle-pedido-titulo"
+          className="bg-superficie border border-gray-200 rounded-xl p-5 focus:outline-none scroll-mt-24"
+        >
+          <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+            <div>
+              <h3 id="detalle-pedido-titulo" className="font-bold">
+                Pedido {detalle.numero}
+              </h3>
+              <p className="text-sm text-gray-600">
+                Cliente {detalle.cliente_id} · {estadoLegible(detalle.estado)} · total {moneda(detalle.total)}
+              </p>
+            </div>
+            <button onClick={() => setDetalle(null)} className="text-sm text-gray-600 hover:text-gray-900">
+              Cerrar<span className="sr-only"> el detalle del pedido</span>
             </button>
           </div>
-          <ol className="space-y-1 text-sm">
-            {saga.pasos.map((paso, i) => (
-              <li key={i} className="flex gap-3">
-                <span className="font-mono text-xs text-gray-500 w-20">{new Date(paso.creado_en).toLocaleTimeString('es-CO')}</span>
-                <span className="font-mono w-56">{paso.paso}</span>
-                <span className={paso.estado === 'fallido' ? 'text-red-700' : paso.estado === 'compensado' ? 'text-amber-700' : 'text-gray-700'}>
-                  {paso.estado}
-                </span>
-              </li>
-            ))}
-            {saga.pasos.length === 0 && <li className="text-gray-500">Sin pasos registrados.</li>}
-          </ol>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <h4 className="text-sm font-semibold text-gray-900 mb-2">Historial de estados</h4>
+              <ol className="relative border-l-2 border-gray-200 ml-2 space-y-4">
+                {detalle.historial.map((h, i) => (
+                  <li key={i} className="ml-4">
+                    <span
+                      aria-hidden="true"
+                      className={`absolute -left-[7px] mt-1 w-3 h-3 rounded-full ${h.estado_nuevo === 'cancelado' ? 'bg-red-600' : 'bg-marca-600'}`}
+                    />
+                    <p className="text-sm font-semibold text-gray-900">
+                      {h.estado_anterior ? `${estadoLegible(h.estado_anterior)} → ${estadoLegible(h.estado_nuevo)}` : estadoLegible(h.estado_nuevo)}
+                    </p>
+                    <p className="text-xs text-gray-600">
+                      <time dateTime={h.creado_en}>{fechaHora(h.creado_en)}</time>
+                    </p>
+                    {h.motivo && <p className="text-xs text-gray-700 mt-0.5">Motivo: {h.motivo}</p>}
+                  </li>
+                ))}
+                {detalle.historial.length === 0 && <li className="ml-4 text-sm text-gray-500">Sin cambios de estado registrados.</li>}
+              </ol>
+              <p className="text-xs text-gray-500 mt-3">Creado el {fechaHora(detalle.creado_en)}</p>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900 mb-2">Productos</h4>
+                <ul className="text-sm divide-y divide-gray-100 border border-gray-200 rounded-lg">
+                  {detalle.items.map((i) => (
+                    <li key={i.sku} className="flex justify-between gap-3 px-3 py-2">
+                      <span className="min-w-0">
+                        <span className="block truncate">{i.nombre}</span>
+                        <span className="block text-xs text-gray-500">
+                          {i.sku} · {i.cantidad} × {moneda(i.precio_unitario)}
+                        </span>
+                      </span>
+                      <span className="font-semibold shrink-0">{moneda(i.subtotal)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              {detalle.direccion_envio && (
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-900 mb-1">Dirección de envío</h4>
+                  <p className="text-sm text-gray-700">{describirDireccion(detalle.direccion_envio)}</p>
+                  {detalle.cambios_direccion > 0 && (
+                    <p className="text-xs text-gray-500">El cliente cambió la dirección {detalle.cambios_direccion} vez(es).</p>
+                  )}
+                </div>
+              )}
+              {SIGUIENTE[detalle.estado] && (
+                <button onClick={() => avanzar(detalle.id, SIGUIENTE[detalle.estado])} className="btn-oscuro text-sm px-3 py-1.5 rounded">
+                  Marcar {estadoLegible(SIGUIENTE[detalle.estado]).toLowerCase()}
+                </button>
+              )}
+            </div>
+          </div>
         </section>
       )}
     </div>
   );
 }
 
-function Notificaciones() {
+/**
+ * Pestaña Notificaciones del panel: la bandeja del personal (la propia y la del
+ * buzon de operaciones), con cada notificacion abrible: una consulta abre su
+ * hilo listo para responder. El administrador tiene ademas el registro de
+ * todos los envios del sistema (correos a clientes incluidos).
+ */
+function PestanaNotificaciones({ esAdministrador, alAbrir }) {
+  const [modo, setModo] = useState('bandeja');
+  return (
+    <div className="space-y-4">
+      {esAdministrador && (
+        <div role="group" aria-label="Qué mostrar" className="inline-flex rounded-lg border border-gray-300 overflow-hidden text-sm">
+          {[
+            ['bandeja', 'Mi bandeja'],
+            ['registro', 'Registro de envíos']
+          ].map(([id, texto]) => (
+            <button
+              key={id}
+              onClick={() => setModo(id)}
+              aria-pressed={modo === id}
+              className={`px-3 py-1.5 font-semibold ${modo === id ? 'btn-primario rounded-none' : 'bg-superficie text-gray-700 hover:bg-gray-100'}`}
+            >
+              {texto}
+            </button>
+          ))}
+        </div>
+      )}
+      {modo === 'bandeja' ? <Notificaciones personal onAbrir={alAbrir} /> : <RegistroEnvios />}
+    </div>
+  );
+}
+
+/** Registro de envios (solo administrador): todo lo que salio por correo. */
+function RegistroEnvios() {
   const [mensajes, setMensajes] = useState([]);
   const [error, setError] = useState(null);
 
@@ -444,31 +497,34 @@ function Notificaciones() {
 
   return (
     <div>
-      <h2 className="font-bold mb-3">Mensajes enviados</h2>
-      <p className="text-sm text-gray-500 mb-4">
-        Estos mensajes no los genera nadie por peticion directa: son la reaccion del servicio de
-        notificaciones a los eventos publicados en el message broker.
+      <h2 className="font-bold mb-1">Registro de envíos</h2>
+      <p className="text-sm text-gray-600 mb-4">
+        Los últimos 50 correos que envió el sistema, a clientes y al personal. Nadie los envía a mano: son la reacción del servicio de notificaciones a
+        los eventos del message broker. Los enlaces de recuperación de contraseña no se guardan.
       </p>
-      {error && <p role="alert" className="text-red-700 text-sm mb-3">{error}</p>}
+      {error && (
+        <p role="alert" className="text-red-700 text-sm mb-3">
+          {error}
+        </p>
+      )}
       <div className="space-y-2">
         {mensajes.map((m) => (
           <div key={m._id} className="bg-superficie border border-gray-200 rounded-lg p-4 text-sm">
             <div className="flex flex-col sm:flex-row justify-between items-start gap-2 sm:gap-4">
               <div className="min-w-0 break-words">
                 <p className="font-semibold">{m.asunto}</p>
-                <p className="text-gray-600 text-xs mt-1">{m.cuerpo}</p>
+                <p className="text-gray-600 text-xs mt-1">{m.texto ?? m.cuerpo}</p>
               </div>
               <div className="sm:text-right shrink-0">
                 <span className="text-xs bg-gray-100 px-2 py-0.5 rounded uppercase">{m.canal}</span>
                 <p className="text-xs text-gray-500 mt-1">{m.destinatario}</p>
-                <p className="text-xs text-gray-500">{m.evento}</p>
+                <p className="text-xs text-gray-500">{fechaHora(m.creado_en)}</p>
+                <p className="text-xs text-gray-500">{m.estado}</p>
               </div>
             </div>
           </div>
         ))}
-        {mensajes.length === 0 && !error && (
-          <p className="text-gray-500 text-sm">Todavía no se ha enviado ningún mensaje.</p>
-        )}
+        {mensajes.length === 0 && !error && <p className="text-gray-500 text-sm">Todavía no se ha enviado ningún mensaje.</p>}
       </div>
     </div>
   );

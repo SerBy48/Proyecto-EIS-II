@@ -154,7 +154,7 @@ La lista completa y comentada está en [`.env.example`](../../.env.example). Las
 | `CORS_ORIGENES` | Orígenes permitidos (laboratorio) | 5173, 4173 y 8081 |
 | `CORS_ORIGENES_PROD` | Orígenes permitidos (producción) | `http://localhost:${WEB_PUERTO}` |
 | `EXPONER_DOCS` | Swagger UI en `/api/docs` | true (prod: false) |
-| `LIMITE_GENERAL`, `LIMITE_LOGIN`, `LIMITE_CHECKOUT`, `LIMITE_ASISTENTE`, `LIMITE_IMAGENES` | Límites de peticiones en el gateway (por minuto; login: intentos fallidos en 15 min). Las fotos de `/api/catalogo/imagenes` tienen su propio límite y no gastan el general | 300, 10, 10, 30, 1500 |
+| `LIMITE_GENERAL`, `LIMITE_LOGIN`, `LIMITE_CHECKOUT`, `LIMITE_ASISTENTE`, `LIMITE_IMAGENES`, `LIMITE_RECUPERACION` | Límites de peticiones en el gateway (por minuto; login: intentos fallidos en 15 min, que comparte `restablecer`; recuperación: enlaces pedidos por IP en 15 min). Las fotos de `/api/catalogo/imagenes` tienen su propio límite y no gastan el general | 300, 10, 10, 30, 1500, 5 |
 | `PROXY_TIMEOUT_MS` | Tiempo máximo del gateway antes de responder 504 | 15000 |
 | `HTTP_TIMEOUT_MS`, `HTTP_REINTENTOS` | Cliente HTTP entre servicios | 3000, 2 |
 | `CB_UMBRAL_FALLOS`, `CB_ESPERA_MS` | Circuit breaker | 5, 15000 |
@@ -162,6 +162,7 @@ La lista completa y comentada está en [`.env.example`](../../.env.example). Las
 | `MINUTOS_RESERVA` | Vigencia de una reserva de stock | 15 |
 | `STOCK_RESERVA_CLIENTE` | Unidades que cada cliente debe dejar para los demás (límite por cliente, RF-47; mínimo 1 por cliente). La leen inventario y pedidos | 5 |
 | `CANAL_CORREO`, `SMTP_*` | `smtp` (Mailpit o un proveedor real) o `registro` | smtp |
+| `URL_WEB` | Dirección pública de la web: el correo de recuperación de contraseña (RF-54) enlaza a `URL_WEB/#restablecer=<token>`. Con el túnel de la defensa, póngale la URL del túnel | `http://localhost:8081` |
 | `ASISTENTE_IA`, `ANTHROPIC_API_KEY` | IA opcional del asistente (`desactivada` o `anthropic`) | desactivada |
 
 Los archivos `.env.carga` (`npm run infra:carga`) suben los límites del gateway para las pruebas de rendimiento.
@@ -207,16 +208,17 @@ Los términos van sin tildes y en minúsculas, porque el motor normaliza el text
 | Comando | Qué verifica | Requiere |
 |---|---|---|
 | `npm run typecheck` | Tipos de todos los paquetes | — |
-| `npm run test:unit` (`:cobertura`) | 135 pruebas unitarias con Vitest: saga, circuit breaker, bus, totales, asistente, búsqueda del catálogo y coherencia de la semilla… | — |
+| `npm run test:unit` (`:cobertura`) | 160 pruebas unitarias con Vitest: saga, circuit breaker, bus, totales, asistente, búsqueda del catálogo, coherencia de la semilla, límite por cliente, enlace de recuperación fuera de lo guardado… | — |
 | `npm run test:openapi` | La especificación cubre exactamente las rutas del código y sus `x-roles` | — |
 | `npm run test:salud` | Los diez servicios responden | laboratorio |
 | `npm run test:http` | 73 casos: auth, RBAC, aislamiento, idempotencia, pasarela, PCI-DSS (**borra los pedidos**) | laboratorio |
 | `npm run test:concurrencia` | 20 compradores por 5 unidades: exactamente 5 ganan | laboratorio |
 | `npm run test:e2e` | Flujo de compra completo por la API, con el correo en Mailpit | laboratorio |
-| `npm run test:asistente` | 46 comprobaciones del asistente, incluido el aislamiento por chat | laboratorio |
-| `npm run test:seguridad` | 23 verificaciones de seguridad | laboratorio |
-| `npm run test:e2e:ui` | **18 criterios de aceptación en la web** (Playwright), con capturas | web en modo pruebas (8081) |
+| `npm run test:asistente` | 54 comprobaciones del asistente, incluido el aislamiento por chat (56 con `ASISTENTE_PROBAR_DEGRADACION=1`). Agota a propósito el límite del chat al final: espere un minuto antes de repetirla | laboratorio |
+| `npm run test:seguridad` | 27 verificaciones de seguridad (V-27: recuperación de contraseña) | laboratorio, Mailpit y `vite preview` en 4173 |
+| `npm run test:e2e:ui` | **27 criterios de aceptación en la web** (Playwright), con capturas | web en modo pruebas (8081) |
 | `npx tsx tests/usabilidad/axe-tema-oscuro.ts` | axe (WCAG 2.2 AA) en 7 pantallas con el tema oscuro | web (8081) |
+| `npx tsx tests/usabilidad/axe-f5c.ts`, `axe-f5d.ts` | axe (WCAG 2.2 AA) en las vistas de F5c (20) y F5d (18), temas claro y oscuro | web (8081) |
 | `npm run usabilidad:recorrido` | 9 tareas, KLM y axe (WCAG 2.2 AA) | `build:web:pruebas` y `vite preview` |
 | k6 (`tests/rendimiento/`) | Carga, estrés y fallos inyectados | `infra:carga` |
 
@@ -243,7 +245,7 @@ Los términos van sin tildes y en minúsculas, porque el motor normaliza el text
 
 ### 10.1 Salud y registros
 
-- `GET /api/health` agrega la salud de los diez servicios y sus dependencias. También se ve en la web: **Administración → Salud del sistema**.
+- `GET /api/health` agrega la salud de los diez servicios y sus dependencias. También se ve en la web, solo con una cuenta de administrador: **Administración → Salud del sistema**. Cada tarjeta dice qué hace el servicio, el impacto en la tienda si cae y los pasos de recuperación (`clients/web/src/paginas/admin/Salud.jsx`; si cambian los nombres de los servicios en Compose, hay que cambiarlos ahí).
 - Cada petición lleva un `request_id`, que el gateway propaga a todos los servicios. Para seguir una petición:
 
 ```bash
@@ -269,6 +271,8 @@ npm run prod:logs | grep <request_id>
 | Historial de precios | Colección `historial_precios` de `catalogo_db` |
 | Base del asistente en un volumen anterior a la Fase 3 | `npm run infra:asistente` |
 | Datos para pruebas de carga | `CLIENTES_CARGA=300 npm run sembrar:carga` |
+| Enlaces de recuperación de contraseña | Tabla `restablecimientos_contrasena` de `auth_db` (`01-auth.sql`): solo el hash SHA-256 del token, su vencimiento y si se usó |
+| Volver a los datos de demostración | Las suites crean cuentas, pedidos, productos y notificaciones de prueba con nombres únicos (`ca13-…`, `vendedor-…`, `SKU-CA19-…`). Antes de una demostración, `npm run infra:reset` y `docker compose up -d` dejan solo la semilla |
 
 ### 10.4 Problemas frecuentes
 
@@ -280,6 +284,7 @@ npm run prod:logs | grep <request_id>
 | Las compras se confirman pero no llegan correos | notificaciones o Mailpit caídos; los eventos esperan en la cola | Reinicie el contenedor; los mensajes pendientes se procesan solos |
 | Respuestas 504 `TIEMPO_AGOTADO` | Un servicio no responde en 15 s | `docker compose ps` y los registros de ese servicio |
 | Respuestas 429 | Límite de peticiones del gateway | Espere un minuto; para carga, `npm run infra:carga` |
+| El correo de recuperación enlaza a `localhost` | `URL_WEB` no apunta a la dirección pública | Póngale la URL pública (o la del túnel) y recree `auth-service` |
 | `test:e2e:ui` falla en CA-06 | La web está compilada en modo `production` | `MODO_VITE=pruebas` al levantarla |
 
 ---

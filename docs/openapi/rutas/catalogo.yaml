@@ -22,6 +22,7 @@ productos:
       - { name: pagina, in: query, schema: { type: integer, minimum: 1, default: 1 } }
       - { name: limite, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
       - { name: incluir_inactivos, in: query, description: 'Solo personal interno (con token): incluye los productos inactivos y lo configurado de la oferta (panel Productos). Para los demas se ignora.', schema: { type: string, enum: ['true'] } }
+      - { name: skus, in: query, description: 'Lista de 1 a 100 SKU separados por comas: solo esos productos (el panel pone nombre a las alertas de reposicion y al historial de entradas).', schema: { type: string, example: 'SKU-TEC-004,SKU-TEC-007' } }
     responses:
       '200':
         description: Pagina de resultados.

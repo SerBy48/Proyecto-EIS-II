@@ -67,9 +67,27 @@ function BotonTema() {
   );
 }
 
+/**
+ * Enlace del correo de recuperacion (RF-54): llega como #restablecer=<token>.
+ * Va en el fragmento para que el navegador no lo mande al servidor web.
+ */
+const tokenDeRestablecimiento = () => {
+  const coincidencia = /^#restablecer=([a-f0-9]{64})$/.exec(window.location.hash);
+  return coincidencia ? coincidencia[1] : null;
+};
+
+/** Quita el token de la barra de direcciones (y del historial) una vez leido. */
+const limpiarFragmento = () => {
+  if (window.location.hash) window.history.replaceState(null, '', window.location.pathname + window.location.search);
+};
+
 export default function App() {
   const [usuario, setUsuario] = useState(sesion.usuario);
-  const [vista, setVista] = useState('catalogo');
+  const [tokenRestablecer, setTokenRestablecer] = useState(tokenDeRestablecimiento);
+  const [vista, setVista] = useState(() => (tokenDeRestablecimiento() ? 'restablecer' : 'catalogo'));
+  // Mensaje con el que se abre el inicio de sesion (sesion cerrada, contrasena cambiada).
+  const [avisoLogin, setAvisoLogin] = useState(null);
+  const [saliendo, setSaliendo] = useState(false);
   // Filtros con los que el asistente abre el catalogo; la clave remonta la vista.
   const [filtrosCatalogo, setFiltrosCatalogo] = useState({ clave: 0, filtros: undefined });
   const [carrito, setCarrito] = useState(null);
@@ -101,6 +119,19 @@ export default function App() {
     window.addEventListener(EVENTO_SESION_EXPIRADA, alExpirar);
     return () => window.removeEventListener(EVENTO_SESION_EXPIRADA, alExpirar);
   }, [mostrarAviso]);
+
+  // El enlace del correo tambien puede abrirse en una pestaña donde la tienda
+  // ya estaba cargada: solo cambia el fragmento, no se recarga la pagina.
+  useEffect(() => {
+    const alCambiarFragmento = () => {
+      const token = tokenDeRestablecimiento();
+      if (!token) return;
+      setTokenRestablecer(token);
+      setVista('restablecer');
+    };
+    window.addEventListener('hashchange', alCambiarFragmento);
+    return () => window.removeEventListener('hashchange', alCambiarFragmento);
+  }, []);
 
   const recargarCarrito = useCallback(async () => {
     if (!esCliente || !usuario?.cliente_id) return setCarrito(null);
@@ -155,33 +186,64 @@ export default function App() {
       setDestinoInterno((d) => ({ clave: d.clave + 1, pestana: 'consultas', consulta: null }));
       return setVista('perfil');
     }
+    if (destino !== 'login') setAvisoLogin(null);
     if (destino === 'catalogo' && filtros) setFiltrosCatalogo((f) => ({ clave: f.clave + 1, filtros }));
     setVista(destino);
   };
 
-  /** Una notificacion lleva a su vista: el pedido, la consulta o el inventario. */
+  /**
+   * Una notificacion lleva a su vista: la consulta (lista para responder), el
+   * pedido, el inventario o la lista completa de notificaciones.
+   */
   const abrirNotificacion = (destino, notificacion) => {
     const abrirEn = (vistaDestino, pestana) => {
-      setDestinoInterno((d) => ({ clave: d.clave + 1, pestana, consulta: notificacion?.ticket ?? null }));
+      setDestinoInterno((d) => ({
+        clave: d.clave + 1,
+        pestana,
+        consulta: notificacion?.ticket ?? null,
+        pedido: notificacion?.pedido ?? null
+      }));
       setVista(vistaDestino);
     };
     if (esInterno) {
-      if (destino === 'consultas') return abrirEn('admin', 'consultas');
-      if (destino === 'pedidos') return abrirEn('admin', 'pedidos');
-      if (destino === 'inventario') return abrirEn('admin', 'inventario');
+      if (['consultas', 'pedidos', 'inventario', 'notificaciones'].includes(destino)) return abrirEn('admin', destino);
       return undefined;
     }
-    if (destino === 'consultas') return abrirEn('perfil', 'consultas');
-    if (destino === 'pedidos') return navegar('pedidos');
+    if (destino === 'consultas' || destino === 'notificaciones') return abrirEn('perfil', destino);
+    if (destino === 'pedidos') return abrirEn('pedidos');
     if (destino === 'carrito') return navegar('carrito');
     return undefined;
   };
 
+  /** Abre el panel en una pestaña (desde la vista previa del catalogo). */
+  const irAlPanel = (pestana) => {
+    setDestinoInterno((d) => ({ clave: d.clave + 1, pestana, consulta: null, pedido: null }));
+    setVista('admin');
+  };
+
+  /**
+   * Cerrar sesion: una pantalla breve confirma que se esta saliendo y luego se
+   * llega al inicio de sesion, desde donde se puede volver a entrar o seguir
+   * en la tienda como visitante. Antes la pagina se quedaba en el catalogo y no
+   * se notaba el cambio.
+   */
   const salir = async () => {
-    await cerrarSesion();
-    setUsuario(null);
-    setCarrito(null);
-    setVista('catalogo');
+    setSaliendo(true);
+    const minimo = new Promise((r) => setTimeout(r, 600));
+    try {
+      await cerrarSesion();
+    } catch {
+      // Sin red, la sesion local se borra igual: el refresh vence solo.
+      sesion.limpiar();
+    } finally {
+      await minimo;
+      setUsuario(null);
+      setCarrito(null);
+      setAvisoLogin({ tipo: 'salida', texto: 'Cerraste sesión.' });
+      setVista('login');
+      setSaliendo(false);
+      window.scrollTo({ top: 0 });
+    }
   };
 
   const cuentaEliminada = () => {
@@ -240,7 +302,7 @@ export default function App() {
                 <span className="text-gray-600 hidden md:inline">
                   {usuario.email} · <span className="font-semibold">{usuario.rol}</span>
                 </span>
-                <button onClick={salir} className="border border-gray-300 hover:bg-gray-100 px-3 py-1.5 rounded-lg">
+                <button onClick={salir} disabled={saliendo} className="border border-gray-300 hover:bg-gray-100 px-3 py-1.5 rounded-lg">
                   Salir
                 </button>
               </>
@@ -278,9 +340,23 @@ export default function App() {
 
         {vista === 'login' && (
           <Login
+            aviso={avisoLogin}
+            onVisitante={() => navegar('catalogo')}
             onIngreso={(u) => {
               setUsuario(u);
+              setAvisoLogin(null);
               setVista(['administrador', 'vendedor'].includes(u.rol) ? 'admin' : 'catalogo');
+            }}
+          />
+        )}
+        {vista === 'restablecer' && (
+          <RestablecerContrasena
+            token={tokenRestablecer}
+            alTerminar={(cambiada) => {
+              limpiarFragmento();
+              setTokenRestablecer(null);
+              setAvisoLogin(cambiada ? { tipo: 'ok', texto: 'Tu contraseña se actualizó. Inicia sesión con la nueva.' } : null);
+              setVista('login');
             }}
           />
         )}
@@ -290,15 +366,44 @@ export default function App() {
             usuario={usuario}
             alAgregar={agregarAlCarrito}
             filtrosIniciales={filtrosCatalogo.filtros}
+            alIrAlPanel={esInterno ? (pestana) => irAlPanel(pestana) : undefined}
           />
         )}
         {vista === 'carrito' && esCliente && (
           <CarritoPagina usuario={usuario} carrito={carrito} recargarCarrito={recargarCarrito} />
         )}
-        {vista === 'pedidos' && usuario && <MisPedidos usuario={usuario} />}
-        {vista === 'perfil' && esCliente && <Perfil key={destinoInterno.clave} usuario={usuario} alEliminarCuenta={cuentaEliminada} seccionInicial={destinoInterno.pestana} consultaInicial={destinoInterno.consulta} />}
-        {vista === 'admin' && esInterno && <Admin key={destinoInterno.clave} usuario={usuario} pestanaInicial={destinoInterno.pestana} consultaInicial={destinoInterno.consulta} />}
+        {vista === 'pedidos' && usuario && <MisPedidos key={destinoInterno.clave} usuario={usuario} pedidoInicial={destinoInterno.pedido} />}
+        {vista === 'perfil' && esCliente && (
+          <Perfil
+            key={destinoInterno.clave}
+            usuario={usuario}
+            alEliminarCuenta={cuentaEliminada}
+            seccionInicial={destinoInterno.pestana}
+            consultaInicial={destinoInterno.consulta}
+            alAbrirNotificacion={abrirNotificacion}
+          />
+        )}
+        {vista === 'admin' && esInterno && (
+          <Admin
+            key={destinoInterno.clave}
+            usuario={usuario}
+            pestanaInicial={destinoInterno.pestana}
+            consultaInicial={destinoInterno.consulta}
+            pedidoInicial={destinoInterno.pedido}
+            alAbrirNotificacion={abrirNotificacion}
+          />
+        )}
       </main>
+
+      {/* Cierre de sesion: una pantalla breve para que el cambio se note. */}
+      {saliendo && (
+        <div role="status" aria-live="assertive" className="fixed inset-0 z-[60] flex items-center justify-center bg-gray-50/90 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-3 text-gray-800">
+            <span aria-hidden="true" className="w-10 h-10 rounded-full border-4 border-marca-200 border-t-marca-600 animate-spin" />
+            <p className="font-semibold">Cerrando sesión…</p>
+          </div>
+        </div>
+      )}
 
       <PiePagina />
 
@@ -427,8 +532,9 @@ function BotonNav({ activo, onClick, children }) {
  * docs/calidad/USABILIDAD.md, severidad 4). Las cuentas de prueba siguen a la
  * vista, pero como ayuda, no como unica opcion.
  */
-function Login({ onIngreso }) {
+function Login({ onIngreso, aviso, onVisitante }) {
   const [registrando, setRegistrando] = useState(false);
+  const [recuperando, setRecuperando] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
@@ -448,9 +554,30 @@ function Login({ onIngreso }) {
   };
 
   if (registrando) return <Registro onIngreso={onIngreso} onVolver={() => setRegistrando(false)} />;
+  if (recuperando) return <RecuperarContrasena correoInicial={email} onVolver={() => setRecuperando(false)} />;
 
   return (
     <div className="max-w-md mx-auto p-4 sm:p-6 mt-6 sm:mt-10">
+      {/* Despues de salir: se dice que la sesion se cerro y se ofrece seguir
+          en la tienda como visitante, sin obligar a iniciar sesion. */}
+      {aviso && (
+        <div
+          role="status"
+          className={`mb-4 rounded-xl border p-4 text-sm ${
+            aviso.tipo === 'salida' ? 'bg-superficie border-gray-200 text-gray-800' : 'bg-green-50 border-green-200 text-green-800'
+          }`}
+        >
+          <p className="font-semibold">{aviso.texto}</p>
+          {aviso.tipo === 'salida' && (
+            <>
+              <p className="mt-1 text-gray-600">Puedes iniciar sesión con otra cuenta o seguir viendo la tienda sin sesión.</p>
+              <button type="button" onClick={onVisitante} className="mt-3 border border-gray-300 hover:bg-gray-100 px-3 py-1.5 rounded-lg font-semibold">
+                Seguir en la tienda como visitante
+              </button>
+            </>
+          )}
+        </div>
+      )}
       <form onSubmit={enviar} className="bg-superficie border border-gray-200 rounded-xl p-6 sm:p-8">
         <h1 className="text-xl font-bold mb-1">Iniciar sesión</h1>
         <p className="text-sm text-gray-600 mb-6">Bienvenido de nuevo a SerByTek.</p>
@@ -475,9 +602,14 @@ function Login({ onIngreso }) {
           className="w-full bg-superficie border border-gray-300 rounded-lg px-3 py-2 mb-4"
         />
 
-        <label htmlFor="login-password" className="block text-sm font-semibold text-gray-700 mb-1">
-          Contraseña
-        </label>
+        <div className="flex items-baseline justify-between gap-2 mb-1">
+          <label htmlFor="login-password" className="block text-sm font-semibold text-gray-700">
+            Contraseña
+          </label>
+          <button type="button" onClick={() => setRecuperando(true)} className="text-xs text-marca-700 font-semibold hover:underline">
+            ¿Olvidaste tu contraseña?
+          </button>
+        </div>
         <div className="mb-6">
           <CampoContrasena
             id="login-password"
@@ -514,6 +646,156 @@ function Login({ onIngreso }) {
             ))}
           </ul>
         </details>
+      </form>
+    </div>
+  );
+}
+
+/**
+ * Recuperacion de contrasena, paso 1 (RF-54): el usuario escribe su correo y
+ * recibe un enlace. La respuesta es la misma exista o no la cuenta, para no
+ * revelar que correos estan registrados.
+ */
+function RecuperarContrasena({ correoInicial, onVolver }) {
+  const [email, setEmail] = useState(correoInicial ?? '');
+  const [enviado, setEnviado] = useState(null);
+  const [error, setError] = useState(null);
+  const [cargando, setCargando] = useState(false);
+
+  const enviar = async (e) => {
+    e.preventDefault();
+    setCargando(true);
+    setError(null);
+    try {
+      const r = await api('/auth/recuperar', { metodo: 'POST', cuerpo: { email }, publica: true });
+      setEnviado(r.mensaje);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  return (
+    <div className="max-w-md mx-auto p-4 sm:p-6 mt-6 sm:mt-10">
+      <form onSubmit={enviar} className="bg-superficie border border-gray-200 rounded-xl p-6 sm:p-8">
+        <h1 className="text-xl font-bold mb-1">Recuperar la contraseña</h1>
+        <p className="text-sm text-gray-600 mb-6">
+          Escribe el correo de tu cuenta. Te enviaremos un enlace para crear una contraseña nueva.
+        </p>
+        <div role="status" aria-live="polite">
+          {enviado && (
+            <div className="mb-4 bg-green-50 border border-green-200 text-green-800 rounded-lg p-3 text-sm">
+              <p className="font-semibold">Revisa tu correo</p>
+              <p className="mt-1">{enviado}</p>
+            </div>
+          )}
+        </div>
+        {error && (
+          <div role="alert" className="mb-4 bg-red-50 border border-red-200 text-red-800 rounded-lg p-3 text-sm">
+            {error}
+          </div>
+        )}
+        <label htmlFor="recuperar-correo" className="block text-sm font-semibold text-gray-700 mb-1">
+          Correo
+        </label>
+        <input
+          id="recuperar-correo"
+          type="email"
+          autoComplete="email"
+          required
+          maxLength={150}
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="w-full bg-superficie border border-gray-300 rounded-lg px-3 py-2 mb-6"
+        />
+        <button type="submit" disabled={cargando} className="w-full btn-primario py-2.5">
+          {cargando ? 'Enviando...' : enviado ? 'Enviar otro enlace' : 'Enviar enlace'}
+        </button>
+        <p className="mt-4 text-sm text-center text-gray-600">
+          <button type="button" onClick={onVolver} className="text-marca-700 font-semibold hover:underline">
+            Volver a iniciar sesión
+          </button>
+        </p>
+      </form>
+    </div>
+  );
+}
+
+/**
+ * Recuperacion de contrasena, paso 2: se llega desde el enlace del correo
+ * (#restablecer=<token>). El enlace sirve una vez y vence a los 30 minutos;
+ * al cambiarla se cierran las sesiones abiertas de la cuenta.
+ */
+function RestablecerContrasena({ token, alTerminar }) {
+  const [password, setPassword] = useState('');
+  const [confirmacion, setConfirmacion] = useState('');
+  const [error, setError] = useState(null);
+  const [cargando, setCargando] = useState(false);
+
+  const enviar = async (e) => {
+    e.preventDefault();
+    setError(null);
+    if (password !== confirmacion) return setError('Las dos contraseñas no coinciden.');
+    setCargando(true);
+    try {
+      await api('/auth/restablecer', { metodo: 'POST', cuerpo: { token, password }, publica: true });
+      alTerminar(true);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  return (
+    <div className="max-w-md mx-auto p-4 sm:p-6 mt-6 sm:mt-10">
+      <form onSubmit={enviar} className="bg-superficie border border-gray-200 rounded-xl p-6 sm:p-8">
+        <h1 className="text-xl font-bold mb-1">Crea una contraseña nueva</h1>
+        <p className="text-sm text-gray-600 mb-6">
+          Debe tener al menos 8 caracteres. Al guardarla se cerrarán las sesiones abiertas de tu cuenta.
+        </p>
+        {error && (
+          <div role="alert" className="mb-4 bg-red-50 border border-red-200 text-red-800 rounded-lg p-3 text-sm">
+            {error}
+          </div>
+        )}
+        <label htmlFor="restablecer-password" className="block text-sm font-semibold text-gray-700 mb-1">
+          Contraseña nueva
+        </label>
+        <div className="mb-4">
+          <CampoContrasena
+            id="restablecer-password"
+            autoComplete="new-password"
+            required
+            minLength={8}
+            maxLength={128}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </div>
+        <label htmlFor="restablecer-confirmacion" className="block text-sm font-semibold text-gray-700 mb-1">
+          Repite la contraseña
+        </label>
+        <div className="mb-6">
+          <CampoContrasena
+            id="restablecer-confirmacion"
+            autoComplete="new-password"
+            required
+            minLength={8}
+            maxLength={128}
+            value={confirmacion}
+            onChange={(e) => setConfirmacion(e.target.value)}
+          />
+        </div>
+        <button type="submit" disabled={cargando || !token} className="w-full btn-primario py-2.5">
+          {cargando ? 'Guardando...' : 'Guardar contraseña'}
+        </button>
+        <p className="mt-4 text-sm text-center text-gray-600">
+          <button type="button" onClick={() => alTerminar(false)} className="text-marca-700 font-semibold hover:underline">
+            Cancelar e ir a iniciar sesión
+          </button>
+        </p>
       </form>
     </div>
   );

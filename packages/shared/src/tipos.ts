@@ -53,7 +53,9 @@ export const Eventos = {
   // Consultas al vendedor desde el asistente (RF-53).
   CONSULTA_NUEVA: 'asistente.consulta_nueva',
   CONSULTA_MENSAJE_CLIENTE: 'asistente.consulta_mensaje',
-  CONSULTA_RESPONDIDA: 'asistente.consulta_respondida'
+  CONSULTA_RESPONDIDA: 'asistente.consulta_respondida',
+  // Recuperacion de contrasena desde el inicio de sesion (RF-54).
+  RECUPERACION_SOLICITADA: 'auth.recuperacion_solicitada'
 } as const;
 
 export type NombreEvento = (typeof Eventos)[keyof typeof Eventos];

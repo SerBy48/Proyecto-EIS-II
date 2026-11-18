@@ -49,6 +49,7 @@ La columna **Rol** usa: *pública* (sin sesión), *sesión* (cualquier usuario a
 | RF-06 | Crear usuarios internos (vendedor, administrador) | `POST /api/auth/usuarios` | administrador |
 | RF-38 F5b | Eliminar la propia cuenta confirmando la contraseña: se rechaza si hay pedidos creados, pagados, en preparación o enviados; si procede, se **anonimiza** (perfil sin datos personales ni direcciones, cuenta inactiva, sesiones revocadas) y los pedidos se conservan sin datos personales | `DELETE /api/auth/cuenta` | cliente |
 | RF-39 F5b | Listar usuarios, cambiar el rol de una cuenta interna (vendedor ↔ administrador) y activarla o desactivarla, revocando sus sesiones; nadie se cambia ni se desactiva a sí mismo | `GET /api/auth/usuarios`, `PATCH /api/auth/usuarios/:id` | administrador |
+| RF-54 F5d | Recuperar la contraseña desde el inicio de sesión: el usuario escribe su correo y recibe un enlace de un solo uso que vence en 30 minutos; la respuesta es la misma exista o no la cuenta; al crear la nueva se desbloquea la cuenta y se cierran todas sus sesiones. El enlace va solo en el correo: ni auth_db (guarda su hash) ni notificaciones lo guardan | `POST /api/auth/recuperar`, `POST /api/auth/restablecer` | pública |
 
 ### Clientes (`clientes-service`)
 
@@ -121,6 +122,7 @@ La columna **Rol** usa: *pública* (sin sesión), *sesión* (cualquier usuario a
 | RF-33 | Consultar los mensajes propios | `GET /api/notificaciones/mensajes` | sesión |
 | RF-34 | Editar las plantillas de notificación | `GET`, `PATCH /api/notificaciones/plantillas*` | administrador |
 | RF-52 F5c | Campana de notificaciones junto al perfil: contador de no leídas que se actualiza cada 30 s y al volver a la pestaña, últimas 10 notificaciones, marcar como leídas (por persona) y abrir el pedido, la consulta o el inventario; el personal ve además el buzón de operaciones | `GET /api/notificaciones/bandeja`, `POST /api/notificaciones/bandeja/leidas` | sesión |
+| RF-55 F5d | Vista completa de notificaciones («Ver todas» en la campana): paginada, filtro de no leídas, marcar una o todas, y cada notificación abre su destino; una consulta se abre con el cursor en la respuesta y un pedido con su detalle. El cliente la tiene en Mi perfil > Notificaciones; el personal, en la pestaña Notificaciones (el administrador también ve el registro de envíos) | `GET /api/notificaciones/bandeja?pagina=&solo_no_leidas=` | sesión |
 | RF-35 🆕 | Enviar los correos por SMTP real (Mailpit); un fallo de SMTP se reintenta y termina en la DLQ, nunca se pierde | adaptador `CanalCorreo` | sistema |
 
 ### Plataforma y documentación
@@ -138,6 +140,10 @@ La columna **Rol** usa: *pública* (sin sesión), *sesión* (cualquier usuario a
 | RF-44 F5b | Tema claro u oscuro, que sigue al sistema operativo y recuerda la elección | cabecera de la web | pública |
 | RF-45 F5b | Mostrar u ocultar la contraseña con un botón accesible en el inicio de sesión, el registro y la eliminación de la cuenta | formularios | pública |
 | RF-46 F5b | Si el servidor rechaza la sesión guardada, la web vuelve al modo visitante y lo avisa; el catálogo y el chat siguen respondiendo (H-F5-02) | `servicios/api.js` | pública |
+| RF-56 F5d | Cerrar sesión con una pantalla breve de salida que lleva al inicio de sesión con el aviso «Cerraste sesión.» y la opción de seguir en la tienda como visitante | cabecera de la web | sesión |
+| RF-57 F5d | La salud del sistema es solo del administrador y explica cada servicio: qué hace, el impacto en la tienda si cae y los pasos de recuperación (registros, reinicio, dependencias), además de una guía para leer la vista | panel > Salud del sistema (`GET /api/health`) | administrador |
+| RF-58 F5d | Detalle del pedido en el panel con la línea de tiempo de sus estados (fecha y hora de cada cambio), los productos y la dirección, y filtro por estado; reemplaza en la interfaz la bitácora técnica de la saga (RF-29 sigue en la API) | `GET /api/pedidos/:id` (historial) | administrador, vendedor |
+| RF-59 F5d | El personal ve el catálogo como una vista previa de lo que ve el cliente, con un aviso y los botones de compra desactivados; las alertas de reposición y el historial de entradas muestran el nombre del producto junto al SKU | `GET /api/catalogo/productos?skus=` | administrador, vendedor |
 
 ### Asistente virtual (`asistente-service`, Fase 3) 🆕
 

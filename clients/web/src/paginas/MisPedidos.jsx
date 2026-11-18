@@ -107,7 +107,7 @@ function CambiarDireccion({ usuario, pedido, alCambiar }) {
 }
 
 /** Historial de pedidos del cliente, con su ciclo de vida y cancelacion. */
-export default function MisPedidos({ usuario }) {
+export default function MisPedidos({ usuario, pedidoInicial }) {
   const [pedidos, setPedidos] = useState([]);
   const [detalle, setDetalle] = useState(null);
   const [cargando, setCargando] = useState(true);
@@ -134,6 +134,8 @@ export default function MisPedidos({ usuario }) {
 
   useEffect(() => {
     cargar();
+    // Desde una notificacion: se abre el detalle del pedido (por su numero).
+    if (pedidoInicial) verDetalle(encodeURIComponent(pedidoInicial));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

@@ -1,0 +1,98 @@
+{
+  "fecha": "2026-11-18T22:29:51.280Z",
+  "web": "http://localhost:8081",
+  "estandar": "WCAG 2.2 A y AA",
+  "total": 0,
+  "resultados": [
+    {
+      "tema": "claro",
+      "pantalla": "Salud del sistema (con \"qué hacer\" abierto)",
+      "violaciones": []
+    },
+    {
+      "tema": "claro",
+      "pantalla": "Pedidos con el detalle y el historial de estados",
+      "violaciones": []
+    },
+    {
+      "tema": "claro",
+      "pantalla": "Notificaciones del personal (bandeja)",
+      "violaciones": []
+    },
+    {
+      "tema": "claro",
+      "pantalla": "Registro de envíos (administrador)",
+      "violaciones": []
+    },
+    {
+      "tema": "claro",
+      "pantalla": "Catálogo en vista previa (vendedor)",
+      "violaciones": []
+    },
+    {
+      "tema": "claro",
+      "pantalla": "Mi perfil > Notificaciones",
+      "violaciones": []
+    },
+    {
+      "tema": "claro",
+      "pantalla": "Inicio de sesión después de salir",
+      "violaciones": []
+    },
+    {
+      "tema": "claro",
+      "pantalla": "Recuperar la contraseña",
+      "violaciones": []
+    },
+    {
+      "tema": "claro",
+      "pantalla": "Crear la contraseña nueva",
+      "violaciones": []
+    },
+    {
+      "tema": "oscuro",
+      "pantalla": "Salud del sistema (con \"qué hacer\" abierto)",
+      "violaciones": []
+    },
+    {
+      "tema": "oscuro",
+      "pantalla": "Pedidos con el detalle y el historial de estados",
+      "violaciones": []
+    },
+    {
+      "tema": "oscuro",
+      "pantalla": "Notificaciones del personal (bandeja)",
+      "violaciones": []
+    },
+    {
+      "tema": "oscuro",
+      "pantalla": "Registro de envíos (administrador)",
+      "violaciones": []
+    },
+    {
+      "tema": "oscuro",
+      "pantalla": "Catálogo en vista previa (vendedor)",
+      "violaciones": []
+    },
+    {
+      "tema": "oscuro",
+      "pantalla": "Mi perfil > Notificaciones",
+      "violaciones": []
+    },
+    {
+      "tema": "oscuro",
+      "pantalla": "Inicio de sesión después de salir",
+      "violaciones": []
+    },
+    {
+      "tema": "oscuro",
+      "pantalla": "Recuperar la contraseña",
+      "violaciones": []
+    },
+    {
+      "tema": "oscuro",
+      "pantalla": "Crear la contraseña nueva",
+      "violaciones": []
+    }
+  ]
+}

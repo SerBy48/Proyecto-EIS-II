@@ -16,11 +16,45 @@ export default function Inventario() {
   const [entradas, setEntradas] = useState([]);
   const [filtroSku, setFiltroSku] = useState('');
   const [error, setError] = useState(null);
+  // Nombre de cada SKU: inventario guarda solo el SKU; el nombre lo tiene el catalogo.
+  const [nombres, setNombres] = useState({});
 
-  const cargarAlertas = () => api('/inventario/alertas').then(setAlertas).catch((e) => setError(e.message));
+  const completarNombres = async (filas) => {
+    const faltantes = [...new Set(filas.map((f) => f.sku))].filter((sku) => !(sku in nombres)).slice(0, 100);
+    if (!faltantes.length) return;
+    try {
+      const r = await api(`/catalogo/productos?skus=${encodeURIComponent(faltantes.join(','))}&incluir_inactivos=true&limite=100`);
+      const nuevos = Object.fromEntries(faltantes.map((sku) => [sku, null]));
+      for (const p of r.productos ?? []) nuevos[p.sku] = p.nombre;
+      setNombres((n) => ({ ...n, ...nuevos }));
+    } catch {
+      // Sin catalogo se sigue mostrando el SKU.
+    }
+  };
+
+  const cargarAlertas = () =>
+    api('/inventario/alertas')
+      .then((filas) => {
+        setAlertas(filas);
+        completarNombres(filas);
+      })
+      .catch((e) => setError(e.message));
   const cargarProveedores = () => api('/inventario/proveedores?todos=true').then(setProveedores).catch((e) => setError(e.message));
   const cargarEntradas = (sku = filtroSku) =>
-    api(`/inventario/entradas${sku ? `?sku=${encodeURIComponent(sku)}` : ''}`).then(setEntradas).catch((e) => setError(e.message));
+    api(`/inventario/entradas${sku ? `?sku=${encodeURIComponent(sku)}` : ''}`)
+      .then((filas) => {
+        setEntradas(filas);
+        completarNombres(filas);
+      })
+      .catch((e) => setError(e.message));
+
+  /** Nombre del producto con su SKU debajo (el SKU sigue siendo la referencia exacta). */
+  const producto = (sku) => (
+    <>
+      <span className="block font-semibold text-gray-900">{nombres[sku] ?? (sku in nombres ? 'Producto sin ficha en el catálogo' : '…')}</span>
+      <span className="block font-mono text-xs text-gray-500">{sku}</span>
+    </>
+  );
 
   useEffect(() => {
     cargarAlertas();
@@ -43,7 +77,7 @@ export default function Inventario() {
             <table className="min-w-full text-sm">
               <thead className="bg-gray-50 text-xs uppercase text-gray-500 text-left">
                 <tr>
-                  <th className="px-4 py-2">SKU</th>
+                  <th className="px-4 py-2">Producto</th>
                   <th className="px-4 py-2">Bodega</th>
                   <th className="px-4 py-2">Disponible</th>
                   <th className="px-4 py-2">Mínimo</th>
@@ -52,7 +86,7 @@ export default function Inventario() {
               <tbody className="divide-y">
                 {alertas.map((a, i) => (
                   <tr key={i} className={a.cantidad_disponible === 0 ? 'bg-red-50' : ''}>
-                    <td className="px-4 py-2 font-mono text-xs">{a.sku}</td>
+                    <td className="px-4 py-2 text-sm">{producto(a.sku)}</td>
                     <td className="px-4 py-2">{a.bodega}</td>
                     <td className="px-4 py-2 font-semibold">{a.cantidad_disponible}</td>
                     <td className="px-4 py-2 text-gray-500">{a.stock_minimo}</td>
@@ -121,7 +155,7 @@ export default function Inventario() {
             <thead className="bg-gray-50 text-xs uppercase text-gray-500 text-left">
               <tr>
                 <th className="px-3 py-2">Fecha</th>
-                <th className="px-3 py-2">SKU</th>
+                <th className="px-3 py-2">Producto</th>
                 <th className="px-3 py-2 text-right">Cantidad</th>
                 <th className="px-3 py-2">Proveedor</th>
                 <th className="px-3 py-2 text-right">Costo unitario</th>
@@ -133,9 +167,9 @@ export default function Inventario() {
               {entradas.map((e) => (
                 <tr key={e.id}>
                   <td className="px-3 py-2 whitespace-nowrap">{new Date(e.creado_en).toLocaleString('es-CO')}</td>
-                  <td className="px-3 py-2 font-mono text-xs">
-                    {e.sku}
-                    <span className="block text-gray-500 font-sans">{e.bodega}</span>
+                  <td className="px-3 py-2">
+                    {producto(e.sku)}
+                    <span className="block text-xs text-gray-500">{e.bodega}</span>
                   </td>
                   <td className="px-3 py-2 text-right font-semibold">{e.cantidad}</td>
                   <td className="px-3 py-2">

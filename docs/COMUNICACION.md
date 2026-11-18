@@ -125,8 +125,10 @@ graph LR
     PED["pedidos"] -->|"pedido.confirmado<br/>pedido.cancelado"| EX{{"exchange topic<br/>ecommerce.eventos"}}
     INV["inventario"] -->|"inventario.stock_minimo<br/>inventario.reserva_expirada"| EX
     PAG["pagos"] -->|"pago.aprobado<br/>pago.rechazado"| EX
+    ASI["asistente"] -->|"asistente.escalamiento<br/>asistente.consulta_*"| EX
+    AUT["auth"] -->|"auth.recuperacion_solicitada"| EX
 
-    EX -->|"pedido.*<br/>pago.rechazado<br/>inventario.*"| Q1["notificaciones.envio"]
+    EX -->|"pedido.*<br/>pago.rechazado<br/>inventario.stock_minimo<br/>asistente.*<br/>auth.recuperacion_solicitada"| Q1["notificaciones.envio"]
     EX -->|"pedido.confirmado<br/>pedido.cancelado"| Q2["clientes.historial"]
 
     Q1 --> N["notificaciones"]
@@ -171,10 +173,15 @@ confirmada y cobrada.
 |---|---|---|---|
 | `pedido.confirmado` | pedidos | notificaciones, clientes | Correo de confirmación; actualiza el historial |
 | `pedido.cancelado` | pedidos | notificaciones, clientes | Correo de cancelación; actualiza el historial |
+| `pedido.direccion_cambiada` | pedidos | notificaciones | Correo con la dirección nueva (F5b) |
 | `pago.aprobado` | pagos | — | Disponible para facturación y analítica |
 | `pago.rechazado` | pagos | notificaciones | Aviso al cliente |
 | `inventario.stock_minimo` | inventario | notificaciones | Alerta de reposición a operaciones |
 | `inventario.reserva_expirada` | inventario | — | Trazabilidad de reservas devueltas |
+| `asistente.escalamiento` | asistente | notificaciones | Ticket de un visitante al buzón de operaciones |
+| `asistente.consulta_nueva`, `asistente.consulta_mensaje` | asistente | notificaciones | Consulta del cliente al buzón de operaciones (campana y correo del personal, F5c) |
+| `asistente.consulta_respondida` | asistente | notificaciones | Respuesta del vendedor a la campana y al correo del cliente (F5c) |
+| `auth.recuperacion_solicitada` | auth | notificaciones | Correo con el enlace para restablecer la contraseña (F5d). El campo `enlace` va en `secretos`: notificaciones lo envía pero no lo guarda |
 | `carrito.abandonado` | — (declarado; ningún servicio lo publica aún) | notificaciones | Punto de extensión: recordatorio al cliente cuando se implemente la detección de carritos inactivos |
 
 Los eventos sin consumidor están declarados a propósito: muestran los puntos de

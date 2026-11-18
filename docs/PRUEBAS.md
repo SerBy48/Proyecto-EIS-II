@@ -1055,6 +1055,54 @@ Desde volúmenes vacíos (`docker compose down -v`), con las imágenes reconstru
 
 **App móvil.** Las fotos se cargan con `Image.network` desde el gateway (`Config.gateway` + `/api/catalogo/imagenes/...`), con un recuadro mientras cargan y el ícono de antes si fallan. `flutter analyze` pasa, pero no se probó en un emulador ni en un teléfono: ⚠️ PENDIENTE: verificación manual en un dispositivo.
 
+### 4.42 Ajustes de la revisión manual (F5d)
+
+La revisión manual del aplicativo, tras fusionar F5c, dejó estos ajustes:
+- **Datos viejos de las pruebas:** cuentas, productos y notificaciones de prueba visibles en la tienda. Se limpiaron recreando los volúmenes.
+- **Notificaciones:** «Ver todas» y abrir una consulta lista para responder.
+- **Pedidos:** detalle con fecha y hora de cada cambio de estado, en lugar de la bitácora de la saga.
+- **Catálogo:** vista previa para el personal.
+- **Inventario:** nombres de producto en la reposición.
+- **Salud del sistema:** solo para el administrador, con medidas correctivas.
+- **Contraseña:** recuperación por enlace de correo.
+- **Cierre de sesión:** pantalla de salida y opción de seguir como visitante.
+
+Son los requisitos RF-54 a RF-59, los criterios CA-24 a CA-27 y el CA-12 actualizado.
+
+**Corrida.** Desde volúmenes vacíos (`docker compose down -v`), con las imágenes reconstruidas: 16/16 contenedores sanos en 230 s. Como en F5b y F5c, notificaciones arrancó *unhealthy* mientras RabbitMQ terminaba de iniciar y se recuperó solo.
+
+| Suite | Resultado | Evidencia (`regresion-f5d/`) |
+|---|---|---|
+| `typecheck` | sin errores | `typecheck.txt` |
+| `test:unit` | 160/160 (6 nuevas: tabla `restablecimientos_contrasena` en Drizzle y el enlace de recuperación fuera de lo guardado, `secretos.test.ts`) | `test-unit.txt` |
+| `test:openapi` | 517/517 (86 rutas; nuevas: `recuperar`, `restablecer`; parámetros `pagina`, `solo_no_leidas` y `skus`) | `test-openapi.txt` |
+| Lint de OpenAPI (Redocly) | válido | `docs-openapi.txt` |
+| `build:web` y `build:web:pruebas` | compilan | `build-web.txt`, `build-web-pruebas.txt` |
+| `auditar:dependencias` | 0 avisos altos o críticos sin aceptar | `auditar-dependencias.txt` |
+| `test:salud` | 10/10 servicios | `test-salud.txt` |
+| `test:http` | 73/73 | `test-http.txt` |
+| `test:concurrencia` | 33/33 | `test-concurrencia.txt` |
+| `test:e2e` | 53/53 | `test-e2e.txt` |
+| `test:seguridad` | 26 seguras (1 nueva: V-27 recuperación de contraseña) y 1 hallazgo aceptado (V-13 / S-09) | `test-seguridad.txt` |
+| **`test:e2e:ui`** | **27/27 criterios** (4 nuevos: CA-24 a CA-27; CA-12 cambia la bitácora por el historial de estados) | `test-e2e-ui.txt`, `trabajo-final/e2e-ui/` |
+| axe F5c y F5d (`tests/usabilidad/axe-f5c.ts`, `axe-f5d.ts`), temas claro y oscuro | 20 + 18 pantallas, 0 reglas WCAG incumplidas | `axe-f5c.txt`, `axe-f5d.txt`, `axe-f5d.json` |
+| Capturas del manual (`scripts/capturas/manual-usuario.ts`) | regeneradas; `13b-admin-bitacora.png` pasa a `13b-admin-detalle-pedido.png` | `capturas-manual.txt` |
+| `test:asistente` | 56/56 con `ASISTENTE_PROBAR_DEGRADACION=1` | `test-asistente.txt` |
+
+**Recuperación de contraseña, en el sistema real.**
+- **El correo llega a Mailpit:** con el enlace como vínculo en el HTML y como texto en la versión plana.
+- **La copia guardada en `notificaciones_db`** dice «[enlace enviado solo al correo]» en `texto`, `cuerpo` y `datos_evento`.
+- **Lo que cubren las pruebas:** CA-24 recorre el flujo por la interfaz y V-27 verifica los controles (`SEGURIDAD.md` 12).
+
+**`test:asistente` y el límite del chat.** La suite termina agotando a propósito el límite de 30 mensajes por minuto (sección 8). Al repetirla dentro del mismo minuto, la segunda corrida falla con `LIMITE_ASISTENTE` en las comprobaciones que van después. No es un defecto: hay que esperar un minuto entre corridas. Quedó anotado en el manual técnico.
+
+**Datos de prueba en la tienda.** Las suites crean cuentas (`ca13-…`, `vendedor-…`), productos (`SKU-CA19-…`, desactivados al final) y notificaciones con nombres únicos.
+- **Lo que se veía en la tienda:** después de varias corridas, el panel mostraba 7 vendedores de prueba desactivados, 32 productos de prueba inactivos y 146 notificaciones. Entre los productos estaban los 3 de $1.000 de la verificación de XSS, cuyo nombre es una etiqueta `<img>`.
+- **Qué se hizo:** al terminar la regresión se recrearon los volúmenes (`down -v` y `up`), así que la tienda queda solo con la semilla.
+- **Antes de una demostración:** el manual técnico (10.3) indica volver a la semilla igual.
+
+**App móvil.** No cambia en F5d. La recuperación de contraseña se hace desde la web; el enlace del correo abre la web.
+
 ---
 
 ## 5. Lo que queda por probar

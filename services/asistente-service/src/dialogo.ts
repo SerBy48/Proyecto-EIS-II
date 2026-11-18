@@ -283,7 +283,8 @@ const listaDeProductos = (h: Hallazgo): Respuesta[] => {
 
 const OPCIONES_FAQ: Record<string, (ctx: Contexto) => Opcion[]> = {
   faq_horario: () => [ASESOR],
-  faq_contrasena: () => [ASESOR],
+  // F5d (RF-54): la recuperacion la hace el propio usuario desde el inicio de sesion.
+  faq_contrasena: (ctx) => (ctx.usuario ? [ASESOR] : [{ etiqueta: 'Ir a iniciar sesión', accion: 'iniciar_sesion' }, ASESOR]),
   faq_factura: () => [ASESOR],
   faq_cuenta: (ctx) => (ctx.usuario ? [] : [{ etiqueta: 'Crear cuenta', accion: 'iniciar_sesion' }]),
   faq_direccion: (ctx) => (ctx.usuario ? [{ etiqueta: 'Ir a mi perfil', accion: 'ir_perfil' }, { etiqueta: 'Mis pedidos', accion: 'ir_pedidos' }] : [{ etiqueta: 'Iniciar sesión', accion: 'iniciar_sesion' }]),

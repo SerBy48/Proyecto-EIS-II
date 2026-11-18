@@ -105,6 +105,70 @@ renovar:
       '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
       '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
 
+recuperar:
+  post:
+    tags: [auth]
+    summary: Pedir un enlace para restablecer la contrasena (RF-54)
+    description: >-
+      Si el correo es de una cuenta activa, crea un enlace de un solo uso que vence en 30 minutos y lo envia
+      por correo (evento auth.recuperacion_solicitada). La respuesta es la misma exista o no la cuenta, para
+      no permitir enumerar correos. Limite de 5 solicitudes por IP cada 15 minutos (gateway) y 3 por cuenta.
+    operationId: solicitarRecuperacion
+    security: []
+    x-roles: [publica]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [email]
+            properties:
+              email: { type: string, format: email, maxLength: 150 }
+    responses:
+      '202':
+        description: Solicitud recibida (mismo mensaje exista o no la cuenta).
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mensaje: { type: string }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+      '429': { $ref: '../componentes/respuestas.yaml#/LimiteExcedido' }
+
+restablecer:
+  post:
+    tags: [auth]
+    summary: Crear la contrasena nueva con el enlace del correo (RF-54)
+    description: >-
+      Consume el enlace (una sola vez), cambia la contrasena, desbloquea la cuenta y revoca todas sus
+      sesiones. Un enlace usado, vencido o inexistente responde 400 ENLACE_INVALIDO.
+    operationId: restablecerContrasena
+    security: []
+    x-roles: [publica]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [token, password]
+            properties:
+              token: { type: string, pattern: '^[a-f0-9]{64}$', description: 'El que trae el enlace (#restablecer=...).' }
+              password: { type: string, minLength: 8, maxLength: 128 }
+    responses:
+      '200':
+        description: Contrasena actualizada.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mensaje: { type: string }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+      '429': { $ref: '../componentes/respuestas.yaml#/LimiteExcedido' }
+
 logout:
   post:
     tags: [auth]

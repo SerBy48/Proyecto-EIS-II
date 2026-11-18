@@ -1,0 +1,37 @@
+
+> ecommerce-distribuido@1.0.0 test:salud
+> tsx --env-file-if-exists=.env tests/salud.ts
+
+
+[36mSalud del sistema[0m  [90mhttp://localhost:8080[0m
+
+  [32mOK  [0m auth             [90mok[0m
+         [90m└─ postgres:auth_db    [0m [32mconectado[0m
+         [90m└─ rabbitmq            [0m [32mconectado[0m
+  [32mOK  [0m clientes         [90mok[0m
+         [90m└─ postgres:clientes_db[0m [32mconectado[0m
+         [90m└─ rabbitmq            [0m [32mconectado[0m
+  [32mOK  [0m catalogo         [90mok[0m
+         [90m└─ mongo:catalogo_db   [0m [32mconectado[0m
+  [32mOK  [0m inventario       [90mok[0m
+         [90m└─ postgres:inventario_db[0m [32mconectado[0m
+         [90m└─ rabbitmq            [0m [32mconectado[0m
+  [32mOK  [0m carrito          [90mok[0m
+         [90m└─ redis               [0m [32mconectado[0m
+  [32mOK  [0m pedidos          [90mok[0m
+         [90m└─ postgres:pedidos_db [0m [32mconectado[0m
+         [90m└─ rabbitmq            [0m [32mconectado[0m
+  [32mOK  [0m pagos            [90mok[0m
+         [90m└─ postgres:pagos_db   [0m [32mconectado[0m
+         [90m└─ rabbitmq            [0m [32mconectado[0m
+  [32mOK  [0m notificaciones   [90mok[0m
+         [90m└─ mongo:notificaciones_db[0m [32mconectado[0m
+         [90m└─ rabbitmq            [0m [32mconectado[0m
+         [90m└─ correo              [0m [32mconectado[0m
+  [32mOK  [0m asistente        [90mok[0m
+         [90m└─ mongo:asistente_db  [0m [32mconectado[0m
+         [90m└─ rabbitmq            [0m [32mconectado[0m
+
+[32mLos 10 servicios (gateway incluido) responden. El sistema esta listo.[0m
+[90mSiguiente paso: npm run test:e2e[0m
+

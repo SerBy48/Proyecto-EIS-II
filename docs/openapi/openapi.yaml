@@ -46,6 +46,8 @@ paths:
   /api/auth/registro: { $ref: 'rutas/auth.yaml#/registro' }
   /api/auth/login: { $ref: 'rutas/auth.yaml#/login' }
   /api/auth/renovar: { $ref: 'rutas/auth.yaml#/renovar' }
+  /api/auth/recuperar: { $ref: 'rutas/auth.yaml#/recuperar' }
+  /api/auth/restablecer: { $ref: 'rutas/auth.yaml#/restablecer' }
   /api/auth/logout: { $ref: 'rutas/auth.yaml#/logout' }
   /api/auth/perfil: { $ref: 'rutas/auth.yaml#/perfil' }
   /api/auth/verificar: { $ref: 'rutas/auth.yaml#/verificar' }

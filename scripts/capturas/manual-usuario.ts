@@ -166,19 +166,20 @@ const principal = async (): Promise<void> => {
   p = await nuevaPagina();
   await entrar(p, 'admin@tienda.co');
   await p.getByRole('navigation', { name: 'Secciones de administración' }).waitFor();
-  await p.getByText(/auth/i).first().waitFor();
+  await p.getByRole('heading', { name: 'Cómo leer esta vista' }).waitFor();
   await foto(p, '12-admin-salud', true);
   await p.getByRole('button', { name: 'Pedidos', exact: true }).click();
   await p.getByRole('heading', { name: 'Pedidos del sistema' }).waitFor();
-  await p.getByRole('button', { name: new RegExp(`Bitácora de la saga del pedido ${numero}`) }).click();
-  const bitacora = p.getByRole('region', { name: new RegExp(`Bitácora de la saga del pedido ${numero}`) });
-  await bitacora.getByText('validar_cliente').first().waitFor();
-  // La tabla tiene todos los pedidos de las pruebas: se recortan la cabecera y la bitacora.
+  // F5d: el detalle del pedido con la linea de tiempo de sus estados.
+  await p.getByRole('button', { name: new RegExp(`Detalle del pedido ${numero}`) }).click();
+  const detalle = p.getByRole('region', { name: `Pedido ${numero}` });
+  await detalle.getByText('Historial de estados').waitFor();
+  // La tabla tiene todos los pedidos de las pruebas: se recortan la cabecera y el detalle.
   await foto(p, '13a-admin-pedidos');
-  await bitacora.screenshot({ path: path.join(SALIDA, '13b-admin-bitacora.png') });
-  console.log('  13b-admin-bitacora.png');
-  await p.getByRole('button', { name: 'Notificaciones', exact: true }).click();
-  await p.getByRole('heading', { name: 'Mensajes enviados' }).waitFor();
+  await detalle.screenshot({ path: path.join(SALIDA, '13b-admin-detalle-pedido.png') });
+  console.log('  13b-admin-detalle-pedido.png');
+  await p.getByRole('navigation', { name: 'Secciones de administración' }).getByRole('button', { name: 'Notificaciones', exact: true }).click();
+  await p.getByRole('heading', { name: /^Notificaciones/ }).waitFor();
   await foto(p, '14-admin-notificaciones');
   await p.getByRole('navigation', { name: 'Secciones de administración' }).getByRole('button', { name: 'Usuarios' }).click();
   await p.getByRole('heading', { name: 'Crear cuenta interna' }).waitFor();
