@@ -29,6 +29,8 @@ x-servicio-base: &servicio-base
     JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?Defina JWT_REFRESH_SECRET en .env (openssl rand -hex 32)}
     INTERNAL_TOKEN: ${INTERNAL_TOKEN:?Defina INTERNAL_TOKEN en .env (openssl rand -hex 32)}
     RABBITMQ_URL: amqp://ecommerce:ecommerce@rabbitmq:5672
+    # Limite por cliente (RF-47): unidades que cada cliente deja para los demas.
+    STOCK_RESERVA_CLIENTE: ${STOCK_RESERVA_CLIENTE:-5}
 
 services:
   # ------------------------------------------------------------- datos ------
@@ -321,6 +323,7 @@ services:
       LIMITE_LOGIN: ${LIMITE_LOGIN:-10}
       LIMITE_CHECKOUT: ${LIMITE_CHECKOUT:-10}
       LIMITE_ASISTENTE: ${LIMITE_ASISTENTE:-30}
+      LIMITE_IMAGENES: ${LIMITE_IMAGENES:-1500}
       PROXY_TIMEOUT_MS: ${PROXY_TIMEOUT_MS:-15000}
       EXPONER_DOCS: ${EXPONER_DOCS:-true}
     ports:

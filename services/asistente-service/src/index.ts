@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { Application, Router } from 'express';
 import { BusEventos, asincrono, crearServicio, requiereRol } from '@ecommerce/shared';
 import { metricasAdaptadores } from './adaptadores';
+import { crearControladorConsultas } from './consultas';
 import { crearControlador, identidadOpcional } from './controlador';
 import { cliente, conectarMongo, verificarMongo } from './db';
 import { iaActiva } from './ia';
@@ -16,6 +17,7 @@ import { iaActiva } from './ia';
  */
 const bus = new BusEventos('asistente-service');
 const controlador = crearControlador(bus);
+const consultas = crearControladorConsultas(bus);
 
 const rutas = (app: Application): void => {
   const router = Router();
@@ -25,6 +27,14 @@ const rutas = (app: Application): void => {
 
   router.get('/conversaciones/:id', requiereRol(), asincrono(controlador.obtenerConversacion));
   router.get('/tickets', requiereRol('administrador', 'vendedor'), asincrono(controlador.listarTickets));
+
+  // Consultas al vendedor (RF-53): el cliente las crea desde el chat; el
+  // personal responde desde el panel. Autorizacion por dato en el controlador.
+  router.post('/consultas', requiereRol('cliente'), asincrono(consultas.crearConsulta));
+  router.get('/consultas', requiereRol('cliente', 'administrador', 'vendedor'), asincrono(consultas.listarConsultas));
+  router.get('/consultas/:numero', requiereRol('cliente', 'administrador', 'vendedor'), asincrono(consultas.obtenerConsulta));
+  router.post('/consultas/:numero/mensajes', requiereRol('cliente', 'administrador', 'vendedor'), asincrono(consultas.responderConsulta));
+  router.patch('/consultas/:numero', requiereRol('administrador', 'vendedor'), asincrono(consultas.cambiarEstadoConsulta));
 
   // Edicion de las reglas sin desplegar.
   router.get('/intenciones', requiereRol('administrador'), asincrono(controlador.listarIntenciones));

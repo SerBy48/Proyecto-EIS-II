@@ -94,3 +94,45 @@ plantilla:
       '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
       '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
       '404': { $ref: '../componentes/respuestas.yaml#/NoEncontrado' }
+
+bandeja:
+  get:
+    tags: [notificaciones]
+    summary: Bandeja de la campana de la web
+    description: |
+      RF-52: las ultimas notificaciones de quien consulta y cuantas no ha leido. El personal ve ademas el
+      buzon de operaciones (alertas de reposicion y consultas de clientes); "leida" se guarda por persona.
+    operationId: verBandeja
+    x-roles: [sesion]
+    parameters:
+      - { name: limite, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 10 } }
+    responses:
+      '200':
+        description: Bandeja.
+        content:
+          application/json:
+            schema: { $ref: '../componentes/esquemas.yaml#/Bandeja' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+
+bandejaLeidas:
+  post:
+    tags: [notificaciones]
+    summary: Marcar notificaciones como leidas
+    description: Sin ids marca todas. Solo afecta las propias (y las del buzon de operaciones para el personal).
+    operationId: marcarLeidas
+    x-roles: [sesion]
+    requestBody:
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              ids: { type: array, maxItems: 100, items: { type: string, pattern: '^[a-f0-9]{24}$' } }
+    responses:
+      '200':
+        description: Cuantas se marcaron.
+        content:
+          application/json:
+            schema: { type: object, properties: { marcadas: { type: integer } } }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }

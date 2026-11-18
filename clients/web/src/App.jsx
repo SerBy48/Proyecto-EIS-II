@@ -7,6 +7,7 @@ import MisPedidos from './paginas/MisPedidos.jsx';
 import Perfil from './paginas/Perfil.jsx';
 import Admin from './paginas/Admin.jsx';
 import Asistente from './componentes/Asistente.jsx';
+import Campana from './componentes/Campana.jsx';
 import CampoContrasena from './componentes/CampoContrasena.jsx';
 import { CamposDireccion, DIRECCION_VACIA, limpiarDireccion } from './componentes/FormularioDireccion.jsx';
 
@@ -73,6 +74,8 @@ export default function App() {
   const [filtrosCatalogo, setFiltrosCatalogo] = useState({ clave: 0, filtros: undefined });
   const [carrito, setCarrito] = useState(null);
   const [aviso, setAviso] = useState(null);
+  // Pestaña con la que se abre el panel o la seccion del perfil (desde la campana).
+  const [destinoInterno, setDestinoInterno] = useState({ clave: 0, pestana: undefined });
   const temporizadorAviso = useRef(null);
 
   const esCliente = usuario?.rol === 'cliente';
@@ -115,6 +118,23 @@ export default function App() {
   const agregarAlCarrito = async (sku) => {
     if (!usuario?.cliente_id) return;
     try {
+      // RF-47: antes de agregar, cuanto puede llevar este cliente (deja 5 para
+      // los demas y cuenta sus pedidos en curso). Si ya tiene el maximo en el
+      // carrito, se le dice aqui y no al pagar.
+      const enCarrito = carrito?.items?.find((i) => i.sku === sku)?.cantidad ?? 0;
+      const limite = await api(`/pedidos/limites?skus=${encodeURIComponent(sku)}`)
+        .then((r) => r.limites?.[0])
+        .catch(() => null);
+      if (limite && limite.disponible > 0 && enCarrito + 1 > limite.puede_agregar) {
+        const nombre = carrito?.items?.find((i) => i.sku === sku)?.nombre ?? 'este producto';
+        mostrarAviso({
+          tipo: 'error',
+          texto: limite.puede_agregar
+            ? `Puedes llevar máximo ${limite.puede_agregar} de ${nombre}${limite.en_curso ? ` (ya tienes ${limite.en_curso} en pedidos en curso)` : ''}.`
+            : `Ya alcanzaste el máximo de ${nombre} por cliente${limite.en_curso ? ` (tienes ${limite.en_curso} en pedidos en curso)` : ''}.`
+        }, 6000);
+        return;
+      }
       // La respuesta ya es el carrito actualizado: trae el nombre del producto
       // y evita una segunda peticion.
       const actualizado = await api(`/carrito/${usuario.cliente_id}/items`, {
@@ -131,8 +151,30 @@ export default function App() {
   };
 
   const navegar = (destino, filtros) => {
+    if (destino === 'perfil-consultas') {
+      setDestinoInterno((d) => ({ clave: d.clave + 1, pestana: 'consultas', consulta: null }));
+      return setVista('perfil');
+    }
     if (destino === 'catalogo' && filtros) setFiltrosCatalogo((f) => ({ clave: f.clave + 1, filtros }));
     setVista(destino);
+  };
+
+  /** Una notificacion lleva a su vista: el pedido, la consulta o el inventario. */
+  const abrirNotificacion = (destino, notificacion) => {
+    const abrirEn = (vistaDestino, pestana) => {
+      setDestinoInterno((d) => ({ clave: d.clave + 1, pestana, consulta: notificacion?.ticket ?? null }));
+      setVista(vistaDestino);
+    };
+    if (esInterno) {
+      if (destino === 'consultas') return abrirEn('admin', 'consultas');
+      if (destino === 'pedidos') return abrirEn('admin', 'pedidos');
+      if (destino === 'inventario') return abrirEn('admin', 'inventario');
+      return undefined;
+    }
+    if (destino === 'consultas') return abrirEn('perfil', 'consultas');
+    if (destino === 'pedidos') return navegar('pedidos');
+    if (destino === 'carrito') return navegar('carrito');
+    return undefined;
   };
 
   const salir = async () => {
@@ -192,6 +234,7 @@ export default function App() {
 
           <div className="ml-auto flex items-center gap-3 text-sm">
             <BotonTema />
+            {usuario && <Campana usuario={usuario} onAbrir={abrirNotificacion} />}
             {usuario ? (
               <>
                 <span className="text-gray-600 hidden md:inline">
@@ -253,8 +296,8 @@ export default function App() {
           <CarritoPagina usuario={usuario} carrito={carrito} recargarCarrito={recargarCarrito} />
         )}
         {vista === 'pedidos' && usuario && <MisPedidos usuario={usuario} />}
-        {vista === 'perfil' && esCliente && <Perfil usuario={usuario} alEliminarCuenta={cuentaEliminada} />}
-        {vista === 'admin' && esInterno && <Admin usuario={usuario} />}
+        {vista === 'perfil' && esCliente && <Perfil key={destinoInterno.clave} usuario={usuario} alEliminarCuenta={cuentaEliminada} seccionInicial={destinoInterno.pestana} consultaInicial={destinoInterno.consulta} />}
+        {vista === 'admin' && esInterno && <Admin key={destinoInterno.clave} usuario={usuario} pestanaInicial={destinoInterno.pestana} consultaInicial={destinoInterno.consulta} />}
       </main>
 
       <PiePagina />

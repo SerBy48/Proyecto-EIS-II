@@ -370,3 +370,37 @@ Se revisarán al contenerizar la web en la Fase 5. Hasta que exista el CI, la au
 | S-01 a S-08, S-10, S-11 | ✅ Corregidos (práctica) |
 | **S-12** | ✅ **Corregido** (Trabajo Final, sección 10.3) |
 | S-09 | ⚠️ Riesgo aceptado (sección 9.4) |
+| **S-13** | ⚠️ Riesgo aceptado con fecha de revisión (sección 11) |
+
+## 11. Gestión de la tienda (F5c): subida de archivos y un aviso de dependencias
+
+### 11.1 Verificaciones nuevas
+
+`test:seguridad` pasa de 23 a 26 verificaciones. Las tres nuevas son seguras:
+
+| ID | Qué se intenta | Resultado |
+|---|---|---|
+| V-24 | Subir como foto de producto un HTML o un SVG con script, subir como cliente y subir más de 2 MB | 400, 400, 403 y 413. Las fotos se sirven con `nosniff` y `Content-Security-Policy: default-src 'none'; sandbox` |
+| V-25 | Cambiar un precio como cliente; poner un descuento del 100 % o un precio negativo como vendedor | 403, 400 y 400; el precio no cambia (invariante 2) |
+| V-26 | Leer la consulta de otro cliente o marcar sus notificaciones como leídas | 404 (no se confirma que existe); 0 notificaciones marcadas |
+
+### 11.2 S-13: aviso GHSA-fc5q-39xc-vjpf en picomatch (riesgo aceptado)
+
+**Qué es.** Publicado el 18 de noviembre de 2026: ReDoS en `picomatch` al compilar patrones *extglob* con una sola rama repetida.
+- **Versiones afectadas:** todas las publicadas (≤ 4.0.7); no hay corrección.
+- **Cómo llega:** el gateway lo trae por `http-proxy-middleware` 3.0.7 → `micromatch` 4.0.8 → `picomatch` 2.3.2.
+- **Lo que propone npm:** la única salida es bajar `http-proxy-middleware` a 0.19.2, un cambio incompatible.
+- **Efecto en el CI:** el paso de auditoría falló desde ese día, aunque las dependencias no cambiaron.
+
+**Por qué no es explotable aquí.** El ReDoS se dispara al **compilar un patrón** glob.
+- El gateway monta cada proxy por prefijo de Express (`app.use(prefijo, createProxyMiddleware(...))`), sin `pathFilter` ni globs.
+- Por eso `micromatch` no compila ningún patrón, y ninguno puede venir de una petición.
+
+**Decisión** (riesgo aceptado, 18 de noviembre de 2026). El paso del CI usa `npm run auditar:dependencias` (`scripts/auditar-dependencias.ts`):
+- **Regla general:** falla con cualquier aviso alto o crítico de las dependencias de producción.
+- **Excepción:** los avisos de la lista de aceptados, cada uno con su justificación y una **fecha de revisión**. Para S-13 es el **31 de enero de 2027**.
+- **Al vencer la fecha:** el CI vuelve a fallar hasta que alguien revise el aviso.
+- **Se probó:** con la fecha vencida, el script sale con código 1.
+
+**Cuándo se revisa.** Cuando `picomatch` publique una versión corregida (y entonces se fuerza con `overrides` o se actualiza `http-proxy-middleware`), o si el gateway empieza a filtrar rutas con patrones glob, lo que primero ocurra.
+

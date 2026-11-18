@@ -1,0 +1,147 @@
+{
+  "_descripcion": "Contactar al vendedor (RF-53). \"evaluacion\" se escribio el 2026-11-18 ANTES de tocar los terminos: primera medicion 10/20 (4 de 14 frases de contacto); con esos fallos a la vista se agregaron terminos a la intencion humano (ya no es independiente). \"validacion\" se escribio DESPUES de ese ajuste y se mide una sola vez, sin volver a ajustar: es la cifra que se reporta. Incluye frases de control de otras intenciones.",
+  "evaluacion": [
+    {
+      "frase": "quiero contactar al vendedor",
+      "esperada": "humano"
+    },
+    {
+      "frase": "necesito hablar con el vendedor",
+      "esperada": "humano"
+    },
+    {
+      "frase": "tengo una duda para el vendedor",
+      "esperada": "humano"
+    },
+    {
+      "frase": "¿puedo escribirle al vendedor?",
+      "esperada": "humano"
+    },
+    {
+      "frase": "quiero hacerle una pregunta al vendedor sobre un portátil",
+      "esperada": "humano"
+    },
+    {
+      "frase": "cómo me comunico con la tienda",
+      "esperada": "humano"
+    },
+    {
+      "frase": "quiero dejarle un mensaje a la tienda",
+      "esperada": "humano"
+    },
+    {
+      "frase": "me pueden contactar por favor",
+      "esperada": "humano"
+    },
+    {
+      "frase": "necesito ayuda de una persona",
+      "esperada": "humano"
+    },
+    {
+      "frase": "contactar vendedor",
+      "esperada": "humano"
+    },
+    {
+      "frase": "tengo un problema con mi pedido y quiero hablar con alguien",
+      "esperada": "humano"
+    },
+    {
+      "frase": "quiero poner una queja",
+      "esperada": "humano"
+    },
+    {
+      "frase": "hablar con un asesor",
+      "esperada": "humano"
+    },
+    {
+      "frase": "consulta al vendedor",
+      "esperada": "humano"
+    },
+    {
+      "frase": "¿dónde está mi pedido?",
+      "esperada": "estado_pedido"
+    },
+    {
+      "frase": "¿cuánto cuesta el envío?",
+      "esperada": "faq_envio"
+    },
+    {
+      "frase": "hay audífonos Sony disponibles?",
+      "esperada": "precio_disponibilidad"
+    },
+    {
+      "frase": "quiero cancelar mi pedido",
+      "esperada": "cancelar_pedido"
+    },
+    {
+      "frase": "¿qué garantía tienen los productos?",
+      "esperada": "faq_devoluciones"
+    },
+    {
+      "frase": "¿qué medios de pago aceptan?",
+      "esperada": "faq_pagos"
+    }
+  ],
+  "validacion": [
+    {
+      "frase": "quisiera comunicarme con alguien de la tienda",
+      "esperada": "humano"
+    },
+    {
+      "frase": "el vendedor me puede responder una pregunta?",
+      "esperada": "humano"
+    },
+    {
+      "frase": "necesito que me contacten",
+      "esperada": "humano"
+    },
+    {
+      "frase": "quiero preguntarle algo al vendedor",
+      "esperada": "humano"
+    },
+    {
+      "frase": "tengo una inquietud sobre una garantía, con quién hablo",
+      "esperada": "humano"
+    },
+    {
+      "frase": "atención al cliente",
+      "esperada": "humano"
+    },
+    {
+      "frase": "puedo hablar con alguien de soporte?",
+      "esperada": "humano"
+    },
+    {
+      "frase": "escribir al vendedor",
+      "esperada": "humano"
+    },
+    {
+      "frase": "cómo contacto a SerByTek",
+      "esperada": "humano"
+    },
+    {
+      "frase": "mi pedido llegó dañado y necesito ayuda de un asesor",
+      "esperada": "humano"
+    },
+    {
+      "frase": "¿el vendedor tiene más unidades del Galaxy S24?",
+      "esperada": "humano"
+    },
+    {
+      "frase": "¿cuál es el horario de atención?",
+      "esperada": "faq_horario"
+    },
+    {
+      "frase": "cuánto vale el mouse Logitech",
+      "esperada": "precio_disponibilidad"
+    },
+    {
+      "frase": "cómo cambio mi contraseña",
+      "esperada": "faq_contrasena"
+    },
+    {
+      "frase": "estado del pedido 106",
+      "esperada": "estado_pedido"
+    }
+  ]
+}

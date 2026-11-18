@@ -40,6 +40,7 @@
     "test:carga:bateria": "bash tests/rendimiento/bateria.sh",
     "graficas:rendimiento": "python scripts/graficas/rendimiento.py",
     "test:seguridad": "tsx --env-file-if-exists=.env tests/seguridad/verificaciones.ts",
+    "auditar:dependencias": "tsx scripts/auditar-dependencias.ts",
     "test:zap:baseline": "bash tests/seguridad/zap-baseline.sh",
     "test:zap:api": "bash tests/seguridad/zap-api.sh",
     "test:zap:recorrido": "bash tests/seguridad/zap-recorrido.sh",

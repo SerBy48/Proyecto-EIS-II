@@ -36,6 +36,17 @@ export default function Carrito({ usuario, carrito, recargarCarrito }) {
   const items = carrito?.items ?? [];
   const totales = carrito?.totales ?? {};
 
+  // RF-47: cuanto puede llevar el cliente de cada producto (deja 5 para los
+  // demas y cuenta sus pedidos en curso). El checkout lo vuelve a verificar.
+  const [limites, setLimites] = useState({});
+  const skus = items.map((i) => i.sku).join(',');
+  useEffect(() => {
+    if (!skus) return;
+    api(`/pedidos/limites?skus=${encodeURIComponent(skus)}`)
+      .then((r) => setLimites(Object.fromEntries((r.limites ?? []).map((l) => [l.sku, l]))))
+      .catch(() => setLimites({}));
+  }, [skus, resultado]);
+
   useEffect(() => {
     api(`/clientes/${usuario.cliente_id}/direcciones`)
       .then((lista) => {
@@ -217,6 +228,15 @@ export default function Carrito({ usuario, carrito, recargarCarrito }) {
                   <p className="font-semibold text-gray-900 truncate">{i.nombre}</p>
                   <p className="text-xs text-gray-500">{i.sku}</p>
                   <p className="text-sm text-gray-700 mt-1">{moneda(i.precio_unitario)} c/u</p>
+                  {limites[i.sku] && limites[i.sku].disponible > 0 && (
+                    <p className={`text-xs mt-0.5 ${i.cantidad > limites[i.sku].puede_agregar ? 'text-red-700 font-semibold' : 'text-gray-600'}`}>
+                      {i.cantidad > limites[i.sku].puede_agregar
+                        ? limites[i.sku].puede_agregar
+                          ? `Puedes llevar máximo ${limites[i.sku].puede_agregar}: ajusta la cantidad.`
+                          : 'Ya alcanzaste el máximo por cliente: quítalo para pagar.'
+                        : `Puedes llevar hasta ${limites[i.sku].puede_agregar}${limites[i.sku].en_curso ? ` (tienes ${limites[i.sku].en_curso} en pedidos en curso)` : ''}.`}
+                    </p>
+                  )}
                 </div>
                 <div className="flex items-center gap-2 ml-[4.5rem] sm:ml-0">
                   <button
@@ -235,7 +255,9 @@ export default function Carrito({ usuario, carrito, recargarCarrito }) {
                   <button
                     onClick={() => cambiarCantidad(i.sku, i.cantidad + 1)}
                     aria-label={`Aumentar cantidad de ${i.nombre}`}
-                    className="w-8 h-8 border border-gray-300 rounded hover:bg-gray-50"
+                    disabled={Boolean(limites[i.sku]) && limites[i.sku].disponible > 0 && i.cantidad >= limites[i.sku].puede_agregar}
+                    title={limites[i.sku] && i.cantidad >= limites[i.sku].puede_agregar ? 'Llegaste al máximo por cliente' : undefined}
+                    className="w-8 h-8 border border-gray-300 rounded hover:bg-gray-50 disabled:text-gray-400 disabled:bg-gray-50 disabled:cursor-not-allowed"
                   >
                     +
                   </button>

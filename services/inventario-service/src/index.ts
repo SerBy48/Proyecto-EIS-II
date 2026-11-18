@@ -15,6 +15,7 @@ import {
   registrarEntrada,
   stockPorSku
 } from './controlador';
+import { actualizarProveedor, crearProveedor, listarEntradas, listarProveedores } from './proveedores';
 
 /**
  * Servicio de inventario (seccion 5.6 del documento).
@@ -37,6 +38,12 @@ const rutas = (app: Application): void => {
 
   // Escrituras de stock: solo personal interno.
   router.post('/stock/:sku/entrada', requiereRol('administrador', 'vendedor'), asincrono(registrarEntrada));
+  router.get('/entradas', requiereRol('administrador', 'vendedor'), asincrono(listarEntradas));
+
+  // Proveedores (RF-51): personal interno.
+  router.get('/proveedores', requiereRol('administrador', 'vendedor'), asincrono(listarProveedores));
+  router.post('/proveedores', requiereRol('administrador', 'vendedor'), asincrono(crearProveedor));
+  router.patch('/proveedores/:id', requiereRol('administrador', 'vendedor'), asincrono(actualizarProveedor));
 
   // Reservas: las invoca el servicio de pedidos por la red privada.
   router.post('/reservas', requiereRol('administrador', 'vendedor'), asincrono(crearReserva));

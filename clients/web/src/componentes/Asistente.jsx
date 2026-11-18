@@ -149,7 +149,16 @@ export default function Asistente({ usuario, alAgregar, onNavegar, onIniciarSesi
                 <div key={m.id} className="max-w-[90%] space-y-2">
                   <span className="sr-only">Asistente: </span>
                   {m.respuestas.map((r, i) => (
-                    <Respuesta key={i} r={r} esCliente={esCliente} alAgregar={alAgregar} alElegir={elegirOpcion} deshabilitado={escribiendo} />
+                    <Respuesta
+                      key={i}
+                      r={r}
+                      esCliente={esCliente}
+                      alAgregar={alAgregar}
+                      alElegir={elegirOpcion}
+                      deshabilitado={escribiendo}
+                      conversacionId={conversacionId}
+                      alVerConsultas={() => onNavegar('perfil-consultas')}
+                    />
                   ))}
                 </div>
               )
@@ -212,7 +221,11 @@ export default function Asistente({ usuario, alAgregar, onNavegar, onIniciarSesi
   );
 }
 
-function Respuesta({ r, esCliente, alAgregar, alElegir, deshabilitado }) {
+function Respuesta({ r, esCliente, alAgregar, alElegir, deshabilitado, conversacionId, alVerConsultas }) {
+  if (r.tipo === 'formulario_consulta') {
+    return esCliente ? <FormularioConsulta r={r} conversacionId={conversacionId} alVerConsultas={alVerConsultas} /> : null;
+  }
+
   if (r.tipo === 'texto') {
     return <p className="bg-gray-100 text-gray-900 rounded-lg px-3 py-2 break-words">{r.texto}</p>;
   }
@@ -282,4 +295,107 @@ function Respuesta({ r, esCliente, alAgregar, alElegir, deshabilitado }) {
   }
 
   return null;
+}
+
+/**
+ * Formulario de consulta al vendedor dentro del chat (RF-53). Al enviarlo se
+ * crea la consulta; la respuesta del vendedor llega a la campana y al correo.
+ */
+function FormularioConsulta({ r, conversacionId, alVerConsultas }) {
+  const [motivo, setMotivo] = useState(r.motivo ?? 'otro');
+  const [referencia, setReferencia] = useState(r.referencia ?? '');
+  const [mensaje, setMensaje] = useState('');
+  const [enviando, setEnviando] = useState(false);
+  const [error, setError] = useState(null);
+  const [enviada, setEnviada] = useState(null);
+  const id = useId();
+
+  const enviar = async (e) => {
+    e.preventDefault();
+    setError(null);
+    setEnviando(true);
+    try {
+      const respuesta = await api('/asistente/consultas', {
+        metodo: 'POST',
+        cuerpo: { motivo, referencia: referencia.trim() || null, mensaje, ...(conversacionId ? { conversacion_id: conversacionId } : {}) }
+      });
+      setEnviada(respuesta);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  if (enviada) {
+    return (
+      <div role="status" className="bg-green-50 border border-green-200 text-green-900 rounded-lg px-3 py-2">
+        <p>{enviada.mensaje}</p>
+        <button onClick={alVerConsultas} className="mt-1 text-xs font-semibold underline">
+          Ver mis consultas
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={enviar} aria-label="Consulta al vendedor" className="border border-marca-200 rounded-lg p-3 space-y-2">
+      <div>
+        <label htmlFor={`${id}-motivo`} className="block text-xs font-semibold text-gray-700 mb-1">
+          Motivo
+        </label>
+        <select
+          id={`${id}-motivo`}
+          value={motivo}
+          onChange={(e) => setMotivo(e.target.value)}
+          className="w-full border border-gray-300 rounded px-2 py-1 text-sm bg-superficie"
+        >
+          {r.motivos.map((m) => (
+            <option key={m.clave} value={m.clave}>
+              {m.etiqueta}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <label htmlFor={`${id}-referencia`} className="block text-xs font-semibold text-gray-700 mb-1">
+          Pedido o SKU relacionado (opcional)
+        </label>
+        <input
+          id={`${id}-referencia`}
+          value={referencia}
+          onChange={(e) => setReferencia(e.target.value)}
+          maxLength={40}
+          placeholder="PED-202611-000001 o SKU-TEC-001"
+          className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+        />
+      </div>
+      <div>
+        <label htmlFor={`${id}-mensaje`} className="block text-xs font-semibold text-gray-700 mb-1">
+          Tu pregunta
+        </label>
+        <textarea
+          id={`${id}-mensaje`}
+          value={mensaje}
+          onChange={(e) => setMensaje(e.target.value)}
+          rows={3}
+          maxLength={1000}
+          required
+          aria-describedby={`${id}-ayuda`}
+          className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+        />
+        <p id={`${id}-ayuda`} className="text-[11px] text-gray-500">
+          No escribas datos de tarjetas: se ocultan al guardar.
+        </p>
+      </div>
+      {error && (
+        <p role="alert" className="text-xs text-red-700">
+          {error}
+        </p>
+      )}
+      <button type="submit" disabled={enviando || mensaje.trim().length < 5} className="btn-primario text-xs px-3 py-1.5 rounded">
+        {enviando ? 'Enviando...' : 'Enviar al vendedor'}
+      </button>
+    </form>
+  );
 }

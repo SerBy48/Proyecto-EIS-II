@@ -6,9 +6,9 @@ electrónico.
 
 | | |
 |---|---|
-| **Última ejecución** | 16 de noviembre de 2026, ajustes de SerByTek (F5b): sistema completo en contenedores desde volúmenes vacíos, secretos propios en `.env` |
-| **Casos ejecutados** | 340: 205 de integración (33 de concurrencia + 73 por HTTP + 53 extremo a extremo + 46 del asistente) y 135 unitarias. Además, 18 criterios de aceptación en la interfaz (`test:e2e:ui`), 409 comprobaciones de cobertura de OpenAPI, 23 verificaciones de seguridad y axe en los temas claro y oscuro |
-| **Resultado** | 340 pasan, 0 fallan; 18/18 criterios de aceptación; las 409 comprobaciones de OpenAPI pasan; seguridad: 1 hallazgo de 23 (S-09, aceptado); axe: 0 reglas WCAG incumplidas en 21 pantallas. Evidencia: [`evidencia/trabajo-final/regresion-f5b/`](evidencia/trabajo-final/regresion-f5b/) (sección 4.36) |
+| **Última ejecución** | 18 de noviembre de 2026, gestión de la tienda (F5c): sistema completo en contenedores desde volúmenes vacíos, secretos propios en `.env` |
+| **Casos ejecutados** | 369: 215 de integración (33 de concurrencia + 73 por HTTP + 53 extremo a extremo + 56 del asistente) y 154 unitarias. Además, 23 criterios de aceptación en la interfaz (`test:e2e:ui`), 505 comprobaciones de cobertura de OpenAPI, 26 verificaciones de seguridad y axe en los temas claro y oscuro |
+| **Resultado** | 369 pasan, 0 fallan; 23/23 criterios de aceptación; las 505 comprobaciones de OpenAPI pasan; seguridad: 1 hallazgo de 26 (S-09, aceptado); axe: 0 reglas WCAG incumplidas en las 20 pantallas nuevas (claro y oscuro). Evidencia: [`evidencia/trabajo-final/regresion-f5c/`](evidencia/trabajo-final/regresion-f5c/) (sección 4.41) |
 | **Entorno** | Windows 11, Node 25, Docker: PostgreSQL 16 (puerto 5434 del host), MongoDB 7, Redis 7, RabbitMQ 3 y Mailpit 1.27. Infraestructura completa |
 | **Evidencia** | [`evidencia/`](evidencia/) — salida literal de cada suite |
 
@@ -966,6 +966,92 @@ No se tocaron los pesos de los términos. La regla final evita que una marca o s
 Una foto ilustrativa por sección (10 en total, unos 200 KB en WebP) en `clients/web/public/productos/`, servidas por la propia web porque la CSP solo admite imágenes del sitio. Son de Unsplash bajo su licencia (uso libre, sin atribución obligatoria); se acreditan por cortesía en `clients/web/public/productos/CREDITOS.md` y se descartaron las de Unsplash+, con personas identificables o con logotipos destacados. La semilla asigna a cada producto la foto de su sección; la web la muestra como imagen decorativa (`alt=""`, porque no es el modelo exacto y el nombre está en el título), con carga diferida y el ícono de la sección si no carga. El asistente muestra la miniatura en sus tarjetas.
 
 Verificación: `test:unit` comprueba que cada producto de la semilla tenga su archivo; 20/20 fotos cargan en la primera página en los dos temas; axe sin reglas incumplidas (14 pantallas en tema claro y 7 en oscuro); `test:e2e:ui` 18/18. La reconstrucción falló una vez por el caché de compilación de Docker («parent snapshot … does not exist»), un error del entorno; el reintento construyó y dejó 16/16 contenedores sanos.
+
+### 4.39 Gestión de la tienda (F5c): cambios y hallazgos
+
+**Cambios.**
+- **Límite por cliente (RF-47):** un cliente debe dejar 5 unidades para los demás, mínimo 1. Cuenta sus pedidos en curso y el checkout lo verifica antes de reservar (paso 10b de la saga, `LIMITE_POR_CLIENTE`, sin nada que compensar).
+- **Pestaña Productos (RF-48 a RF-50):**
+  - precio, oferta con fecha de fin e historial de precios;
+  - alta de productos con foto y stock inicial;
+  - subida de fotos a GridFS.
+- **Fotos:** una foto propia por cada producto de la semilla. El catálogo las sirve por el gateway, también a la app móvil.
+- **Entradas de mercancía (RF-51):** proveedor, costo y factura, con el historial de entradas.
+- **Campana de notificaciones (RF-52).**
+- **Consultas al vendedor desde el asistente (RF-53).**
+
+**Hallazgos.** Los encontraron las pruebas al construir F5c; ninguno llegó a `develop`.
+
+| Hallazgo | Causa | Corrección |
+|---|---|---|
+| H-F5c-01: el selector de foto del panel Productos no tenía etiqueta (axe, regla `label`, en «editar» y en «nuevo») | El texto «Foto (opcional)» era un párrafo, no un `<label>` | `SelectorFoto` recibe su etiqueta y la asocia al `input type=file`; axe pasa a 0 reglas incumplidas |
+| H-F5c-02: el correo «No pudimos procesar tu pago» llegaba al buzón de operaciones, con «Hola ,» y sin número de pedido. Defecto anterior a F5c; la campana del personal lo dejó a la vista | El evento `pago.rechazado` no llevaba el correo ni el nombre del cliente ni el número que usa la plantilla; notificaciones lo enviaba a operaciones | La saga le pasa a pagos el contacto que ya validó en el paso 9 y pagos lo agrega al evento (`email`, `nombre`, `numero`). Verificado: el aviso le llega a carla@correo.co con su nombre y el pedido |
+| La validación del catálogo era mínima: un PATCH aceptaba un descuento del 100 % o un precio negativo | `actualizarProducto` copiaba los campos sin validar | `gestion.ts` valida rangos, fechas, secciones e imágenes, y descarta los campos que el panel no puede escribir; V-25 de `test:seguridad` |
+| El registro de una entrada no era atómico: stock y movimiento iban en dos sentencias | Código anterior a F5c | Stock, movimiento y soporte de la entrada van en una sola transacción |
+
+**Ajustes a las pruebas**, por errores de la prueba y no de la tienda:
+- **CA-20** esperaba el texto «foto subida», que también está en la ayuda del formulario, así que seguía antes de terminar la subida. Ahora espera el aviso exacto.
+- **CA-23** esperaba «Respondida» y encontraba primero la opción oculta «Respondidas» del filtro. Ahora espera la respuesta del servidor.
+- **CA-23**, al abrir la consulta: el texto aparece en la lista y en el hilo, y la búsqueda se limita al hilo.
+- **`test:asistente` (sección 4):** un cliente con sesión ya no recibe el ticket de inmediato, sino el formulario. La prueba crea la consulta, la responde y verifica la campana, el aislamiento y el cierre (56 comprobaciones; antes 46).
+- **V-05 de `test:seguridad`** indica la sección del producto, que ahora es obligatoria.
+
+### 4.40 Contactar al vendedor: medición del asistente (F5c)
+
+`tests/asistente/frases-consultas.json` tiene dos conjuntos.
+
+**Conjunto de ajuste: 20 frases, escritas antes de tocar la intención `humano`.**
+- **Línea base:** 10/20 aciertos, y solo 4 de las 14 frases de contacto. «quiero contactar al vendedor» y «tengo una duda para el vendedor» daban `no_entendido`; «necesito hablar con el vendedor» daba `buscar_producto`.
+- **Ajuste:** se agregaron términos a la intención (vendedor, contactar, comunicarme, escribirle…). Como se eligieron viendo esos fallos, el 20/20 posterior **no es una medición independiente**.
+
+**Conjunto de validación: 15 frases nuevas, escritas después del ajuste.**
+- Se midió una sola vez y no se volvió a ajustar.
+- Resultado: **13/15 (86,7 %)**. Fallan «tengo una inquietud sobre una garantía, con quién hablo» (`faq_devoluciones`) y «atención al cliente» (`faq_horario`).
+- Es la cifra que se reporta.
+
+Los conjuntos anteriores no cambiaron: SerByTek 50/50, marcas 27/27, Fase 3 35/36 y desarrollo 57/57 (`asistente-metricas.md`).
+
+### 4.41 Regresión de la gestión de la tienda (F5c)
+
+Desde volúmenes vacíos (`docker compose down -v`), con las imágenes reconstruidas: 16/16 contenedores sanos. Igual que en F5b, notificaciones arrancó *unhealthy* mientras RabbitMQ terminaba de iniciar y se recuperó solo, sin intervención. La primera reconstrucción falló por el caché de compilación de Docker («parent snapshot … does not exist»); el reintento construyó.
+
+| Suite | Resultado | Evidencia (`regresion-f5c/`) |
+|---|---|---|
+| `typecheck` | sin errores | `typecheck.txt` |
+| `test:unit` | 154/154 (19 nuevas: límite por cliente, validación del panel, oferta con fecha de fin, tipo de imagen por contenido, proveedores y entradas, foto de cada producto de la semilla, contactar al vendedor) | `test-unit.txt` |
+| `test:openapi` | 505/505 (84 rutas: 73 públicas + 11 internas; 16 rutas nuevas) | `test-openapi.txt` |
+| Lint de OpenAPI (Redocly) | válido | `docs-openapi.txt` |
+| `build:web` | compila | `build-web.txt` |
+| `test:salud` | 10/10 servicios | `test-salud.txt` |
+| `test:http` | 73/73 | `test-http.txt` |
+| `test:concurrencia` | 33/33 | `test-concurrencia.txt` |
+| `test:e2e` | 53/53 | `test-e2e.txt` |
+| `test:asistente` | 56/56 con `ASISTENTE_PROBAR_DEGRADACION=1` (10 nuevas: consulta, aislamiento, enmascarado, respuesta, campana, cierre y ticket del visitante) | `test-asistente.txt` |
+| `asistente:metricas` | contactar al vendedor: validación 13/15 (4.40); SerByTek 50/50; marcas 27/27; Fase 3 35/36; desarrollo 57/57 | `asistente-metricas.txt`, `trabajo-final/asistente-metricas.md` |
+| `test:seguridad` | 25 seguras (3 nuevas: V-24 subida de archivos, V-25 precio, V-26 consultas y campana) y 1 hallazgo aceptado (V-13 / S-09) | `test-seguridad.txt` |
+| **`test:e2e:ui`** | **23/23 criterios** (5 nuevos: CA-19 a CA-23), en dos corridas seguidas | `test-e2e-ui.txt`, `trabajo-final/e2e-ui/` |
+| axe de las vistas nuevas (`tests/usabilidad/axe-f5c.ts`), temas claro y oscuro | 20 pantallas, 0 reglas WCAG incumplidas (tras corregir H-F5c-01) | `axe-f5c.txt`, `axe-f5c.json` |
+| `flutter analyze` (app móvil con fotos y límite por cliente) | sin problemas | `flutter-analyze.txt` |
+| `npm audit --omit=dev --audit-level=high` | 3 avisos altos de un mismo aviso nuevo (GHSA-fc5q-39xc-vjpf, ver abajo) | `npm-audit.txt` |
+| `auditar:dependencias` (paso del CI desde F5c) | 0 avisos altos sin aceptar; GHSA-fc5q-39xc-vjpf aceptado como S-13, con revisión antes del 2027-01-31 | `auditar-dependencias.txt` |
+
+**CA-23, fallo intermitente de la prueba.** En la corrida desde volúmenes vacíos, CA-23 se agotó en el paso del vendedor:
+- **Qué pasó:** la segunda página, que abría su propia sesión por la interfaz, cargó el catálogo pero nunca envió `POST /auth/login`. El registro del gateway no muestra ningún 429, así que no fue el límite de inicios de sesión.
+- **Cómo se resolvió:** la sesión del vendedor se prepara por la API, como en CA-18. El criterio acepta la consulta y la campana; el inicio de sesión lo cubre CA-02.
+- **Resultado:** dos corridas seguidas, 23/23. La causa de que el clic no enviara la petición no se identificó y queda en observación, igual que CA-01 (4.37).
+
+**`npm audit`.** Hay un aviso publicado después de F5b (GHSA-fc5q-39xc-vjpf: ReDoS en `picomatch` con extglobs repetidos).
+- **Por dónde llega:** `micromatch` lo trae a `http-proxy-middleware` del gateway. El `package-lock.json` no cambió en F5c.
+- **Arreglo propuesto:** npm no tiene una versión corregida; solo propone bajar `http-proxy-middleware` a 0.19.2, un cambio incompatible.
+- **Por qué no se aplica:** el gateway monta el proxy por prefijo de Express, sin `pathFilter` ni patrones glob, así que no compila patrones extglob.
+- **Decisión:** el CI falló por este aviso en el PR de F5c. Por decisión del equipo se acepta como riesgo (S-13, `docs/calidad/SEGURIDAD.md` 11.2) con fecha de revisión. El paso del CI usa `npm run auditar:dependencias`, que sigue fallando con cualquier otro aviso alto o crítico y con este cuando venza la fecha. No se degrada la dependencia.
+
+**CI del PR: H-F5c-03.** En GitHub Actions, `test:e2e:ui` recibió 429 al iniciar sesión en varios criterios (CA-11 y CA-12; tras reiniciar el gateway, CA-14 y siguientes).
+- **Primera hipótesis, incompleta:** el límite de intentos fallidos acumulado por `test:http`. Reiniciar el gateway antes de la suite (paso que se conserva en el CI) no lo resolvió.
+- **Causa:** F5c movió las fotos de nginx al gateway (`/api/catalogo/imagenes`). El navegador no envía el token al pedir una imagen, así que cada foto contaba por IP contra el **límite general** (300 por minuto). Una vista del catálogo gasta 15 peticiones, 13 de ellas en fotos, y las capturas de página completa cargan las 20. El CI, más rápido, superaba las 300 en un minuto y el siguiente `POST /auth/login` recibía 429. En una tienda real habría pasado lo mismo con varios clientes detrás de una misma IP.
+- **Corrección:** las fotos (`GET /api/catalogo/imagenes/*`) tienen su propio límite por IP (`LIMITE_IMAGENES`, 1500 por minuto) y ya no gastan el cupo general. Son lecturas baratas y cacheables (Cache-Control de un día o un año).
+
+**App móvil.** Las fotos se cargan con `Image.network` desde el gateway (`Config.gateway` + `/api/catalogo/imagenes/...`), con un recuadro mientras cargan y el ícono de antes si fallan. `flutter analyze` pasa, pero no se probó en un emulador ni en un teléfono: ⚠️ PENDIENTE: verificación manual en un dispositivo.
 
 ---
 

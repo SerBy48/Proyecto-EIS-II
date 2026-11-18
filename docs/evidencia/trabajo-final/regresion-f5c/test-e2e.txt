@@ -1,0 +1,104 @@
+
+> ecommerce-distribuido@1.0.0 test:e2e
+> tsx --env-file-if-exists=.env tests/e2e-compra.ts
+
+[36m==============================================================[0m
+[36m Prueba de integracion extremo a extremo[0m
+[36m Gateway: http://localhost:8080[0m
+[36m==============================================================[0m
+[32mTodos los servicios responden correctamente.[0m
+
+[36mEscenario A: compra exitosa (los 15 pasos del flujo)[0m
+[90m====================================================[0m
+  [90mPasos 1-4: el cliente inicia sesion y obtiene su token[0m
+  [32mPASA[0m  El servicio de autenticacion emite un JWT
+  [32mPASA[0m  El token identifica el rol del usuario
+  [90mPasos 5-6: consulta del catalogo con disponibilidad real[0m
+  [32mPASA[0m  El catalogo responde
+  [32mPASA[0m  Hay al menos un producto con existencias
+  [32mPASA[0m  La disponibilidad viene del servicio de inventario, no del catalogo
+  [90mPaso 7: se agrega SKU-TEC-001 al carrito[0m
+  [32mPASA[0m  El producto se agrega al carrito
+  [32mPASA[0m  El precio lo pone el catalogo, no el cliente
+  [32mPASA[0m  El carrito calcula los impuestos
+  [90mPasos 8-15: checkout completo (saga)[0m
+  [32mPASA[0m  La compra se confirma
+  [32mPASA[0m  El pedido queda en estado pagado
+  [32mPASA[0m  Se genera un numero de pedido
+  [32mPASA[0m  Se registra la referencia del pago
+  [32mPASA[0m  El inventario se descuenta definitivamente (50 -> 49)
+  [90mEl carrito queda vacio tras la compra[0m
+  [32mPASA[0m  El carrito se vacia
+  [90mEl pedido aparece en el historial del cliente[0m
+  [32mPASA[0m  El pedido aparece en la lista del cliente
+  [90mLa bitacora de la saga registra todos los pasos[0m
+  [32mPASA[0m  Registra la validacion del cliente
+  [32mPASA[0m  Registra la verificacion de precios
+  [32mPASA[0m  Registra la reserva de stock
+  [32mPASA[0m  Registra el cobro
+  [32mPASA[0m  Registra la confirmacion de la reserva
+  [90mEl evento asincrono genera la notificacion[0m
+  [32mPASA[0m  El servicio de notificaciones reacciono al evento
+  [90mEl correo de confirmacion llega al buzon (SMTP real, Mailpit)[0m
+  [32mPASA[0m  Llega un correo con el numero PED-202611-001002
+  [32mPASA[0m  El correo va dirigido al cliente que compro
+
+[36mEscenario B: pago rechazado (compensacion de la saga)[0m
+[90m=====================================================[0m
+  [90mStock de SKU-TEC-055 antes de intentar la compra: 16[0m
+  [90mSe paga con una tarjeta que la pasarela rechaza[0m
+  [32mPASA[0m  La API responde 402 (pago requerido)
+  [32mPASA[0m  El codigo de error es explicito
+  [32mPASA[0m  El pedido existe y se puede consultar
+  [32mPASA[0m  COMPENSACION: el stock vuelve a su valor original (16 -> 16)
+  [32mPASA[0m  El pedido queda cancelado, no pagado
+  [90mEl carrito se conserva para que el cliente reintente[0m
+  [32mPASA[0m  El carrito NO se vacia tras un pago rechazado
+  [90mLa bitacora muestra la compensacion[0m
+  [32mPASA[0m  Hay pasos marcados como compensados
+
+[36mEscenario C: dos clientes disputan la ultima unidad[0m
+[90m===================================================[0m
+  [32mPASA[0m  SKU-TEC-004 tiene exactamente 1 unidad disponible
+  [90mAmbos pulsan "Pagar" en el mismo instante[0m
+  [90mAna:   HTTP 409[0m
+  [90mBruno: HTTP 201[0m
+  [32mPASA[0m  Exactamente UNA compra se completa
+  [32mPASA[0m  La otra recibe 409 por falta de stock
+  [32mPASA[0m  El motivo del rechazo es explicito
+  [32mPASA[0m  El stock queda en 0, nunca negativo (no hubo sobreventa)
+
+[36mEscenario D: idempotencia del checkout (doble clic)[0m
+[90m===================================================[0m
+  [90mSe envia el mismo checkout dos veces con la MISMA clave de idempotencia[0m
+  [32mPASA[0m  La primera compra se procesa
+  [32mPASA[0m  La segunda devuelve 200, no crea otro pedido
+  [32mPASA[0m  La respuesta se marca como idempotente
+  [32mPASA[0m  Ambas respuestas refieren al MISMO pedido
+  [32mPASA[0m  El stock se descuenta UNA sola vez (62 -> 61)
+
+[36mEscenario E: cancelacion de un pedido pagado[0m
+[90m============================================[0m
+  [90mPedido PED-202611-001006 creado. Stock: 15[0m
+  [32mPASA[0m  El pedido se cancela
+  [32mPASA[0m  Se ejecuta el reembolso
+  [32mPASA[0m  Se devuelve el inventario
+  [32mPASA[0m  El stock vuelve a subir (15 -> 16)
+  [90mEl correo de cancelacion le llega al cliente y menciona el reembolso[0m
+  [32mPASA[0m  El correo de cancelacion va dirigido al cliente
+  [32mPASA[0m  Saluda al cliente por su nombre e informa el reembolso
+  [90mCancelar de nuevo es idempotente[0m
+  [32mPASA[0m  La segunda cancelacion no repite las compensaciones
+
+[36mEscenario F: controles de seguridad[0m
+[90m===================================[0m
+  [32mPASA[0m  Sin token: 401
+  [32mPASA[0m  Token invalido: 401
+  [32mPASA[0m  Un cliente no accede a rutas de personal interno: 403
+  [32mPASA[0m  Un cliente no puede reservar stock por su cuenta: 403
+  [32mPASA[0m  Un cliente no ve el perfil de otro: 403
+  [32mPASA[0m  El catalogo es publico: 200 sin token
+
+[90m--------------------------------------------------------------[0m
+[32mLas 53 comprobaciones pasaron.[0m
+

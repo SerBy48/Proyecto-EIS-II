@@ -1,5 +1,5 @@
 {
-  "fecha": "2026-11-17T02:56:05.747Z",
+  "fecha": "2026-11-18T09:28:51.733Z",
   "gateway": "http://localhost:8080",
   "web": "http://localhost:4173",
   "resultados": [
@@ -30,7 +30,7 @@
       "evidencia": {
         "categoria_tecnologia": {
           "estado": 200,
-          "total": 60
+          "total": 72
         },
         "categoria_ne": {
           "estado": 400,
@@ -60,13 +60,13 @@
       "area": "Validación de entradas",
       "titulo": "Inyección SQL en /pedidos/:id",
       "resultado": "SEGURO",
-      "detalle": "Estados: 404 (49 ms), 404 (19 ms), 404 (14 ms). Las consultas son parametrizadas (invariante 8) y pg_sleep no se ejecuta.",
+      "detalle": "Estados: 404 (62 ms), 404 (30 ms), 404 (28 ms). Las consultas son parametrizadas (invariante 8) y pg_sleep no se ejecuta.",
       "evidencia": {
         "cargas": [
           {
             "carga": "1'OR'1'='1",
             "estado": 404,
-            "ms": 49,
+            "ms": 62,
             "cuerpo": {
               "mensaje": "Pedido no encontrado.",
               "codigo": "NO_ENCONTRADO"
@@ -75,7 +75,7 @@
           {
             "carga": "1 OR 1=1",
             "estado": 404,
-            "ms": 19,
+            "ms": 30,
             "cuerpo": {
               "mensaje": "Pedido no encontrado.",
               "codigo": "NO_ENCONTRADO"
@@ -84,7 +84,7 @@
           {
             "carga": "1;SELECT pg_sleep(3)--",
             "estado": 404,
-            "ms": 14,
+            "ms": 28,
             "cuerpo": {
               "mensaje": "Pedido no encontrado.",
               "codigo": "NO_ENCONTRADO"
@@ -112,11 +112,11 @@
       "area": "Contraseñas",
       "titulo": "Contraseñas con bcrypt y el hash nunca expuesto",
       "resultado": "SEGURO",
-      "detalle": "5 de 5 usuarios con hash bcrypt de 10 rondas. El hash no aparece en la respuesta del login ni en /auth/perfil, y aparece 0 veces en los logs de auth.",
+      "detalle": "34 de 34 usuarios con hash bcrypt de 10 rondas. El hash no aparece en la respuesta del login ni en /auth/perfil, y aparece 0 veces en los logs de auth.",
       "evidencia": {
         "usuarios": {
-          "total": 5,
-          "bcrypt": 5
+          "total": 34,
+          "bcrypt": 34
         },
         "hash_en_respuestas": false,
         "hash_en_logs": 0
@@ -144,14 +144,14 @@
           "access-control-allow-credentials": "true",
           "access-control-expose-headers": "x-request-id",
           "connection": "keep-alive",
-          "content-length": "9006",
+          "content-length": "8669",
           "content-type": "application/json; charset=utf-8",
           "cross-origin-opener-policy": "same-origin",
           "cross-origin-resource-policy": "cross-origin",
-          "date": "Tue, 17 Nov 2026 02:56:02 GMT",
-          "etag": "W/\"232e-sfa4uTOeFHq8b0GmUSryWbDWsLg\"",
+          "date": "Wed, 18 Nov 2026 09:28:43 GMT",
+          "etag": "W/\"21dd-Dha9ZfPus9M17BAKNd5p4pqg5cI\"",
           "origin-agent-cluster": "?1",
-          "ratelimit": "limit=300, remaining=288, reset=59",
+          "ratelimit": "limit=300, remaining=288, reset=55",
           "ratelimit-policy": "300;w=60",
           "referrer-policy": "no-referrer",
           "strict-transport-security": "max-age=31536000; includeSubDomains",
@@ -161,7 +161,7 @@
           "x-download-options": "noopen",
           "x-frame-options": "SAMEORIGIN",
           "x-permitted-cross-domain-policies": "none",
-          "x-request-id": "3d4d36f4-3dbf-4e44-b7c7-931972df4e09",
+          "x-request-id": "fe761434-11f4-4990-8b15-50deb3054ab2",
           "x-xss-protection": "0"
         }
       }
@@ -171,12 +171,11 @@
       "area": "Control de acceso",
       "titulo": "IDOR entre clientes y cabeceras de confianza inyectadas",
       "resultado": "SEGURO",
-      "detalle": "pedido de otro cliente → 404; carrito de otro cliente → 403; perfil de otro cliente → 403; ruta de administrador con x-usuario-rol: administrador inyectada → 403; carrito ajeno con x-cliente-id: 2 inyectada → 403",
+      "detalle": "pedido de otro cliente → sin datos; carrito de otro cliente → 403; perfil de otro cliente → 403; ruta de administrador con x-usuario-rol: administrador inyectada → sin datos; carrito ajeno con x-cliente-id: 2 inyectada → 403",
       "evidencia": {
         "casos": [
           {
-            "caso": "pedido de otro cliente",
-            "estado": 404
+            "caso": "pedido de otro cliente"
           },
           {
             "caso": "carrito de otro cliente",
@@ -187,8 +186,7 @@
             "estado": 403
           },
           {
-            "caso": "ruta de administrador con x-usuario-rol: administrador inyectada",
-            "estado": 403
+            "caso": "ruta de administrador con x-usuario-rol: administrador inyectada"
           },
           {
             "caso": "carrito ajeno con x-cliente-id: 2 inyectada",
@@ -260,8 +258,8 @@
           "cross-origin-embedder-policy": "require-corp",
           "cross-origin-opener-policy": "same-origin",
           "cross-origin-resource-policy": "same-origin",
-          "date": "Tue, 17 Nov 2026 02:56:03 GMT",
-          "etag": "W/\"284-2J1PzWwI5hIkdFVukN2YPN7NOOE\"",
+          "date": "Wed, 18 Nov 2026 09:28:44 GMT",
+          "etag": "W/\"293-9XVa4SGnCkLA/q/YNAOWjt6nIVg\"",
           "keep-alive": "timeout=5",
           "permissions-policy": "camera=(), microphone=(), geolocation=(), payment=()",
           "referrer-policy": "strict-origin-when-cross-origin",
@@ -319,7 +317,7 @@
       "area": "Validación de entradas",
       "titulo": "El registro acepta un correo sin formato de correo",
       "resultado": "SEGURO",
-      "detalle": "POST /auth/registro con email \"no-es-un-correo-1794884163919\" → 400. El escaneo activo creó además 115 usuarios administradores con \"correos\" como http://www.google.com/ o plantillas de inyección por POST /auth/usuarios.",
+      "detalle": "POST /auth/registro con email \"no-es-un-correo-1794994125845\" → 400. El escaneo activo creó además 115 usuarios administradores con \"correos\" como http://www.google.com/ o plantillas de inyección por POST /auth/usuarios.",
       "evidencia": {
         "estado": 400,
         "cuerpo": {
@@ -350,9 +348,9 @@
       "area": "Control de acceso",
       "titulo": "Asistente: un cliente consulta por el chat los pedidos de otro (IDOR)",
       "resultado": "SEGURO",
-      "detalle": "Bruno pidió el pedido PED-202611-001006 de Ana por número, por id y continuando la conversación de Ana: en los tres casos \"No encontré el pedido PED-202611-001006 entre tus pedidos.\" y ninguna tarjeta de pedido. El asistente consulta pedidos con el token del usuario (invariante 15).",
+      "detalle": "Bruno pidió el pedido PED-202611-001043 de Ana por número, por id y continuando la conversación de Ana: en los tres casos \"No encontré el pedido PED-202611-001043 entre tus pedidos.\" y ninguna tarjeta de pedido. El asistente consulta pedidos con el token del usuario (invariante 15).",
       "evidencia": {
-        "pedido_de_ana": "PED-202611-001006",
+        "pedido_de_ana": "PED-202611-001043",
         "respuestas": [
           {
             "estado": 200,
@@ -437,9 +435,46 @@
       "area": "Control de acceso",
       "titulo": "Cambiar la dirección de envío de un pedido ajeno",
       "resultado": "SEGURO",
-      "detalle": "Bruno recibió 404 al cambiar la dirección del pedido 7 de Ana: un pedido ajeno se responde como inexistente (invariante 1).",
+      "detalle": "Bruno recibió 404 al cambiar la dirección del pedido 44 de Ana: un pedido ajeno se responde como inexistente (invariante 1).",
       "evidencia": {
         "estado": 404
+      }
+    },
+    {
+      "id": "V-24",
+      "area": "Subida de archivos",
+      "titulo": "Subir un HTML o SVG disfrazado de foto de producto",
+      "resultado": "SEGURO",
+      "detalle": "HTML como PNG: 400; SVG con onload como WebP: 400; un cliente sube: 403; 2 MB y algo: 413. La foto publica se sirve con nosniff y CSP \"default-src 'none'; sandbox\".",
+      "evidencia": {
+        "html": 400,
+        "svg": 400,
+        "cliente": 403,
+        "grande": 413
+      }
+    },
+    {
+      "id": "V-25",
+      "area": "Control de acceso",
+      "titulo": "Cambiar el precio como cliente o regalar un producto desde el panel",
+      "resultado": "SEGURO",
+      "detalle": "Cliente: 403; descuento 100 %: 400; precio negativo: 400; precio final antes 59000 y despues 59000.",
+      "evidencia": {
+        "cliente": 403,
+        "regalo": 400,
+        "negativo": 400
+      }
+    },
+    {
+      "id": "V-26",
+      "area": "Control de acceso",
+      "titulo": "Leer la consulta de otro cliente o marcar sus notificaciones",
+      "resultado": "SEGURO",
+      "detalle": "Bruno leyendo TCK-MWLX5RZDCCC8: 404; aparece en su lista: no; marcar 5 notificaciones de Ana: 0 marcadas.",
+      "evidencia": {
+        "leer": 404,
+        "ajenaEnLista": false,
+        "marcadas": 0
       }
     }
   ]

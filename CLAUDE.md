@@ -55,7 +55,7 @@ npm run typecheck           # tipos de todos los paquetes
 npm run test:salud          # todos los servicios responden
 npm run test:concurrencia   # no hay sobreventa
 npm run test:e2e            # flujo de compra completo (incluye el correo en Mailpit)
-npm run test:e2e:ui         # 18 criterios de aceptacion en la web (Playwright, 8081, modo pruebas; GRABAR_VIDEO=1)
+npm run test:e2e:ui         # 23 criterios de aceptacion en la web (Playwright, 8081, modo pruebas; GRABAR_VIDEO=1)
 npm run prod:up             # perfil de produccion: solo la web publica puerto (prod:down, prod:logs)
 npm run tunel               # Cloudflare Quick Tunnel hacia la web (solo durante la defensa)
 npm run test:unit           # pruebas unitarias con Vitest (sin Docker); :cobertura para el reporte
@@ -65,7 +65,8 @@ npm run test:asistente      # asistente contra el gateway (ASISTENTE_PROBAR_DEGR
 npm run asistente:metricas  # tasa de acierto de intenciones y matriz de confusion (-- --guardar)
 npm run infra:asistente     # crea asistente_db en un volumen de Mongo que ya existe (idempotente)
 npm run infra:reset         # borra volúmenes y recrea desde cero
-npm run test:seguridad      # 23 verificaciones de seguridad, 5 del asistente (ver docs/calidad/SEGURIDAD.md)
+npm run test:seguridad      # 26 verificaciones de seguridad, 5 del asistente (ver docs/calidad/SEGURIDAD.md)
+npm run auditar:dependencias # npm audit de produccion con los avisos aceptados y su fecha de revision (CI)
 npm run usabilidad:recorrido # 9 tareas en Chromium: KLM, capturas y axe (vite preview en 4173 de build:web:pruebas)
 npm run build:web:pruebas   # build con los controles de la pasarela simulada (U-08); build:web los oculta
 npm run usabilidad:sus      # puntaje SUS; falla si no hay respuestas reales
@@ -217,8 +218,15 @@ petición queda colgada. Para los errores se usan los constructores de
 | Busqueda tolerante del catalogo | `services/catalogo-service/src/busqueda.ts` |
 | Cambio de direccion del pedido y pedidos en curso | `services/pedidos-service/src/direccion-pedido.ts` |
 | Eliminar la cuenta y administrar usuarios | `services/auth-service/src/controlador.ts` (`eliminarCuenta`, `actualizarUsuario`) |
-| Fotos de los productos (una por sección, Unsplash) | `clients/web/public/productos/` y su `CREDITOS.md` |
+| Fotos de los productos (una por producto, Unsplash) y su subida | `services/catalogo-service/imagenes/` (`CREDITOS.md`), `src/imagenes.ts` (GridFS) |
 | Perfil, direcciones y tema oscuro de la web | `clients/web/src/paginas/Perfil.jsx`, `componentes/FormularioDireccion.jsx`, `src/index.css` (variables de color) |
+| Límite de compra por cliente (deja 5 unidades) | `packages/shared/src/limites.ts`; lo aplica `services/pedidos-service/src/limites-compra.ts` (paso 10b de la saga) |
+| Precio, oferta con fecha de fin y validación del panel | `services/catalogo-service/src/gestion.ts` |
+| Subida y entrega de fotos (GridFS) | `services/catalogo-service/src/imagenes.ts` |
+| Proveedores y entradas de mercancía | `services/inventario-service/src/proveedores.ts` |
+| Campana (bandeja de notificaciones) | `services/notificaciones-service/src/bandeja.ts`, `clients/web/src/componentes/Campana.jsx` |
+| Consultas al vendedor | `services/asistente-service/src/consultas.ts`, `clients/web/src/componentes/Consultas.jsx` |
+| Pestañas Productos e Inventario del panel | `clients/web/src/paginas/admin/` |
 | Especificación, C4 y ADR del Trabajo Final | `docs/especificacion/`, `docs/c4/`, `docs/adr/` |
 | Web en contenedor y perfil prod | `clients/web/{Dockerfile,nginx.conf}`, `docker-compose.prod.yml` |
 | Criterios de aceptación, trazabilidad y E2E de interfaz | `docs/aceptacion/`, `tests/e2e-ui/aceptacion.ts` |
@@ -235,7 +243,7 @@ Contraseña `Password123` en todas las cuentas:
 Catálogo: 60 productos de tecnología de marcas reales con precios de referencia
 (`SKU-TEC-001` a `060`) en 10 subcategorías, definidas con sus sinónimos en
 `infra/mongo/init-mongo.js`. El asistente lee del catálogo las secciones, los
-sinónimos y las marcas: un producto o una marca nueva no exige tocar sus reglas. **`SKU-TEC-004` tiene una sola unidad** a propósito: es el producto
+sinónimos y las marcas: un producto o una marca nueva no exige tocar sus reglas. Cada cliente debe dejar 5 unidades de cada producto para los demás (mínimo 1; `STOCK_RESERVA_CLIENTE`): con stock de 6 o menos, cada cliente lleva una. **`SKU-TEC-004` tiene una sola unidad** a propósito: es el producto
 con el que se prueba la disputa por la última unidad. **`SKU-TEC-007`** está bajo
 el mínimo para disparar la alerta de reposición. `test:unit` verifica que cada
 producto tenga stock en `06-datos-prueba.sql` y viceversa.
@@ -254,12 +262,12 @@ Tokens de la pasarela simulada (resultado determinista):
 ## Estado y pendientes conocidos
 
 **Verificado y funcionando** (ver `docs/PRUEBAS.md` para el detalle y la
-evidencia; última ejecución el 2026-11-16, ajustes de SerByTek (F5b), desde
-volúmenes vacíos): 205 casos de integración y 135 unitarios, todos pasan, y los 18
-criterios de aceptación de `test:e2e:ui`; `test:openapi` pasa sus 409 comprobaciones y
-`test:asistente` sus 46. El asistente acierta 50/50 frases de SerByTek y
-27/27 de marcas (`asistente:metricas`) y axe no encuentra reglas WCAG incumplidas en los temas claro
-y oscuro. Los diez servicios compilan y arrancan sanos; la prueba
+evidencia; última ejecución el 2026-11-18, gestión de la tienda (F5c), desde
+volúmenes vacíos): 215 casos de integración y 154 unitarios, todos pasan, y los 23
+criterios de aceptación de `test:e2e:ui`; `test:openapi` pasa sus 505 comprobaciones y
+`test:asistente` sus 56. El asistente acierta 50/50 frases de SerByTek,
+27/27 de marcas y 13/15 de la validación de contactar al vendedor (`asistente:metricas`), y axe no encuentra reglas WCAG incumplidas en los temas claro
+y oscuro. `npm audit` reporta un aviso de `picomatch` sin corrección que no aplica al gateway: riesgo aceptado S-13 hasta el 2027-01-31 (`docs/calidad/SEGURIDAD.md` 11.2). Los diez servicios compilan y arrancan sanos; la prueba
 de concurrencia pasa sus 33 comprobaciones (20 compradores simultáneos por 5
 unidades → exactamente 5 ganan); `test:http` pasa sus 73 casos sobre
 autenticación, RBAC, aislamiento entre clientes, idempotencia, los cuatro
@@ -289,7 +297,7 @@ oculta). nginx quita el `Origin` cuando coincide con el `Host` (mismo origen,
 también por el túnel); los orígenes ajenos los rechaza el gateway
 (`CORS_ORIGENES`, o `CORS_ORIGENES_PROD` en prod). CI en
 `.github/workflows/ci.yml`. `test:seguridad` no falla por los riesgos aceptados
-(`RIESGOS_ACEPTADOS`: V-13 = S-09).
+(`RIESGOS_ACEPTADOS`: V-13 = S-09). El paso de dependencias del CI corre `auditar:dependencias`, con sus propios avisos aceptados y fecha de revisión (S-13).
 
 **Defectos ya corregidos**, cada uno con su caso de prueba (sección 4 de
 `docs/PRUEBAS.md`): escalada de privilegios por el token interno, error 500 al

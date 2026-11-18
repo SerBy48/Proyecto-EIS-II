@@ -64,12 +64,19 @@ paths:
   /api/catalogo/productos/{sku}: { $ref: 'rutas/catalogo.yaml#/producto' }
   /api/catalogo/categorias: { $ref: 'rutas/catalogo.yaml#/categorias' }
   /api/catalogo/promociones/{codigo}: { $ref: 'rutas/catalogo.yaml#/promocion' }
+  /api/catalogo/productos/{sku}/historial-precios: { $ref: 'rutas/catalogo.yaml#/historialPrecios' }
+  /api/catalogo/productos/{sku}/imagenes: { $ref: 'rutas/catalogo.yaml#/imagenes' }
+  /api/catalogo/productos/{sku}/imagenes/{id}: { $ref: 'rutas/catalogo.yaml#/imagen' }
+  /api/catalogo/imagenes/{nombre}: { $ref: 'rutas/catalogo.yaml#/imagenPublica' }
 
   /api/inventario/disponibilidad: { $ref: 'rutas/inventario.yaml#/disponibilidad' }
   /api/inventario/stock/{sku}: { $ref: 'rutas/inventario.yaml#/stock' }
   /api/inventario/stock/{sku}/entrada: { $ref: 'rutas/inventario.yaml#/entrada' }
   /api/inventario/movimientos/{sku}: { $ref: 'rutas/inventario.yaml#/movimientos' }
   /api/inventario/alertas: { $ref: 'rutas/inventario.yaml#/alertas' }
+  /api/inventario/entradas: { $ref: 'rutas/inventario.yaml#/entradas' }
+  /api/inventario/proveedores: { $ref: 'rutas/inventario.yaml#/proveedores' }
+  /api/inventario/proveedores/{id}: { $ref: 'rutas/inventario.yaml#/proveedor' }
 
   /api/carrito/{clienteId}: { $ref: 'rutas/carrito.yaml#/carrito' }
   /api/carrito/{clienteId}/items: { $ref: 'rutas/carrito.yaml#/items' }
@@ -78,6 +85,7 @@ paths:
 
   /api/pedidos/checkout: { $ref: 'rutas/pedidos.yaml#/checkout' }
   /api/pedidos: { $ref: 'rutas/pedidos.yaml#/pedidos' }
+  /api/pedidos/limites: { $ref: 'rutas/pedidos.yaml#/limites' }
   /api/pedidos/{id}: { $ref: 'rutas/pedidos.yaml#/pedido' }
   /api/pedidos/{id}/saga: { $ref: 'rutas/pedidos.yaml#/saga' }
   /api/pedidos/{id}/cancelar: { $ref: 'rutas/pedidos.yaml#/cancelar' }
@@ -88,12 +96,17 @@ paths:
   /api/pagos/transacciones/{referencia}: { $ref: 'rutas/pagos-notificaciones.yaml#/transaccion' }
 
   /api/notificaciones/mensajes: { $ref: 'rutas/pagos-notificaciones.yaml#/mensajes' }
+  /api/notificaciones/bandeja: { $ref: 'rutas/pagos-notificaciones.yaml#/bandeja' }
+  /api/notificaciones/bandeja/leidas: { $ref: 'rutas/pagos-notificaciones.yaml#/bandejaLeidas' }
   /api/notificaciones/plantillas: { $ref: 'rutas/pagos-notificaciones.yaml#/plantillas' }
   /api/notificaciones/plantillas/{clave}: { $ref: 'rutas/pagos-notificaciones.yaml#/plantilla' }
 
   /api/asistente/mensajes: { $ref: 'rutas/asistente.yaml#/mensajes' }
   /api/asistente/conversaciones/{id}: { $ref: 'rutas/asistente.yaml#/conversacion' }
   /api/asistente/tickets: { $ref: 'rutas/asistente.yaml#/tickets' }
+  /api/asistente/consultas: { $ref: 'rutas/asistente.yaml#/consultas' }
+  /api/asistente/consultas/{numero}: { $ref: 'rutas/asistente.yaml#/consulta' }
+  /api/asistente/consultas/{numero}/mensajes: { $ref: 'rutas/asistente.yaml#/consultaMensajes' }
   /api/asistente/intenciones: { $ref: 'rutas/asistente.yaml#/intenciones' }
   /api/asistente/intenciones/{clave}: { $ref: 'rutas/asistente.yaml#/intencion' }
   /api/asistente/faq: { $ref: 'rutas/asistente.yaml#/faq' }

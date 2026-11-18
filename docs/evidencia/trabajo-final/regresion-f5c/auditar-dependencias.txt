@@ -1,0 +1,8 @@
+
+> ecommerce-distribuido@1.0.0 auditar:dependencias
+> tsx scripts/auditar-dependencias.ts
+
+  aceptado  GHSA-fc5q-39xc-vjpf (high) picomatch <=4.0.7: picomatch vulnerable to ReDoS through single-branch repeated extglobs
+            Revisar antes del 2027-01-31. ReDoS de picomatch al compilar patrones extglob. Llega por http-proxy-middleware -> micromatch en el gateway, que monta el proxy por prefijo de Express sin pathFilter ni globs: no compila patrones, y ninguno viene del usuario. No hay version corregida (afecta <= 4.0.7); npm solo propone bajar http-proxy-middleware a 0.19.2.
+
+1 avisos en dependencias de produccion; 0 altos o criticos sin aceptar.

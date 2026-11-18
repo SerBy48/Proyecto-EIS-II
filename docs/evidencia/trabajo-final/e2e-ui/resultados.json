@@ -1,22 +1,22 @@
 {
-  "fecha": "2026-11-17T02:58:12.095Z",
+  "fecha": "2026-11-18T09:33:58.202Z",
   "web": "http://localhost:8081",
-  "total": 18,
+  "total": 23,
   "fallidos": 0,
   "resultados": [
     {
       "id": "CA-01",
       "titulo": "Registro de un cliente nuevo",
       "resultado": "PASA",
-      "segundos": 6.5,
-      "detalle": "e2e-ui-1794884186469@correo.co con sesión iniciada y dirección (Neiva, Huila) lista para comprar",
+      "segundos": 12.4,
+      "detalle": "e2e-ui-1794994171413@correo.co con sesión iniciada y dirección (Neiva, Huila) lista para comprar",
       "captura": "CA-01.png"
     },
     {
       "id": "CA-02",
       "titulo": "Inicio de sesión (error y éxito)",
       "resultado": "PASA",
-      "segundos": 5.8,
+      "segundos": 5.6,
       "detalle": "error: \"Credenciales invalidas.\"; luego entra",
       "captura": "CA-02.png"
     },
@@ -24,7 +24,7 @@
       "id": "CA-03",
       "titulo": "Búsqueda y filtro",
       "resultado": "PASA",
-      "segundos": 4.1,
+      "segundos": 6.6,
       "detalle": "3 portátiles, todos de la sección Computadores",
       "captura": "CA-03.png"
     },
@@ -32,7 +32,7 @@
       "id": "CA-04",
       "titulo": "Carrito y cupón",
       "resultado": "PASA",
-      "segundos": 4.4,
+      "segundos": 16.2,
       "detalle": "descuento de 314910 sobre 3149100",
       "captura": "CA-04.png"
     },
@@ -40,55 +40,55 @@
       "id": "CA-05",
       "titulo": "Compra aprobada",
       "resultado": "PASA",
-      "segundos": 5.9,
-      "detalle": "PED-202611-001007 pagado; carrito vacío",
+      "segundos": 12.6,
+      "detalle": "PED-202611-001044 pagado; carrito vacío",
       "captura": "CA-05.png"
     },
     {
       "id": "CA-09",
       "titulo": "Correo de confirmación",
       "resultado": "PASA",
-      "segundos": 0.3,
-      "detalle": "correo de PED-202611-001007 para ana@correo.co",
+      "segundos": 0.5,
+      "detalle": "correo de PED-202611-001044 para ana@correo.co",
       "captura": "CA-09.png"
     },
     {
       "id": "CA-08",
       "titulo": "Cancelación",
       "resultado": "PASA",
-      "segundos": 4.6,
-      "detalle": "PED-202611-001007 cancelado; aviso: \"El pedido PED-202611-001007 fue cancelado. Si ya se había co…\"",
+      "segundos": 7.5,
+      "detalle": "PED-202611-001044 cancelado; aviso: \"El pedido PED-202611-001044 fue cancelado. Si ya se había co…\"",
       "captura": "CA-08.png"
     },
     {
       "id": "CA-06",
       "titulo": "Compra rechazada con compensación",
       "resultado": "PASA",
-      "segundos": 5.3,
-      "detalle": "stock de SKU-TEC-006: 47 antes y 47 después (devuelto)",
+      "segundos": 8.3,
+      "detalle": "stock de SKU-TEC-006: 40 antes y 40 después (devuelto)",
       "captura": "CA-06.png"
     },
     {
       "id": "CA-07",
       "titulo": "Última unidad",
       "resultado": "PASA",
-      "segundos": 5.4,
-      "detalle": "Ana compra SKU-ACE-682; Bruno ve \"Se agoto el producto SKU-ACE-682 mientras completa…\" y no se le cobra",
+      "segundos": 7.6,
+      "detalle": "Ana compra SKU-ACE-443; Bruno ve \"Se agoto el producto SKU-ACE-443 mientras completa…\" y no se le cobra",
       "captura": "CA-07.png"
     },
     {
       "id": "CA-10",
       "titulo": "Asistente virtual",
       "resultado": "PASA",
-      "segundos": 9.7,
-      "detalle": "FAQ y \"¿hay audífonos disponibles?\" como visitante; Ana ve PED-202611-001010 y no ve PED-202611-001011 (de Bruno)",
+      "segundos": 16.4,
+      "detalle": "FAQ y \"¿hay audífonos disponibles?\" como visitante; Ana ve PED-202611-001047 y no ve PED-202611-001048 (de Bruno)",
       "captura": "CA-10.png"
     },
     {
       "id": "CA-11",
       "titulo": "Vendedor: entrada de stock",
       "resultado": "PASA",
-      "segundos": 4,
+      "segundos": 15.2,
       "detalle": "SKU-TEC-007: 3 -> 13",
       "captura": "CA-11.png"
     },
@@ -96,15 +96,15 @@
       "id": "CA-12",
       "titulo": "Administrador: estado y bitácora de la saga",
       "resultado": "PASA",
-      "segundos": 3.8,
-      "detalle": "PED-202611-001012 en preparación; bitácora con 14 pasos",
+      "segundos": 9.5,
+      "detalle": "PED-202611-001049 en preparación; bitácora con 16 pasos",
       "captura": "CA-12.png"
     },
     {
       "id": "CA-13",
       "titulo": "Perfil: datos y direcciones",
       "resultado": "PASA",
-      "segundos": 7.7,
+      "segundos": 13.9,
       "detalle": "2 direcciones; \"Oficina\" (Bogotá D.C.) predeterminada; teléfono guardado",
       "captura": "CA-13.png"
     },
@@ -112,23 +112,23 @@
       "id": "CA-14",
       "titulo": "Dirección al pagar y dos cambios después",
       "resultado": "PASA",
-      "segundos": 7,
-      "detalle": "PED-202611-001013 pagado con envío a Cali; 2 cambios hechos y el tercero rechazado (409)",
+      "segundos": 16.2,
+      "detalle": "PED-202611-001050 pagado con envío a Cali; 2 cambios hechos y el tercero rechazado (409)",
       "captura": "CA-14.png"
     },
     {
       "id": "CA-15",
       "titulo": "Eliminar cuenta (bloqueada con pedidos en curso)",
       "resultado": "PASA",
-      "segundos": 9.1,
-      "detalle": "bloqueada con PED-202611-001014 pagado; tras cancelarlo se elimina y el perfil queda anonimizado",
+      "segundos": 18.8,
+      "detalle": "bloqueada con PED-202611-001051 pagado; tras cancelarlo se elimina y el perfil queda anonimizado",
       "captura": "CA-15.png"
     },
     {
       "id": "CA-16",
       "titulo": "Modo oscuro y contraseña visible",
       "resultado": "PASA",
-      "segundos": 3.8,
+      "segundos": 4.8,
       "detalle": "tema oscuro recordado tras recargar; el ojo muestra y oculta la contraseña",
       "captura": "CA-16.png"
     },
@@ -136,17 +136,57 @@
       "id": "CA-17",
       "titulo": "Administrador: crear y desactivar un vendedor",
       "resultado": "PASA",
-      "segundos": 5,
-      "detalle": "vendedor-1794884281338@serbytek.co creado como vendedor, entra; desactivado, ya no entra",
+      "segundos": 11.6,
+      "detalle": "vendedor-1794994358617@serbytek.co creado como vendedor, entra; desactivado, ya no entra",
       "captura": "CA-17.png"
     },
     {
       "id": "CA-18",
       "titulo": "Sesión vencida: la web vuelve a modo visitante",
       "resultado": "PASA",
-      "segundos": 4.6,
+      "segundos": 4.4,
       "detalle": "aviso de sesión vencida, botón \"Iniciar sesión\" y el chat responde como visitante",
       "captura": "CA-18.png"
+    },
+    {
+      "id": "CA-19",
+      "titulo": "Productos: precio y oferta con fecha de fin desde el panel",
+      "resultado": "PASA",
+      "segundos": 10.1,
+      "detalle": "SKU-CA19-MWLXB0H1: $200.000 -> $180.000 con 25 % hasta el 2026-11-28 (precio final $135.000), en el historial",
+      "captura": "CA-19.png"
+    },
+    {
+      "id": "CA-20",
+      "titulo": "Productos: subir una foto desde el PC",
+      "resultado": "PASA",
+      "segundos": 14,
+      "detalle": "SKU-CA20-MWLXB8UK: foto subida y servida en /api/catalogo/imagenes/6afd70dd96bd3b9bdbfa8810",
+      "captura": "CA-20.png"
+    },
+    {
+      "id": "CA-21",
+      "titulo": "Inventario: entrada con proveedor, costo y factura",
+      "resultado": "PASA",
+      "segundos": 11.1,
+      "detalle": "SKU-TEC-026: 56 -> 60; FV-CA21-11133 de Distribuidora Andina de Tecnologia S.A.S. a $550.000 c/u",
+      "captura": "CA-21.png"
+    },
+    {
+      "id": "CA-22",
+      "titulo": "Límite por cliente: el carrito dice cuántas puede llevar",
+      "resultado": "PASA",
+      "segundos": 6.1,
+      "detalle": "7 unidades: la web muestra \"hasta 2\" y desactiva +; con 3, 409 LIMITE_POR_CLIENTE (\"De Producto CA22 XBTP2 puedes llevar máximo 2 unidades. Ajusta la cantidad en tu carrito.\")",
+      "captura": "CA-22.png"
+    },
+    {
+      "id": "CA-23",
+      "titulo": "Consulta al vendedor desde el asistente y respuesta en la campana",
+      "resultado": "PASA",
+      "segundos": 16.4,
+      "detalle": "TCK-MWLXC5OS8ECE: enviada desde el chat, respondida en el panel; el cliente la abre desde la campana",
+      "captura": "CA-23.png"
     }
   ]
 }

@@ -40,14 +40,22 @@ describe('semilla del catalogo de SerByTek', () => {
     expect(productos.every((p) => p.categoria === 'tecnologia' && subcategorias.has(String(p.subcategoria)))).toBe(true);
   });
 
-  it('cada producto tiene su foto en la web (clients/web/public)', async () => {
+  it('cada producto tiene su propia foto en services/catalogo-service/imagenes', async () => {
     const { existsSync } = await import('node:fs');
     const path = await import('node:path');
     const faltan = productos.filter((p) => {
-      const url = (p.imagenes as string[] | undefined)?.[0];
-      return !url || !existsSync(path.resolve(__dirname, '../../../clients/web/public', `.${url}`));
+      const url = (p.imagenes as string[] | undefined)?.[0] ?? '';
+      return url !== `/api/catalogo/imagenes/${String(p.sku).toLowerCase()}.webp` ||
+        !existsSync(path.resolve(__dirname, '../imagenes', path.basename(url)));
     });
     expect(faltan.map((p) => p.sku)).toEqual([]);
+  });
+
+  it('cada seccion tiene su foto de respaldo (para productos sin foto propia)', async () => {
+    const { existsSync } = await import('node:fs');
+    const path = await import('node:path');
+    const secciones = categorias.flatMap((c) => (c.subcategorias ?? []).map((s) => s.slug));
+    expect(secciones.filter((s) => !existsSync(path.resolve(__dirname, '../imagenes', `${s}.webp`)))).toEqual([]);
   });
 
   it('cada producto tiene stock en la semilla de inventario y viceversa', async () => {

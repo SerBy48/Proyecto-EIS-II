@@ -178,7 +178,8 @@ Producto:
     subcategoria: { type: string, nullable: true, example: computadores }
     marca: { type: string, example: Aurora }
     precio: { type: number, example: 3499000 }
-    descuento_porcentaje: { type: number, example: 10 }
+    descuento_porcentaje: { type: number, example: 10, description: Descuento vigente (0 si la oferta ya vencio). }
+    oferta_hasta: { type: string, format: date-time, nullable: true, description: Fin de la oferta; null sin fecha de fin. }
     precio_final: { type: number, example: 3149100 }
     imagenes: { type: array, items: { type: string } }
     atributos: { type: object, additionalProperties: true }
@@ -188,18 +189,24 @@ Producto:
       description: Unidades disponibles segun inventario; null si inventario no responde (degradacion elegante).
       example: 50
     hay_stock: { type: boolean, nullable: true }
+    maximo_por_cliente: { type: integer, nullable: true, description: 'Lo maximo que un cliente sin pedidos en curso puede llevar (RF-47).', example: 45 }
+    activo: { type: boolean, description: Solo para el personal (incluir_inactivos). }
+    descuento_configurado: { type: number, description: Solo para el personal; el descuento aunque la oferta haya vencido. }
+    oferta_hasta_configurada: { type: string, format: date-time, nullable: true, description: Solo para el personal. }
 
 ProductoNuevo:
   type: object
-  required: [sku, nombre, categoria, precio]
+  required: [sku, nombre, subcategoria, precio]
   properties:
-    sku: { type: string, example: SKU-TEC-099 }
+    sku: { type: string, pattern: '^[A-Z0-9][A-Z0-9-]{2,39}$', example: SKU-TEC-099 }
     nombre: { type: string, example: Monitor Andino 27 }
     descripcion: { type: string }
     categoria: { type: string, example: tecnologia }
-    marca: { type: string, example: Andina }
-    precio: { type: number, minimum: 0, example: 1200000 }
-    descuento_porcentaje: { type: number, minimum: 0, maximum: 100, example: 0 }
+    subcategoria: { type: string, description: Seccion de catalogo_db.categorias., example: monitores }
+    marca: { type: string, example: Andina, description: "Sin marca si no se indica." }
+    precio: { type: integer, minimum: 1000, maximum: 100000000, example: 1200000 }
+    descuento_porcentaje: { type: integer, minimum: 0, maximum: 90, example: 0 }
+    oferta_hasta: { type: string, nullable: true, description: 'AAAA-MM-DD (vale hasta el final de ese dia, hora de Colombia) o ISO 8601; futura.', example: '2026-12-15' }
     imagenes: { type: array, items: { type: string } }
     atributos: { type: object, additionalProperties: true }
 
@@ -210,9 +217,11 @@ CambiosProducto:
     nombre: { type: string }
     marca: { type: string }
     descripcion: { type: string }
-    precio: { type: number, minimum: 0 }
-    descuento_porcentaje: { type: number, minimum: 0, maximum: 100 }
-    imagenes: { type: array, items: { type: string } }
+    subcategoria: { type: string }
+    precio: { type: integer, minimum: 1000, maximum: 100000000 }
+    descuento_porcentaje: { type: integer, minimum: 0, maximum: 90 }
+    oferta_hasta: { type: string, nullable: true, description: 'Fecha de fin de la oferta; null la quita. Con descuento 0 se borra sola.' }
+    imagenes: { type: array, maxItems: 6, items: { type: string, pattern: '^/api/catalogo/imagenes/' }, description: Reordenar o quitar fotos ya subidas. }
     atributos: { type: object, additionalProperties: true }
     activo: { type: boolean }
 
@@ -273,6 +282,7 @@ Disponibilidad:
     reservado: { type: integer }
     hay_stock: { type: boolean }
     stock_minimo: { type: integer }
+    maximo_por_cliente: { type: integer, description: 'RF-47: max(1, disponible - 5); 0 si no hay stock.' }
 
 StockBodega:
   type: object
@@ -307,8 +317,12 @@ EntradaStock:
   type: object
   required: [cantidad]
   properties:
-    cantidad: { type: integer, minimum: 1, example: 10 }
+    cantidad: { type: integer, minimum: 1, maximum: 100000, example: 10 }
     bodega_id: { type: integer, example: 1 }
+    proveedor_id: { type: integer, example: 1 }
+    costo_unitario: { type: integer, minimum: 0, example: 180000 }
+    documento: { type: string, maxLength: 40, description: Factura o remision., example: FV-10234 }
+    observacion: { type: string, maxLength: 300 }
 
 # ------------------------------------------------------------------ carrito
 ItemCarrito:
@@ -637,3 +651,121 @@ CambioDireccionPedido:
   required: [direccion_id]
   properties:
     direccion_id: { type: integer, example: 3, description: Una direccion de envio del propio cliente. }
+
+# ------------------------------------------------------------ Trabajo Final, F5c
+CambioPrecio:
+  type: object
+  properties:
+    sku: { type: string }
+    antes: { type: object, nullable: true, properties: { precio: { type: number }, descuento_porcentaje: { type: number }, oferta_hasta: { type: string, nullable: true } } }
+    despues: { type: object, properties: { precio: { type: number }, descuento_porcentaje: { type: number }, oferta_hasta: { type: string, nullable: true } } }
+    usuario: { type: string, example: vendedor@tienda.co }
+    rol: { type: string }
+    fecha: { type: string, format: date-time }
+
+Proveedor:
+  type: object
+  properties:
+    id: { type: integer }
+    nombre: { type: string }
+    nit: { type: string, example: 900123456-1 }
+    contacto: { type: string, nullable: true }
+    telefono: { type: string, nullable: true }
+    email: { type: string, nullable: true }
+    activo: { type: boolean }
+    creado_en: { type: string, format: date-time }
+
+ProveedorNuevo:
+  type: object
+  required: [nombre, nit]
+  properties:
+    nombre: { type: string, minLength: 3, maxLength: 120 }
+    nit: { type: string, description: '6 a 12 digitos y, opcional, el digito de verificacion.', example: 900123456-1 }
+    contacto: { type: string, maxLength: 120 }
+    telefono: { type: string, description: 7 a 15 digitos. }
+    email: { type: string, format: email }
+
+CambiosProveedor:
+  type: object
+  minProperties: 1
+  properties:
+    nombre: { type: string }
+    nit: { type: string }
+    contacto: { type: string, nullable: true }
+    telefono: { type: string, nullable: true }
+    email: { type: string, nullable: true }
+    activo: { type: boolean }
+
+Entrada:
+  type: object
+  properties:
+    id: { type: integer }
+    sku: { type: string }
+    bodega: { type: string, example: BOG-01 }
+    cantidad: { type: integer }
+    costo_unitario: { type: number, nullable: true }
+    documento: { type: string, nullable: true }
+    observacion: { type: string, nullable: true }
+    registrado_por: { type: string, nullable: true }
+    creado_en: { type: string, format: date-time }
+    proveedor_id: { type: integer, nullable: true }
+    proveedor: { type: string, nullable: true }
+    proveedor_contacto: { type: string, nullable: true }
+
+LimiteCompra:
+  type: object
+  properties:
+    sku: { type: string }
+    disponible: { type: integer, description: Stock libre en inventario. }
+    en_curso: { type: integer, description: 'Unidades del cliente en pedidos creados, pagados, en preparacion o enviados.' }
+    maximo_total: { type: integer }
+    puede_agregar: { type: integer }
+
+Bandeja:
+  type: object
+  properties:
+    no_leidas: { type: integer, example: 2 }
+    notificaciones:
+      type: array
+      items:
+        type: object
+        properties:
+          id: { type: string }
+          evento: { type: string, example: asistente.consulta_respondida }
+          asunto: { type: string }
+          texto: { type: string }
+          destino: { type: string, enum: [pedidos, consultas, inventario, carrito, inicio] }
+          ticket: { type: string, nullable: true }
+          de_operaciones: { type: boolean }
+          leida: { type: boolean }
+          creado_en: { type: string, format: date-time }
+
+ConsultaNueva:
+  type: object
+  required: [motivo, mensaje]
+  properties:
+    motivo: { type: string, enum: [producto, pedido, garantia, pago, otro] }
+    referencia: { type: string, nullable: true, description: Numero de pedido o SKU., example: SKU-TEC-002 }
+    mensaje: { type: string, minLength: 5, maxLength: 1000, description: 'Se guarda enmascarado (tarjetas, telefonos y correos).' }
+    conversacion_id: { type: string }
+
+Consulta:
+  type: object
+  properties:
+    numero: { type: string, example: TCK-MBX1Z2A3F4E5 }
+    motivo: { type: string }
+    motivo_texto: { type: string, example: Pregunta sobre un producto }
+    referencia: { type: string, nullable: true }
+    estado: { type: string, enum: [abierta, respondida, cerrada] }
+    email: { type: string }
+    mensajes:
+      type: array
+      items:
+        type: object
+        properties:
+          autor: { type: string, enum: [cliente, vendedor] }
+          nombre: { type: string }
+          texto: { type: string }
+          en: { type: string, format: date-time }
+    creado_en: { type: string, format: date-time }
+    actualizado_en: { type: string, format: date-time }

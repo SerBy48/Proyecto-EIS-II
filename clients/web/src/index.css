@@ -182,6 +182,11 @@
   .btn-primario:hover:not(:disabled) {
     background-color: #065f46;
   }
+  /* Contador de la campana: colores fijos, legibles en los dos temas. */
+  .insignia-alerta {
+    background-color: #b91c1c;
+    color: #ffffff;
+  }
   .btn-peligro {
     @apply text-white font-semibold rounded-lg transition-colors;
     background-color: #b91c1c;

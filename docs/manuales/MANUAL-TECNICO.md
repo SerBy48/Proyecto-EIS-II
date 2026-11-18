@@ -154,12 +154,13 @@ La lista completa y comentada está en [`.env.example`](../../.env.example). Las
 | `CORS_ORIGENES` | Orígenes permitidos (laboratorio) | 5173, 4173 y 8081 |
 | `CORS_ORIGENES_PROD` | Orígenes permitidos (producción) | `http://localhost:${WEB_PUERTO}` |
 | `EXPONER_DOCS` | Swagger UI en `/api/docs` | true (prod: false) |
-| `LIMITE_GENERAL`, `LIMITE_LOGIN`, `LIMITE_CHECKOUT`, `LIMITE_ASISTENTE` | Límites de peticiones por minuto en el gateway | 300, 10, 10, 30 |
+| `LIMITE_GENERAL`, `LIMITE_LOGIN`, `LIMITE_CHECKOUT`, `LIMITE_ASISTENTE`, `LIMITE_IMAGENES` | Límites de peticiones en el gateway (por minuto; login: intentos fallidos en 15 min). Las fotos de `/api/catalogo/imagenes` tienen su propio límite y no gastan el general | 300, 10, 10, 30, 1500 |
 | `PROXY_TIMEOUT_MS` | Tiempo máximo del gateway antes de responder 504 | 15000 |
 | `HTTP_TIMEOUT_MS`, `HTTP_REINTENTOS` | Cliente HTTP entre servicios | 3000, 2 |
 | `CB_UMBRAL_FALLOS`, `CB_ESPERA_MS` | Circuit breaker | 5, 15000 |
 | `PORCENTAJE_IVA`, `COSTO_ENVIO_BASE`, `UMBRAL_ENVIO_GRATIS` | Reglas del carrito (y respuestas del asistente) | 19, 15000, 500000 |
 | `MINUTOS_RESERVA` | Vigencia de una reserva de stock | 15 |
+| `STOCK_RESERVA_CLIENTE` | Unidades que cada cliente debe dejar para los demás (límite por cliente, RF-47; mínimo 1 por cliente). La leen inventario y pedidos | 5 |
 | `CANAL_CORREO`, `SMTP_*` | `smtp` (Mailpit o un proveedor real) o `registro` | smtp |
 | `ASISTENTE_IA`, `ANTHROPIC_API_KEY` | IA opcional del asistente (`desactivada` o `anthropic`) | desactivada |
 
@@ -190,10 +191,11 @@ Al cambiar `JWT_SECRET` o `JWT_REFRESH_SECRET`, todas las sesiones abiertas deja
 |---|---|---|
 | Intenciones (términos, prioridad) | `services/asistente-service/src/datos/intenciones.json` | Al arrancar se agregan las nuevas y se actualizan las que el administrador no editó; `PATCH /api/asistente/intenciones/:clave` (administrador, sin desplegar) las marca como editadas y desde entonces se respetan |
 | Preguntas frecuentes | `src/datos/faq.json` | Igual, con las rutas de FAQ del asistente |
-| Productos y secciones | Catálogo: `infra/mongo/init-mongo.js` (subcategorías con `sinonimos`) o `POST /api/catalogo/productos` con `subcategoria` | Las fotos se asignan por sección (`/productos/<seccion>.webp` en `clients/web/public/`); una sección nueva necesita su foto. **No se toca el asistente**: lee las secciones, los sinónimos y las marcas de `GET /api/catalogo/categorias` cada minuto y busca los productos en vivo |
+| Productos y secciones | Catálogo: `infra/mongo/init-mongo.js` (subcategorías con `sinonimos`) o la pestaña **Productos** del panel (`POST /api/catalogo/productos` con `subcategoria`) | Cada producto de la semilla tiene su foto en `services/catalogo-service/imagenes/` (`sku-tec-NNN.webp`, créditos en `CREDITOS.md`); un producto nuevo usa la foto de su sección (`<seccion>.webp`) hasta que se le suba una desde el panel (GridFS en `catalogo_db`, bucket `imagenes`). Una sección nueva necesita su foto de respaldo. **No se toca el asistente**: lee las secciones, los sinónimos y las marcas de `GET /api/catalogo/categorias` cada minuto y busca los productos en vivo |
 | Cifras (envío, IVA, plazos) | `.env` (`COSTO_ENVIO_BASE`, `DIAS_ENTREGA`…) | Son las mismas que usa el carrito |
 | Tickets de escalamiento | `GET /api/asistente/tickets` | administrador y vendedor |
-| Tasa de acierto | `npm run asistente:metricas` | matriz de confusión; las cifras que se reportan son las de los conjuntos de SerByTek (`frases-serbytek.json`, 50 frases) y de marcas (`frases-marcas.json`, 27), que no se usan para ajustar |
+| Consultas al vendedor (RF-53) | `/api/asistente/consultas*`, colección `tickets` con `tipo: consulta` | El cliente las crea desde el formulario del chat; el personal responde en la pestaña Consultas. Cada mensaje publica `asistente.consulta_*`; notificaciones crea sus plantillas al arrancar si faltan |
+| Tasa de acierto | `npm run asistente:metricas` | matriz de confusión; las cifras que se reportan son las de los conjuntos de SerByTek (`frases-serbytek.json`, 50 frases), de marcas (`frases-marcas.json`, 27) y la validación de contactar al vendedor (`frases-consultas.json`, 15), que no se usan para ajustar |
 | IA opcional | `ASISTENTE_IA=anthropic` y `ANTHROPIC_API_KEY` | Solo para preguntas generales; nunca recibe datos personales |
 
 Los términos van sin tildes y en minúsculas, porque el motor normaliza el texto. Un término terminado en `*` coincide por prefijo. El motor acepta el plural y un error de tipeo (solo en palabras que no conoce), y reconoce rangos de precio, «barato» y «oferta». Si no reconoce la intención, busca en el catálogo con las palabras del mensaje y luego sugiere las intenciones más cercanas.
@@ -262,6 +264,9 @@ npm run prod:logs | grep <request_id>
 | Cambiar un esquema | Edite el SQL y el `esquema.ts` del servicio, y luego `npm run infra:reset` (borra los volúmenes) |
 | Datos iniciales de Mongo, plantillas de correo incluidas | `infra/mongo/init-mongo.js`, solo con volumen nuevo |
 | Cambiar una plantilla en un volumen existente | `PATCH /api/notificaciones/plantillas/:clave` como administrador |
+| Fotos subidas desde el panel | GridFS de `catalogo_db` (`imagenes.files` e `imagenes.chunks`); se borran con el volumen de Mongo. Las de la semilla están en el repositorio |
+| Proveedores y entradas de mercancía | Tablas `proveedores` y `entradas` de `inventario_db` (`03-inventario.sql`; tres proveedores ficticios en `06-datos-prueba.sql`) |
+| Historial de precios | Colección `historial_precios` de `catalogo_db` |
 | Base del asistente en un volumen anterior a la Fase 3 | `npm run infra:asistente` |
 | Datos para pruebas de carga | `CLIENTES_CARGA=300 npm run sembrar:carga` |
 

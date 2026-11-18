@@ -40,7 +40,9 @@ entrada:
   post:
     tags: [inventario]
     summary: Registrar una entrada de mercancia
-    description: Suma unidades y deja el movimiento en el libro. Si el SKU no tenia stock en la bodega, crea la fila.
+    description: |
+      Suma unidades y deja el movimiento en el libro, con su soporte (proveedor, costo unitario, factura o
+      remision y observacion; RF-51), todo en una transaccion. Si el SKU no tenia stock en la bodega, crea la fila.
     operationId: registrarEntrada
     x-roles: [administrador, vendedor]
     requestBody:
@@ -92,3 +94,84 @@ alertas:
             schema: { type: array, items: { $ref: '../componentes/esquemas.yaml#/AlertaStock' } }
       '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
       '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+
+entradas:
+  get:
+    tags: [inventario]
+    summary: Historial de entradas de mercancia
+    operationId: listarEntradas
+    x-roles: [administrador, vendedor]
+    parameters:
+      - { name: sku, in: query, schema: { type: string, example: SKU-TEC-004 } }
+      - { name: proveedor_id, in: query, schema: { type: integer } }
+    responses:
+      '200':
+        description: Ultimas 100 entradas con su proveedor.
+        content:
+          application/json:
+            schema: { type: array, items: { $ref: '../componentes/esquemas.yaml#/Entrada' } }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+
+proveedores:
+  get:
+    tags: [inventario]
+    summary: Proveedores
+    operationId: listarProveedores
+    x-roles: [administrador, vendedor]
+    parameters:
+      - { name: todos, in: query, description: 'true incluye los inactivos.', schema: { type: string, enum: ['true'] } }
+    responses:
+      '200':
+        description: Proveedores por nombre.
+        content:
+          application/json:
+            schema: { type: array, items: { $ref: '../componentes/esquemas.yaml#/Proveedor' } }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+  post:
+    tags: [inventario]
+    summary: Crear un proveedor
+    operationId: crearProveedor
+    x-roles: [administrador, vendedor]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../componentes/esquemas.yaml#/ProveedorNuevo' }
+    responses:
+      '201':
+        description: Proveedor creado.
+        content:
+          application/json:
+            schema: { $ref: '../componentes/esquemas.yaml#/Proveedor' }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+      '409': { $ref: '../componentes/respuestas.yaml#/Conflicto' }
+
+proveedor:
+  parameters:
+    - { name: id, in: path, required: true, schema: { type: integer } }
+  patch:
+    tags: [inventario]
+    summary: Editar o desactivar un proveedor
+    description: No se borra (tiene entradas registradas); se desactiva con activo false.
+    operationId: actualizarProveedor
+    x-roles: [administrador, vendedor]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../componentes/esquemas.yaml#/CambiosProveedor' }
+    responses:
+      '200':
+        description: Proveedor actualizado.
+        content:
+          application/json:
+            schema: { $ref: '../componentes/esquemas.yaml#/Proveedor' }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+      '404': { $ref: '../componentes/respuestas.yaml#/NoEncontrado' }
+      '409': { $ref: '../componentes/respuestas.yaml#/Conflicto' }

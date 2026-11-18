@@ -19,6 +19,7 @@ class CarritoPantalla extends StatefulWidget {
 
 class _CarritoPantallaState extends State<CarritoPantalla> {
   Map<String, dynamic>? _carrito;
+  Map<String, Map<String, dynamic>> _limites = {};
   bool _cargando = true;
   bool _procesando = false;
   String? _error;
@@ -43,9 +44,12 @@ class _CarritoPantallaState extends State<CarritoPantalla> {
     setState(() => _cargando = true);
     try {
       final carrito = await ApiService.carrito();
+      final skus = ((carrito['items'] as List<dynamic>?) ?? []).map((i) => (i as Map<String, dynamic>)['sku'] as String).toList();
+      final limites = await ApiService.limites(skus).catchError((_) => <String, Map<String, dynamic>>{});
       if (!mounted) return;
       setState(() {
         _carrito = carrito;
+        _limites = limites;
         _cargando = false;
         _error = null;
       });
@@ -199,13 +203,18 @@ class _CarritoPantallaState extends State<CarritoPantalla> {
                           itemBuilder: (context, i) {
                             final item = items[i] as Map<String, dynamic>;
                             final cantidad = (item['cantidad'] as num).toInt();
+                            final limite = _limites[item['sku']];
+                            final puede = (limite?['puede_agregar'] as num?)?.toInt();
+                            final conStock = ((limite?['disponible'] as num?)?.toInt() ?? 0) > 0;
+                            final enElMaximo = conStock && puede != null && cantidad >= puede;
                             return Card(
                               margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                               child: ListTile(
                                 title: Text(item['nombre'] as String,
                                     style: const TextStyle(fontWeight: FontWeight.bold)),
                                 subtitle: Text(
-                                    '${item['sku']} · ${moneda(item['precio_unitario'])} c/u'),
+                                    '${item['sku']} · ${moneda(item['precio_unitario'])} c/u'
+                                    '${conStock && puede != null ? (cantidad > puede ? '\nMaximo $puede por cliente: ajusta la cantidad' : '\nPuedes llevar hasta $puede') : ''}'),
                                 trailing: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
@@ -218,8 +227,10 @@ class _CarritoPantallaState extends State<CarritoPantalla> {
                                         style: const TextStyle(fontWeight: FontWeight.bold)),
                                     IconButton(
                                       icon: const Icon(Icons.add_circle_outline),
-                                      onPressed: () =>
-                                          _cambiar(item['sku'] as String, cantidad + 1),
+                                      tooltip: enElMaximo ? 'Llegaste al maximo por cliente' : 'Aumentar',
+                                      onPressed: enElMaximo
+                                          ? null
+                                          : () => _cambiar(item['sku'] as String, cantidad + 1),
                                     ),
                                   ],
                                 ),

@@ -12,6 +12,7 @@ import {
   productoPorSku
 } from './adaptadores';
 import { completarPlantilla, moneda } from './configuracion';
+import { MOTIVOS as MOTIVOS_CONSULTA } from './consultas';
 import { iaActiva, responderConIa } from './ia';
 import {
   Intencion,
@@ -62,7 +63,9 @@ export type Respuesta =
   | { tipo: 'productos'; productos: ProductoResumen[] }
   | { tipo: 'pedido'; pedido: PedidoResumen }
   | { tipo: 'pedidos'; pedidos: PedidoResumen[] }
-  | { tipo: 'opciones'; opciones: Opcion[] };
+  | { tipo: 'opciones'; opciones: Opcion[] }
+  // Formulario de consulta al vendedor dentro del chat (RF-53).
+  | { tipo: 'formulario_consulta'; motivos: Array<{ clave: string; etiqueta: string }>; motivo: string; referencia: string | null };
 
 export interface Contexto {
   texto: string;
@@ -85,7 +88,7 @@ export interface Salida {
   pendiente?: Pendiente;
 }
 
-const ASESOR: Opcion = { etiqueta: 'Hablar con un asesor', texto: 'Quiero hablar con un asesor' };
+const ASESOR: Opcion = { etiqueta: 'Escribirle al vendedor', texto: 'Quiero contactar al vendedor' };
 
 export const MENU: Opcion[] = [
   { etiqueta: 'Buscar un producto', texto: 'Quiero buscar un producto' },
@@ -496,23 +499,56 @@ const responderCancelacion = async (r: Resultado, ctx: Contexto): Promise<Salida
   }
 };
 
-const responderEscalamiento = async (ctx: Contexto): Promise<Salida> => {
+/** Motivo que se preselecciona en el formulario segun lo que dijo el cliente. */
+const motivoSugerido = (r: Resultado, ctx: Contexto): string => {
+  const t = normalizar(ctx.texto);
+  if (r.entidades.pedido || /\bpedido|envio|entrega|llego\b/.test(t)) return 'pedido';
+  if (/garantia|devolu|cambio|reclamo|queja|dano/.test(t)) return 'garantia';
+  if (/pago|factura|cobro|tarjeta|pse/.test(t)) return 'pago';
+  if (r.entidades.sku || r.entidades.subcategoria || r.entidades.marca || /producto/.test(t)) return 'producto';
+  return 'otro';
+};
+
+/**
+ * "Quiero hablar con el vendedor" (RF-53).
+ *  - Cliente con sesion: un formulario dentro del chat (motivo, referencia y
+ *    pregunta). Al enviarlo, la web llama a POST /consultas y el vendedor
+ *    responde desde el panel; la respuesta le llega a la campana y al correo.
+ *  - Visitante: se registra el ticket de antes (F3) y se le ofrece iniciar
+ *    sesion, porque sin cuenta no hay a quien devolverle la respuesta.
+ *  - Personal: las consultas se atienden en el panel, no en el chat.
+ */
+const responderEscalamiento = async (r: Resultado, ctx: Contexto): Promise<Salida> => {
+  if (ctx.usuario?.rol === 'cliente') {
+    return {
+      respuestas: [
+        texto('Claro. Escribe tu consulta y se la envío al vendedor; te avisaremos en la campana de notificaciones y por correo cuando responda.'),
+        {
+          tipo: 'formulario_consulta',
+          motivos: Object.entries(MOTIVOS_CONSULTA).map(([clave, etiqueta]) => ({ clave, etiqueta })),
+          motivo: motivoSugerido(r, ctx),
+          referencia: r.entidades.pedido ?? r.entidades.sku ?? null
+        }
+      ]
+    };
+  }
+  if (ctx.usuario) {
+    return { respuestas: [texto('Las consultas de los clientes se responden en el panel de administración, pestaña Consultas.')] };
+  }
+
   const numero = await ctx.registrarTicket({ texto: ctx.texto, usuario: ctx.usuario });
   // El aviso a operaciones es asincrono: si el broker falla, el ticket ya quedo
   // registrado y la conversacion sigue (invariante 12).
   await ctx.bus?.publicar(Eventos.ASISTENTE_ESCALAMIENTO, {
     ticket: numero,
     conversacion_id: ctx.conversacionId,
-    cliente_id: ctx.usuario?.cliente_id ?? null,
-    contacto: ctx.usuario?.email ?? 'visitante sin sesión'
+    cliente_id: null,
+    contacto: 'visitante sin sesión'
   }, ctx.requestId);
   return {
     respuestas: [
-      texto(
-        `Listo, registré tu solicitud con el número ${numero}. Un asesor la revisará ${
-          ctx.usuario ? 'y te escribirá a tu correo' : 'en el horario de atención; si inicias sesión, podrá escribirte a tu correo'
-        }.`
-      )
+      texto(`Registré tu solicitud con el número ${numero}. Para que el vendedor pueda responderte, inicia sesión y escríbeme "contactar al vendedor": te mostraré un formulario para tu pregunta.`),
+      opciones([{ etiqueta: 'Iniciar sesión', accion: 'iniciar_sesion' }])
     ]
   };
 };
@@ -599,7 +635,7 @@ export const responder = async (r: Resultado, ctx: Contexto): Promise<Salida> =>
     case 'cancelar_pedido':
       return responderCancelacion(r, ctx);
     case 'humano':
-      return responderEscalamiento(ctx);
+      return responderEscalamiento(r, ctx);
     case NO_ENTENDIDO:
       return responderNoEntendido(r, ctx);
     default:
