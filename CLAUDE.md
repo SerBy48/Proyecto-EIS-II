@@ -66,6 +66,7 @@ npm run asistente:metricas  # tasa de acierto de intenciones y matriz de confusi
 npm run infra:asistente     # crea asistente_db en un volumen de Mongo que ya existe (idempotente)
 npm run infra:reset         # borra volúmenes y recrea desde cero
 npm run test:seguridad      # 26 verificaciones de seguridad, 5 del asistente (ver docs/calidad/SEGURIDAD.md)
+npm run auditar:dependencias # npm audit de produccion con los avisos aceptados y su fecha de revision (CI)
 npm run usabilidad:recorrido # 9 tareas en Chromium: KLM, capturas y axe (vite preview en 4173 de build:web:pruebas)
 npm run build:web:pruebas   # build con los controles de la pasarela simulada (U-08); build:web los oculta
 npm run usabilidad:sus      # puntaje SUS; falla si no hay respuestas reales
@@ -266,7 +267,7 @@ volúmenes vacíos): 215 casos de integración y 154 unitarios, todos pasan, y l
 criterios de aceptación de `test:e2e:ui`; `test:openapi` pasa sus 505 comprobaciones y
 `test:asistente` sus 56. El asistente acierta 50/50 frases de SerByTek,
 27/27 de marcas y 13/15 de la validación de contactar al vendedor (`asistente:metricas`), y axe no encuentra reglas WCAG incumplidas en los temas claro
-y oscuro. `npm audit` reporta un aviso nuevo de `picomatch` que no aplica al gateway (PRUEBAS.md 4.41). Los diez servicios compilan y arrancan sanos; la prueba
+y oscuro. `npm audit` reporta un aviso de `picomatch` sin corrección que no aplica al gateway: riesgo aceptado S-13 hasta el 2027-01-31 (`docs/calidad/SEGURIDAD.md` 11.2). Los diez servicios compilan y arrancan sanos; la prueba
 de concurrencia pasa sus 33 comprobaciones (20 compradores simultáneos por 5
 unidades → exactamente 5 ganan); `test:http` pasa sus 73 casos sobre
 autenticación, RBAC, aislamiento entre clientes, idempotencia, los cuatro
@@ -296,7 +297,7 @@ oculta). nginx quita el `Origin` cuando coincide con el `Host` (mismo origen,
 también por el túnel); los orígenes ajenos los rechaza el gateway
 (`CORS_ORIGENES`, o `CORS_ORIGENES_PROD` en prod). CI en
 `.github/workflows/ci.yml`. `test:seguridad` no falla por los riesgos aceptados
-(`RIESGOS_ACEPTADOS`: V-13 = S-09).
+(`RIESGOS_ACEPTADOS`: V-13 = S-09). El paso de dependencias del CI corre `auditar:dependencias`, con sus propios avisos aceptados y fecha de revisión (S-13).
 
 **Defectos ya corregidos**, cada uno con su caso de prueba (sección 4 de
 `docs/PRUEBAS.md`): escalada de privilegios por el token interno, error 500 al

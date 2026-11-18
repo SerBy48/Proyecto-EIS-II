@@ -49,7 +49,9 @@ jobs:
       - name: Lint de OpenAPI
         run: npx redocly lint docs/openapi/openapi.yaml docs/openapi/openapi-interna.yaml
       - name: Dependencias de produccion sin vulnerabilidades altas
-        run: npm audit --omit=dev --audit-level=high
+        # npm audit --omit=dev con los avisos aceptados por escrito (fecha de
+        # revision incluida): ver scripts/auditar-dependencias.ts y SEGURIDAD.md 11.
+        run: npm run auditar:dependencias
       - name: Compilacion de la web (produccion)
         run: npm run build:web
       - uses: actions/upload-artifact@v4

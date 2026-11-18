@@ -1033,6 +1033,7 @@ Desde volúmenes vacíos (`docker compose down -v`), con las imágenes reconstru
 | axe de las vistas nuevas (`tests/usabilidad/axe-f5c.ts`), temas claro y oscuro | 20 pantallas, 0 reglas WCAG incumplidas (tras corregir H-F5c-01) | `axe-f5c.txt`, `axe-f5c.json` |
 | `flutter analyze` (app móvil con fotos y límite por cliente) | sin problemas | `flutter-analyze.txt` |
 | `npm audit --omit=dev --audit-level=high` | 3 avisos altos de un mismo aviso nuevo (GHSA-fc5q-39xc-vjpf, ver abajo) | `npm-audit.txt` |
+| `auditar:dependencias` (paso del CI desde F5c) | 0 avisos altos sin aceptar; GHSA-fc5q-39xc-vjpf aceptado como S-13, con revisión antes del 2027-01-31 | `auditar-dependencias.txt` |
 
 **CA-23, fallo intermitente de la prueba.** En la corrida desde volúmenes vacíos, CA-23 se agotó en el paso del vendedor:
 - **Qué pasó:** la segunda página, que abría su propia sesión por la interfaz, cargó el catálogo pero nunca envió `POST /auth/login`. El registro del gateway no muestra ningún 429, así que no fue el límite de inicios de sesión.
@@ -1043,7 +1044,7 @@ Desde volúmenes vacíos (`docker compose down -v`), con las imágenes reconstru
 - **Por dónde llega:** `micromatch` lo trae a `http-proxy-middleware` del gateway. El `package-lock.json` no cambió en F5c.
 - **Arreglo propuesto:** npm no tiene una versión corregida; solo propone bajar `http-proxy-middleware` a 0.19.2, un cambio incompatible.
 - **Por qué no se aplica:** el gateway monta el proxy por prefijo de Express, sin `pathFilter` ni patrones glob, así que no compila patrones extglob.
-- **Decisión:** queda registrado como aviso no aplicable y pendiente de una versión corregida. No se degrada la dependencia.
+- **Decisión:** el CI falló por este aviso en el PR de F5c. Por decisión del equipo se acepta como riesgo (S-13, `docs/calidad/SEGURIDAD.md` 11.2) con fecha de revisión. El paso del CI usa `npm run auditar:dependencias`, que sigue fallando con cualquier otro aviso alto o crítico y con este cuando venza la fecha. No se degrada la dependencia.
 
 **App móvil.** Las fotos se cargan con `Image.network` desde el gateway (`Config.gateway` + `/api/catalogo/imagenes/...`), con un recuadro mientras cargan y el ícono de antes si fallan. `flutter analyze` pasa, pero no se probó en un emulador ni en un teléfono: ⚠️ PENDIENTE: verificación manual en un dispositivo.
 
