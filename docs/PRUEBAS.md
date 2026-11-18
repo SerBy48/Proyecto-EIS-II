@@ -1046,6 +1046,10 @@ Desde volúmenes vacíos (`docker compose down -v`), con las imágenes reconstru
 - **Por qué no se aplica:** el gateway monta el proxy por prefijo de Express, sin `pathFilter` ni patrones glob, así que no compila patrones extglob.
 - **Decisión:** el CI falló por este aviso en el PR de F5c. Por decisión del equipo se acepta como riesgo (S-13, `docs/calidad/SEGURIDAD.md` 11.2) con fecha de revisión. El paso del CI usa `npm run auditar:dependencias`, que sigue fallando con cualquier otro aviso alto o crítico y con este cuando venza la fecha. No se degrada la dependencia.
 
+**CI del PR.** En GitHub Actions fallaron CA-11, CA-12 y CA-23 con 429 al iniciar sesión.
+- **Causa:** el límite de intentos fallidos vive en la memoria del gateway (15 minutos por IP). `test:http` lo agota a propósito y `test:seguridad` y CA-02 suman intentos. El CI corre todas las suites en menos de 15 minutos sin reiniciar el gateway, que en local se reinicia entre suites.
+- **Corrección:** un paso del CI reinicia el gateway y espera a que esté sano antes de `test:e2e:ui`. No se cambió el límite: es un control que `test:http` verifica.
+
 **App móvil.** Las fotos se cargan con `Image.network` desde el gateway (`Config.gateway` + `/api/catalogo/imagenes/...`), con un recuadro mientras cargan y el ícono de antes si fallan. `flutter analyze` pasa, pero no se probó en un emulador ni en un teléfono: ⚠️ PENDIENTE: verificación manual en un dispositivo.
 
 ---

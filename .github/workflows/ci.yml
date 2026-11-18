@@ -99,6 +99,19 @@ jobs:
 
       - name: Navegador para los E2E de interfaz
         run: npx playwright install --with-deps chromium
+      # El limite de inicios de sesion fallidos vive en la memoria del gateway
+      # (15 min por IP). test:http lo agota a proposito y test:seguridad suma
+      # intentos: sin reiniciar, los E2E de interfaz reciben 429 al iniciar
+      # sesion (CA-11, CA-12 y CA-23 en el PR de F5c). Es el mismo paso que se
+      # hace en local entre suites (CLAUDE.md).
+      - name: Reiniciar el gateway (limite de login en memoria)
+        run: |
+          docker restart ecom_gateway
+          for i in $(seq 1 60); do
+            [ "$(docker inspect -f '{{.State.Health.Status}}' ecom_gateway)" = "healthy" ] && exit 0
+            sleep 2
+          done
+          echo "El gateway no quedo sano tras el reinicio"; exit 1
       - name: E2E de interfaz (Playwright contra la web en contenedor)
         run: npm run test:e2e:ui
 
