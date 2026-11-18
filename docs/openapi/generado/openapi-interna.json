@@ -512,6 +512,18 @@
                   },
                   "token_medio_pago": {
                     "type": "string"
+                  },
+                  "contacto": {
+                    "type": "object",
+                    "description": "Correo y nombre del cliente para el aviso de pago rechazado (H-F5c-02).",
+                    "properties": {
+                      "email": {
+                        "type": "string"
+                      },
+                      "nombre": {
+                        "type": "string"
+                      }
+                    }
                   }
                 }
               }

@@ -198,3 +198,30 @@ direccion:
         content:
           application/json:
             schema: { $ref: '../componentes/esquemas.yaml#/Error' }
+
+limites:
+  get:
+    tags: [pedidos]
+    summary: Cuanto puede llevar el cliente de cada producto
+    description: |
+      RF-47: un cliente debe dejar al menos 5 unidades para los demas (STOCK_RESERVA_CLIENTE), minimo 1,
+      contando lo que ya tiene en pedidos en curso. El checkout lo verifica antes de reservar y responde
+      409 LIMITE_POR_CLIENTE. Un cliente consulta los suyos (cliente_id del token); el personal indica cliente_id.
+    operationId: consultarLimites
+    x-roles: [cliente, administrador, vendedor]
+    parameters:
+      - { name: skus, in: query, required: true, description: 'De 1 a 50 SKU separados por coma.', schema: { type: string, example: 'SKU-TEC-001,SKU-TEC-004' } }
+      - { name: cliente_id, in: query, description: Solo personal interno., schema: { type: integer } }
+    responses:
+      '200':
+        description: Limite por SKU.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reserva_por_cliente: { type: integer, example: 5 }
+                limites: { type: array, items: { $ref: '../componentes/esquemas.yaml#/LimiteCompra' } }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }

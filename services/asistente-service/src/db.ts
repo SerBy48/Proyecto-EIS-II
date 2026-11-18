@@ -38,6 +38,7 @@ const prepararColecciones = async (db: Db): Promise<void> => {
   await db.collection('faq').createIndex({ clave: 1 }, { unique: true });
   await db.collection('tickets').createIndex({ numero: 1 }, { unique: true });
   await db.collection('tickets').createIndex({ estado: 1, creado_en: -1 });
+  await db.collection('tickets').createIndex({ tipo: 1, usuario_id: 1, actualizado_en: -1 });
   await db.collection('conversaciones').createIndex({ usuario_id: 1, actualizada_en: -1 });
   await db
     .collection('conversaciones')

@@ -85,8 +85,10 @@ const producto = (sku, nombre, subcategoria, marca, precio, descuento, descripci
   marca,
   precio,
   descuento_porcentaje: descuento,
-  // Foto ilustrativa de la seccion (Unsplash, ver clients/web/public/productos/CREDITOS.md).
-  imagenes: [`/productos/${subcategoria}.webp`],
+  oferta_hasta: null,
+  // Foto propia de cada producto, servida por el catalogo (Unsplash, ver
+  // services/catalogo-service/imagenes/CREDITOS.md). Se cambia desde el panel.
+  imagenes: [`/api/catalogo/imagenes/${sku.toLowerCase()}.webp`],
   atributos,
   activo: true,
   creado_en: new Date(ahora.getTime() - 60000 * orden++)

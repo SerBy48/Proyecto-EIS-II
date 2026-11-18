@@ -75,6 +75,8 @@ const RUTAS_PUBLICAS: Array<{ metodo: string; patron: RegExp }> = [
   { metodo: 'GET',  patron: /^\/api\/clientes\/departamentos$/ },
   { metodo: 'GET',  patron: /^\/api\/catalogo\/productos(\/[^/]+)?$/ },
   { metodo: 'GET',  patron: /^\/api\/catalogo\/categorias$/ },
+  // Fotos de los productos (las carga tambien la app movil).
+  { metodo: 'GET',  patron: /^\/api\/catalogo\/imagenes\/[^/]+$/ },
   // El asistente atiende tambien a visitantes; con token, el servicio lo valida.
   { metodo: 'POST', patron: /^\/api\/asistente\/mensajes$/ },
   // Swagger UI y la especificacion, solo si estan expuestas (EXPONER_DOCS).

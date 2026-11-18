@@ -6,6 +6,7 @@ import datos from '../src/datos/intenciones.json';
 import { ClienteIa, responderConIa } from '../src/ia';
 import serbytek from '../../../tests/asistente/frases-serbytek.json';
 import frasesMarcas from '../../../tests/asistente/frases-marcas.json';
+import frasesConsultas from '../../../tests/asistente/frases-consultas.json';
 import { vocabularioDelCatalogo } from '../../../tests/asistente/vocabulario';
 import {
   Intencion,
@@ -146,6 +147,21 @@ describe('marcas del catalogo', () => {
     const m = medir(frasesMarcas.evaluacion as Caso[]);
     expect(m.total).toBe(27);
     expect(m.tasa).toBeGreaterThanOrEqual(0.9);
+  });
+});
+
+describe('contactar al vendedor (RF-53)', () => {
+  const vocabulario = vocabularioDelCatalogo();
+
+  it('"quiero contactar al vendedor" es la intencion humano, no una busqueda', () => {
+    expect(clasificar('quiero contactar al vendedor', intenciones, undefined, vocabulario).intencion).toBe('humano');
+    expect(clasificar('necesito hablar con el vendedor', intenciones, undefined, vocabulario).intencion).toBe('humano');
+  });
+
+  it('validacion (escrita despues del ajuste): al menos 80 %; la cifra real esta en la evidencia', () => {
+    const m = medir(frasesConsultas.validacion as Caso[]);
+    expect(m.total).toBe(15);
+    expect(m.tasa).toBeGreaterThanOrEqual(0.8);
   });
 });
 

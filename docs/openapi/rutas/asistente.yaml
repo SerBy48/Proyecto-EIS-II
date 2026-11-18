@@ -158,3 +158,114 @@ faqClave:
       '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
       '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
       '404': { $ref: '../componentes/respuestas.yaml#/NoEncontrado' }
+
+consultas:
+  post:
+    tags: [asistente]
+    summary: Enviar una consulta al vendedor
+    description: |
+      RF-53: el formulario del chat (respuesta formulario_consulta de la intencion humano). Crea un hilo y
+      publica asistente.consulta_nueva: al personal le llega a la campana y al correo de operaciones.
+    operationId: crearConsulta
+    x-roles: [cliente]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../componentes/esquemas.yaml#/ConsultaNueva' }
+    responses:
+      '201':
+        description: Consulta creada.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mensaje: { type: string }
+                consulta: { type: object, additionalProperties: true }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+  get:
+    tags: [asistente]
+    summary: Consultas al vendedor
+    description: El cliente ve las suyas; el personal, todas.
+    operationId: listarConsultas
+    x-roles: [cliente, administrador, vendedor]
+    parameters:
+      - { name: estado, in: query, schema: { type: string, enum: [abierta, respondida, cerrada] } }
+    responses:
+      '200':
+        description: Ultimas 100, por actividad.
+        content:
+          application/json:
+            schema: { type: array, items: { $ref: '../componentes/esquemas.yaml#/Consulta' } }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+
+consulta:
+  parameters:
+    - { name: numero, in: path, required: true, schema: { type: string, example: TCK-MBX1Z2A3F4E5 } }
+  get:
+    tags: [asistente]
+    summary: Una consulta con su hilo
+    description: La de otro cliente responde 404 (no se confirma que existe).
+    operationId: obtenerConsulta
+    x-roles: [cliente, administrador, vendedor]
+    responses:
+      '200':
+        description: Consulta.
+        content:
+          application/json:
+            schema: { $ref: '../componentes/esquemas.yaml#/Consulta' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+      '404': { $ref: '../componentes/respuestas.yaml#/NoEncontrado' }
+  patch:
+    tags: [asistente]
+    summary: Cerrar o reabrir una consulta
+    operationId: cambiarEstadoConsulta
+    x-roles: [administrador, vendedor]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { type: object, required: [estado], properties: { estado: { type: string, enum: [cerrada, abierta] } } }
+    responses:
+      '200':
+        description: Consulta actualizada.
+        content:
+          application/json:
+            schema: { $ref: '../componentes/esquemas.yaml#/Consulta' }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+      '404': { $ref: '../componentes/respuestas.yaml#/NoEncontrado' }
+
+consultaMensajes:
+  parameters:
+    - { name: numero, in: path, required: true, schema: { type: string, example: TCK-MBX1Z2A3F4E5 } }
+  post:
+    tags: [asistente]
+    summary: Responder en el hilo de una consulta
+    description: |
+      El personal responde (pasa a respondida y publica asistente.consulta_respondida: al cliente le llega a
+      la campana y al correo); el cliente contesta (vuelve a abierta y le llega al personal).
+    operationId: responderConsulta
+    x-roles: [cliente, administrador, vendedor]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { type: object, required: [texto], properties: { texto: { type: string, minLength: 5, maxLength: 1000 } } }
+    responses:
+      '200':
+        description: Consulta con el mensaje nuevo.
+        content:
+          application/json:
+            schema: { $ref: '../componentes/esquemas.yaml#/Consulta' }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+      '404': { $ref: '../componentes/respuestas.yaml#/NoEncontrado' }
+      '409': { $ref: '../componentes/respuestas.yaml#/Conflicto' }

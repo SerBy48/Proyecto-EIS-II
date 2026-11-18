@@ -302,7 +302,10 @@
         { "texto": "humano", "peso": 5 }, { "texto": "asesor", "peso": 5 }, { "texto": "agente", "peso": 4 },
         { "texto": "operador", "peso": 4 }, { "texto": "persona", "peso": 3 }, { "texto": "hablar con alguien", "peso": 5 },
         { "texto": "hablar con una persona", "peso": 6 }, { "texto": "queja", "peso": 3 }, { "texto": "reclamo", "peso": 3 },
-        { "texto": "soporte", "peso": 4 }, { "texto": "servicio al cliente", "peso": 5 }
+        { "texto": "soporte", "peso": 4 }, { "texto": "servicio al cliente", "peso": 5 },
+        { "texto": "vendedor", "peso": 6 }, { "texto": "contactar", "peso": 5 }, { "texto": "contacten", "peso": 5 },
+        { "texto": "comunico", "peso": 5 }, { "texto": "comunicarme", "peso": 5 }, { "texto": "escribirle", "peso": 5 },
+        { "texto": "mensaje a la tienda", "peso": 6 }, { "texto": "pregunta al vendedor", "peso": 6 }, { "texto": "duda", "peso": 3 }
       ]
     }
   ]

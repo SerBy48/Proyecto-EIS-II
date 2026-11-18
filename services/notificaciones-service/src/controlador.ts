@@ -87,6 +87,8 @@ export const procesarEvento = async (evento: EventoDominio): Promise<void> => {
       destinatario,
       asunto,
       cuerpo,
+      // Texto plano para la campana de la web (React lo escapa al mostrarlo).
+      texto,
       estado: 'pendiente',
       clave_dedupe: claveDedupe,
       request_id: evento.request_id,
@@ -146,7 +148,7 @@ export const registrarSuscripciones = async (bus: BusEventos): Promise<void> => 
   await bus.suscribir(
     {
       cola: 'notificaciones.envio',
-      patrones: ['pedido.*', 'pago.rechazado', 'inventario.stock_minimo', 'carrito.abandonado', 'asistente.escalamiento'],
+      patrones: ['pedido.*', 'pago.rechazado', 'inventario.stock_minimo', 'carrito.abandonado', 'asistente.*'],
       maxIntentos: 3
     },
     procesarEvento

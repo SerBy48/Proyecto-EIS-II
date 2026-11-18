@@ -8,3 +8,4 @@ export * from './bus-eventos';
 export * from './servicio';
 export * from './utilidades';
 export * from './postgres';
+export * from './limites';

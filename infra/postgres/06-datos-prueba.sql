@@ -35,6 +35,12 @@ INSERT INTO bodegas (codigo, nombre, ciudad) VALUES
   ('BOG-01', 'Centro de distribucion Bogota',  'Bogota'),
   ('MED-01', 'Centro de distribucion Medellin','Medellin');
 
+-- Proveedores de ejemplo (ficticios: nombres, NIT y contactos inventados).
+INSERT INTO proveedores (nombre, nit, contacto, telefono, email) VALUES
+  ('Distribuidora Andina de Tecnologia S.A.S.', '900123456-1', 'Laura Mejia',   '6015550101', 'compras@andinatec.example'),
+  ('Importaciones Pacifico Digital S.A.S.',     '901234567-2', 'Andres Rojas',  '6025550202', 'ventas@pacificodigital.example'),
+  ('Mayorista Cafetero de Computo Ltda.',       '800345678-3', 'Diana Osorio',  '6045550303', 'pedidos@cafeterocomputo.example');
+
 -- El stock esta pensado para las pruebas del documento:
 --   SKU-TEC-004 tiene UNA sola unidad: es el producto con el que se prueba la
 --   condicion de carrera de la ultima unidad disponible.
