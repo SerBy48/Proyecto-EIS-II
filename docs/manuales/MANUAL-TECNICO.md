@@ -154,7 +154,7 @@ La lista completa y comentada está en [`.env.example`](../../.env.example). Las
 | `CORS_ORIGENES` | Orígenes permitidos (laboratorio) | 5173, 4173 y 8081 |
 | `CORS_ORIGENES_PROD` | Orígenes permitidos (producción) | `http://localhost:${WEB_PUERTO}` |
 | `EXPONER_DOCS` | Swagger UI en `/api/docs` | true (prod: false) |
-| `LIMITE_GENERAL`, `LIMITE_LOGIN`, `LIMITE_CHECKOUT`, `LIMITE_ASISTENTE` | Límites de peticiones por minuto en el gateway | 300, 10, 10, 30 |
+| `LIMITE_GENERAL`, `LIMITE_LOGIN`, `LIMITE_CHECKOUT`, `LIMITE_ASISTENTE`, `LIMITE_IMAGENES` | Límites de peticiones en el gateway (por minuto; login: intentos fallidos en 15 min). Las fotos de `/api/catalogo/imagenes` tienen su propio límite y no gastan el general | 300, 10, 10, 30, 1500 |
 | `PROXY_TIMEOUT_MS` | Tiempo máximo del gateway antes de responder 504 | 15000 |
 | `HTTP_TIMEOUT_MS`, `HTTP_REINTENTOS` | Cliente HTTP entre servicios | 3000, 2 |
 | `CB_UMBRAL_FALLOS`, `CB_ESPERA_MS` | Circuit breaker | 5, 15000 |

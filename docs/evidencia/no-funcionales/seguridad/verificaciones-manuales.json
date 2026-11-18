@@ -1,5 +1,5 @@
 {
-  "fecha": "2026-11-18T08:47:33.289Z",
+  "fecha": "2026-11-18T09:28:51.733Z",
   "gateway": "http://localhost:8080",
   "web": "http://localhost:4173",
   "resultados": [
@@ -30,7 +30,7 @@
       "evidencia": {
         "categoria_tecnologia": {
           "estado": 200,
-          "total": 69
+          "total": 72
         },
         "categoria_ne": {
           "estado": 400,
@@ -60,13 +60,13 @@
       "area": "Validación de entradas",
       "titulo": "Inyección SQL en /pedidos/:id",
       "resultado": "SEGURO",
-      "detalle": "Estados: 404 (22 ms), 404 (14 ms), 404 (14 ms). Las consultas son parametrizadas (invariante 8) y pg_sleep no se ejecuta.",
+      "detalle": "Estados: 404 (62 ms), 404 (30 ms), 404 (28 ms). Las consultas son parametrizadas (invariante 8) y pg_sleep no se ejecuta.",
       "evidencia": {
         "cargas": [
           {
             "carga": "1'OR'1'='1",
             "estado": 404,
-            "ms": 22,
+            "ms": 62,
             "cuerpo": {
               "mensaje": "Pedido no encontrado.",
               "codigo": "NO_ENCONTRADO"
@@ -75,7 +75,7 @@
           {
             "carga": "1 OR 1=1",
             "estado": 404,
-            "ms": 14,
+            "ms": 30,
             "cuerpo": {
               "mensaje": "Pedido no encontrado.",
               "codigo": "NO_ENCONTRADO"
@@ -84,7 +84,7 @@
           {
             "carga": "1;SELECT pg_sleep(3)--",
             "estado": 404,
-            "ms": 14,
+            "ms": 28,
             "cuerpo": {
               "mensaje": "Pedido no encontrado.",
               "codigo": "NO_ENCONTRADO"
@@ -112,11 +112,11 @@
       "area": "Contraseñas",
       "titulo": "Contraseñas con bcrypt y el hash nunca expuesto",
       "resultado": "SEGURO",
-      "detalle": "27 de 27 usuarios con hash bcrypt de 10 rondas. El hash no aparece en la respuesta del login ni en /auth/perfil, y aparece 0 veces en los logs de auth.",
+      "detalle": "34 de 34 usuarios con hash bcrypt de 10 rondas. El hash no aparece en la respuesta del login ni en /auth/perfil, y aparece 0 veces en los logs de auth.",
       "evidencia": {
         "usuarios": {
-          "total": 27,
-          "bcrypt": 27
+          "total": 34,
+          "bcrypt": 34
         },
         "hash_en_respuestas": false,
         "hash_en_logs": 0
@@ -144,14 +144,14 @@
           "access-control-allow-credentials": "true",
           "access-control-expose-headers": "x-request-id",
           "connection": "keep-alive",
-          "content-length": "9054",
+          "content-length": "8669",
           "content-type": "application/json; charset=utf-8",
           "cross-origin-opener-policy": "same-origin",
           "cross-origin-resource-policy": "cross-origin",
-          "date": "Wed, 18 Nov 2026 08:47:29 GMT",
-          "etag": "W/\"235e-ZRrZGECjQgmzjTUepyKwEbKXB8k\"",
+          "date": "Wed, 18 Nov 2026 09:28:43 GMT",
+          "etag": "W/\"21dd-Dha9ZfPus9M17BAKNd5p4pqg5cI\"",
           "origin-agent-cluster": "?1",
-          "ratelimit": "limit=300, remaining=288, reset=59",
+          "ratelimit": "limit=300, remaining=288, reset=55",
           "ratelimit-policy": "300;w=60",
           "referrer-policy": "no-referrer",
           "strict-transport-security": "max-age=31536000; includeSubDomains",
@@ -161,7 +161,7 @@
           "x-download-options": "noopen",
           "x-frame-options": "SAMEORIGIN",
           "x-permitted-cross-domain-policies": "none",
-          "x-request-id": "16602cab-f5d9-458b-8587-939a11634dcc",
+          "x-request-id": "fe761434-11f4-4990-8b15-50deb3054ab2",
           "x-xss-protection": "0"
         }
       }
@@ -258,7 +258,7 @@
           "cross-origin-embedder-policy": "require-corp",
           "cross-origin-opener-policy": "same-origin",
           "cross-origin-resource-policy": "same-origin",
-          "date": "Wed, 18 Nov 2026 08:47:29 GMT",
+          "date": "Wed, 18 Nov 2026 09:28:44 GMT",
           "etag": "W/\"293-9XVa4SGnCkLA/q/YNAOWjt6nIVg\"",
           "keep-alive": "timeout=5",
           "permissions-policy": "camera=(), microphone=(), geolocation=(), payment=()",
@@ -317,7 +317,7 @@
       "area": "Validación de entradas",
       "titulo": "El registro acepta un correo sin formato de correo",
       "resultado": "SEGURO",
-      "detalle": "POST /auth/registro con email \"no-es-un-correo-1794991650370\" → 400. El escaneo activo creó además 115 usuarios administradores con \"correos\" como http://www.google.com/ o plantillas de inyección por POST /auth/usuarios.",
+      "detalle": "POST /auth/registro con email \"no-es-un-correo-1794994125845\" → 400. El escaneo activo creó además 115 usuarios administradores con \"correos\" como http://www.google.com/ o plantillas de inyección por POST /auth/usuarios.",
       "evidencia": {
         "estado": 400,
         "cuerpo": {
@@ -348,9 +348,9 @@
       "area": "Control de acceso",
       "titulo": "Asistente: un cliente consulta por el chat los pedidos de otro (IDOR)",
       "resultado": "SEGURO",
-      "detalle": "Bruno pidió el pedido PED-202611-001033 de Ana por número, por id y continuando la conversación de Ana: en los tres casos \"No encontré el pedido PED-202611-001033 entre tus pedidos.\" y ninguna tarjeta de pedido. El asistente consulta pedidos con el token del usuario (invariante 15).",
+      "detalle": "Bruno pidió el pedido PED-202611-001043 de Ana por número, por id y continuando la conversación de Ana: en los tres casos \"No encontré el pedido PED-202611-001043 entre tus pedidos.\" y ninguna tarjeta de pedido. El asistente consulta pedidos con el token del usuario (invariante 15).",
       "evidencia": {
-        "pedido_de_ana": "PED-202611-001033",
+        "pedido_de_ana": "PED-202611-001043",
         "respuestas": [
           {
             "estado": 200,
@@ -435,7 +435,7 @@
       "area": "Control de acceso",
       "titulo": "Cambiar la dirección de envío de un pedido ajeno",
       "resultado": "SEGURO",
-      "detalle": "Bruno recibió 404 al cambiar la dirección del pedido 34 de Ana: un pedido ajeno se responde como inexistente (invariante 1).",
+      "detalle": "Bruno recibió 404 al cambiar la dirección del pedido 44 de Ana: un pedido ajeno se responde como inexistente (invariante 1).",
       "evidencia": {
         "estado": 404
       }
@@ -470,7 +470,7 @@
       "area": "Control de acceso",
       "titulo": "Leer la consulta de otro cliente o marcar sus notificaciones",
       "resultado": "SEGURO",
-      "detalle": "Bruno leyendo TCK-MWLVONOT5E8B: 404; aparece en su lista: no; marcar 5 notificaciones de Ana: 0 marcadas.",
+      "detalle": "Bruno leyendo TCK-MWLX5RZDCCC8: 404; aparece en su lista: no; marcar 5 notificaciones de Ana: 0 marcadas.",
       "evidencia": {
         "leer": 404,
         "ajenaEnLista": false,

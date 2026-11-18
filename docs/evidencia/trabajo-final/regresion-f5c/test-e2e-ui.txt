@@ -5,29 +5,29 @@
 
 Aceptacion E2E de interfaz contra http://localhost:8081
 
-  [32mPASA[0m  CA-01 Registro de un cliente nuevo[90m — e2e-ui-1794989751677@correo.co con sesión iniciada y dirección (Neiva, Huila) lista para comprar[0m
+  [32mPASA[0m  CA-01 Registro de un cliente nuevo[90m — e2e-ui-1794994171413@correo.co con sesión iniciada y dirección (Neiva, Huila) lista para comprar[0m
   [32mPASA[0m  CA-02 Inicio de sesión (error y éxito)[90m — error: "Credenciales invalidas."; luego entra[0m
   [32mPASA[0m  CA-03 Búsqueda y filtro[90m — 3 portátiles, todos de la sección Computadores[0m
   [32mPASA[0m  CA-04 Carrito y cupón[90m — descuento de 314910 sobre 3149100[0m
-  [32mPASA[0m  CA-05 Compra aprobada[90m — PED-202611-001023 pagado; carrito vacío[0m
-  [32mPASA[0m  CA-09 Correo de confirmación[90m — correo de PED-202611-001023 para ana@correo.co[0m
-  [32mPASA[0m  CA-08 Cancelación[90m — PED-202611-001023 cancelado; aviso: "El pedido PED-202611-001023 fue cancelado. Si ya se había co…"[0m
-  [32mPASA[0m  CA-06 Compra rechazada con compensación[90m — stock de SKU-TEC-006: 47 antes y 47 después (devuelto)[0m
-  [32mPASA[0m  CA-07 Última unidad[90m — Ana compra SKU-ACE-509; Bruno ve "Se agoto el producto SKU-ACE-509 mientras completa…" y no se le cobra[0m
-  [32mPASA[0m  CA-10 Asistente virtual[90m — FAQ y "¿hay audífonos disponibles?" como visitante; Ana ve PED-202611-001026 y no ve PED-202611-001027 (de Bruno)[0m
-  [32mPASA[0m  CA-11 Vendedor: entrada de stock[90m — SKU-TEC-007: 23 -> 33[0m
-  [32mPASA[0m  CA-12 Administrador: estado y bitácora de la saga[90m — PED-202611-001028 en preparación; bitácora con 16 pasos[0m
+  [32mPASA[0m  CA-05 Compra aprobada[90m — PED-202611-001044 pagado; carrito vacío[0m
+  [32mPASA[0m  CA-09 Correo de confirmación[90m — correo de PED-202611-001044 para ana@correo.co[0m
+  [32mPASA[0m  CA-08 Cancelación[90m — PED-202611-001044 cancelado; aviso: "El pedido PED-202611-001044 fue cancelado. Si ya se había co…"[0m
+  [32mPASA[0m  CA-06 Compra rechazada con compensación[90m — stock de SKU-TEC-006: 40 antes y 40 después (devuelto)[0m
+  [32mPASA[0m  CA-07 Última unidad[90m — Ana compra SKU-ACE-443; Bruno ve "Se agoto el producto SKU-ACE-443 mientras completa…" y no se le cobra[0m
+  [32mPASA[0m  CA-10 Asistente virtual[90m — FAQ y "¿hay audífonos disponibles?" como visitante; Ana ve PED-202611-001047 y no ve PED-202611-001048 (de Bruno)[0m
+  [32mPASA[0m  CA-11 Vendedor: entrada de stock[90m — SKU-TEC-007: 3 -> 13[0m
+  [32mPASA[0m  CA-12 Administrador: estado y bitácora de la saga[90m — PED-202611-001049 en preparación; bitácora con 16 pasos[0m
   [32mPASA[0m  CA-13 Perfil: datos y direcciones[90m — 2 direcciones; "Oficina" (Bogotá D.C.) predeterminada; teléfono guardado[0m
-  [32mPASA[0m  CA-14 Dirección al pagar y dos cambios después[90m — PED-202611-001029 pagado con envío a Cali; 2 cambios hechos y el tercero rechazado (409)[0m
-  [32mPASA[0m  CA-15 Eliminar cuenta (bloqueada con pedidos en curso)[90m — bloqueada con PED-202611-001030 pagado; tras cancelarlo se elimina y el perfil queda anonimizado[0m
+  [32mPASA[0m  CA-14 Dirección al pagar y dos cambios después[90m — PED-202611-001050 pagado con envío a Cali; 2 cambios hechos y el tercero rechazado (409)[0m
+  [32mPASA[0m  CA-15 Eliminar cuenta (bloqueada con pedidos en curso)[90m — bloqueada con PED-202611-001051 pagado; tras cancelarlo se elimina y el perfil queda anonimizado[0m
   [32mPASA[0m  CA-16 Modo oscuro y contraseña visible[90m — tema oscuro recordado tras recargar; el ojo muestra y oculta la contraseña[0m
-  [32mPASA[0m  CA-17 Administrador: crear y desactivar un vendedor[90m — vendedor-1794989825906@serbytek.co creado como vendedor, entra; desactivado, ya no entra[0m
+  [32mPASA[0m  CA-17 Administrador: crear y desactivar un vendedor[90m — vendedor-1794994358617@serbytek.co creado como vendedor, entra; desactivado, ya no entra[0m
   [32mPASA[0m  CA-18 Sesión vencida: la web vuelve a modo visitante[90m — aviso de sesión vencida, botón "Iniciar sesión" y el chat responde como visitante[0m
-  [32mPASA[0m  CA-19 Productos: precio y oferta con fecha de fin desde el panel[90m — SKU-CA19-MWLULN30: $200.000 -> $180.000 con 25 % hasta el 2026-11-28 (precio final $135.000), en el historial[0m
-  [32mPASA[0m  CA-20 Productos: subir una foto desde el PC[90m — SKU-CA20-MWLULQO6: foto subida y servida en /api/catalogo/imagenes/6afd5f10d21c5f527d638488[0m
-  [32mPASA[0m  CA-21 Inventario: entrada con proveedor, costo y factura[90m — SKU-TEC-026: 48 -> 52; FV-CA21-43858 de Distribuidora Andina de Tecnologia S.A.S. a $550.000 c/u[0m
-  [32mPASA[0m  CA-22 Límite por cliente: el carrito dice cuántas puede llevar[90m — 7 unidades: la web muestra "hasta 2" y desactiva +; con 3, 409 LIMITE_POR_CLIENTE ("De Producto CA22 ULWNW puedes llevar máximo 2 unidades. Ajusta la cantidad en tu carrito.")[0m
-  [32mPASA[0m  CA-23 Consulta al vendedor desde el asistente y respuesta en la campana[90m — TCK-MWLUM21JCCFD: enviada desde el chat, respondida en el panel; el cliente la abre desde la campana[0m
+  [32mPASA[0m  CA-19 Productos: precio y oferta con fecha de fin desde el panel[90m — SKU-CA19-MWLXB0H1: $200.000 -> $180.000 con 25 % hasta el 2026-11-28 (precio final $135.000), en el historial[0m
+  [32mPASA[0m  CA-20 Productos: subir una foto desde el PC[90m — SKU-CA20-MWLXB8UK: foto subida y servida en /api/catalogo/imagenes/6afd70dd96bd3b9bdbfa8810[0m
+  [32mPASA[0m  CA-21 Inventario: entrada con proveedor, costo y factura[90m — SKU-TEC-026: 56 -> 60; FV-CA21-11133 de Distribuidora Andina de Tecnologia S.A.S. a $550.000 c/u[0m
+  [32mPASA[0m  CA-22 Límite por cliente: el carrito dice cuántas puede llevar[90m — 7 unidades: la web muestra "hasta 2" y desactiva +; con 3, 409 LIMITE_POR_CLIENTE ("De Producto CA22 XBTP2 puedes llevar máximo 2 unidades. Ajusta la cantidad en tu carrito.")[0m
+  [32mPASA[0m  CA-23 Consulta al vendedor desde el asistente y respuesta en la campana[90m — TCK-MWLXC5OS8ECE: enviada desde el chat, respondida en el panel; el cliente la abre desde la campana[0m
 
 [32m23 de 23 criterios de aceptación pasan.[0m
 [90mEvidencia: docs\evidencia\trabajo-final\e2e-ui[0m

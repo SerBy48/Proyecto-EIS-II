@@ -218,10 +218,28 @@ const limiteAsistente = rateLimit({
   message: { mensaje: 'Estas enviando mensajes muy rapido. Espera un momento.', codigo: 'LIMITE_ASISTENTE' }
 });
 
+/**
+ * Fotos de los productos (F5c): una vista del catalogo pide unas 20 y el
+ * navegador no les manda el token, asi que contaban por IP contra el limite
+ * general (300/min) y lo agotaban: el inicio de sesion siguiente recibia 429.
+ * Son lecturas baratas y cacheables (Cache-Control de un dia o un año): llevan
+ * su propio limite, mas holgado, y no gastan el cupo de la API.
+ */
+const limiteImagenes = rateLimit({
+  windowMs: 60_000,
+  limit: Number(process.env.LIMITE_IMAGENES || 1500),
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  keyGenerator: (req) => `img:${req.ip}`,
+  message: { mensaje: 'Demasiadas peticiones de imagenes. Intente de nuevo en un momento.', codigo: 'LIMITE_EXCEDIDO' }
+});
+const esImagenPublica = (req: Request): boolean => req.method === 'GET' && req.path.startsWith('/catalogo/imagenes/');
+
 app.use('/api/auth/login', limiteLogin);
 app.use('/api/pedidos/checkout', limiteCheckout);
 app.use('/api/asistente/mensajes', limiteAsistente);
-app.use('/api', limiteGeneral);
+app.use('/api/catalogo/imagenes', limiteImagenes);
+app.use('/api', (req, res, next) => (esImagenPublica(req) ? next() : limiteGeneral(req, res, next)));
 
 // --------------------------------------------------------------------------
 // Registro de peticiones
