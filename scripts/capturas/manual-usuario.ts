@@ -154,6 +154,12 @@ const principal = async (): Promise<void> => {
   await p.getByRole('button', { name: 'Registrar' }).click();
   await p.getByText(/ahora hay \d+ unidades/).waitFor();
   await foto(p, '11-vendedor-inventario', true);
+  // F5c: pestaña Productos con el editor abierto (precio, oferta y fotos).
+  await p.getByRole('navigation', { name: 'Secciones de administración' }).getByRole('button', { name: 'Productos', exact: true }).click();
+  await p.getByLabel('Buscar').fill('SKU-TEC-002');
+  await p.getByRole('button', { name: /^Editar Audífonos Sony/ }).click();
+  await p.getByRole('heading', { name: /^Historial de precios/ }).waitFor();
+  await foto(p, '19-productos');
   await p.context().close();
 
   // -------------------------------------------------------- administrador

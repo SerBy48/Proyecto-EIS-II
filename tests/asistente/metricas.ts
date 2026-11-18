@@ -14,6 +14,7 @@ import datos from '../../services/asistente-service/src/datos/intenciones.json';
 import frases from './frases.json';
 import marcas from './frases-marcas.json';
 import serbytek from './frases-serbytek.json';
+import consultas from './frases-consultas.json';
 import { vocabularioDelCatalogo } from './vocabulario';
 
 export interface Caso {
@@ -67,7 +68,9 @@ const principal = (): void => {
   const evaluacion = medir(frases.evaluacion as Caso[]);
   const tienda = medir(serbytek.evaluacion as Caso[]);
   const deMarcas = medir(marcas.evaluacion as Caso[]);
-  const total = medir([...frases.desarrollo, ...frases.evaluacion, ...serbytek.evaluacion, ...marcas.evaluacion] as Caso[]);
+  const consultasAjuste = medir(consultas.evaluacion as Caso[]);
+  const consultasValidacion = medir(consultas.validacion as Caso[]);
+  const total = medir([...frases.desarrollo, ...frases.evaluacion, ...serbytek.evaluacion, ...marcas.evaluacion, ...consultas.evaluacion, ...consultas.validacion] as Caso[]);
 
   const lineas = [
     '# Asistente virtual: tasa de acierto de intenciones',
@@ -80,11 +83,15 @@ const principal = (): void => {
     `| Evaluacion de la Fase 3 (no se ajusta) | ${evaluacion.total} | ${evaluacion.aciertos} | ${porcentaje(evaluacion.tasa)} |`,
     `| **Evaluacion SerByTek (escrita antes del motor nuevo; es la cifra que se reporta)** | ${tienda.total} | ${tienda.aciertos} | **${porcentaje(tienda.tasa)}** |`,
     `| **Evaluacion de marcas (escrita antes del reconocimiento de marcas)** | ${deMarcas.total} | ${deMarcas.aciertos} | **${porcentaje(deMarcas.tasa)}** |`,
+    `| Contactar al vendedor: conjunto con el que se ajusto (RF-53) | ${consultasAjuste.total} | ${consultasAjuste.aciertos} | ${porcentaje(consultasAjuste.tasa)} |`,
+    `| **Contactar al vendedor: validacion (escrita despues del ajuste, sin volver a ajustar)** | ${consultasValidacion.total} | ${consultasValidacion.aciertos} | **${porcentaje(consultasValidacion.tasa)}** |`,
     `| Total | ${total.total} | ${total.aciertos} | ${porcentaje(total.tasa)} |`,
     '',
     'Primera medicion del conjunto SerByTek (2026-11-16): 49 de 50 (98,0 %). La frase fallida, "Hay audífonos disponibles?", revelo un defecto en `singular()` ("disponibles" -> "disponibl"); se corrigio la regla del plural, no los terminos, y la cifra de arriba es la medicion posterior (docs/PRUEBAS.md, 4.33).',
     '',
     'Conjunto de marcas (2026-11-16, catalogo con marcas reales): linea base sin reconocer marcas 20 de 27; primera medicion con el reconocimiento 26 de 27 ("hay audífonos Sony disponibles?" se iba a buscar, porque los refuerzos por seccion y marca solo favorecian a esa intencion). Un intento de dar los mismos refuerzos a precio_disponibilidad bajo a 19 de 27 y a 46 de 50 en SerByTek, y se descarto. La regla final, que no toca los pesos de los terminos: las entidades confirman una intencion que el mensaje ya sugiere con palabras, pero no la crean; resultado de arriba.',
+    '',
+    'Contactar al vendedor (2026-11-18): el conjunto de 20 frases se escribio antes de tocar la intencion humano y dio 10 de 20 (4 de las 14 frases de contacto); con esos fallos a la vista se agregaron terminos (vendedor, contactar, comunicarme...), por eso ese conjunto ya no es independiente. La cifra que se reporta es la de validacion: 15 frases nuevas medidas una sola vez despues del ajuste.',
     '',
     '## Matriz de confusion (evaluacion SerByTek)',
     '',
@@ -95,7 +102,7 @@ const principal = (): void => {
     '## Errores',
     '',
     ...(total.errores.length
-      ? ['| Conjunto | Frase | Esperada | Obtenida |', '|---|---|---|---|', ...total.errores.map((e) => `| ${frases.desarrollo.some((d) => d.frase === e.frase) ? 'desarrollo' : serbytek.evaluacion.some((d) => d.frase === e.frase) ? 'SerByTek' : marcas.evaluacion.some((d) => d.frase === e.frase) ? 'marcas' : 'evaluacion F3'} | ${e.frase} | ${e.esperada} | ${e.obtenida} |`)]
+      ? ['| Conjunto | Frase | Esperada | Obtenida |', '|---|---|---|---|', ...total.errores.map((e) => `| ${frases.desarrollo.some((d) => d.frase === e.frase) ? 'desarrollo' : serbytek.evaluacion.some((d) => d.frase === e.frase) ? 'SerByTek' : marcas.evaluacion.some((d) => d.frase === e.frase) ? 'marcas' : consultas.validacion.some((d) => d.frase === e.frase) ? 'consultas (validacion)' : consultas.evaluacion.some((d) => d.frase === e.frase) ? 'consultas (ajuste)' : 'evaluacion F3'} | ${e.frase} | ${e.esperada} | ${e.obtenida} |`)]
       : ['Ninguno.'])
   ];
   const informe = lineas.join('\n') + '\n';

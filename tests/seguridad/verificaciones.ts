@@ -206,7 +206,7 @@ const ejecutar = async (): Promise<void> => {
     const creado = await pedir('/catalogo/productos', {
       method: 'POST',
       token: vendedor.token,
-      body: JSON.stringify({ sku, nombre: carga, descripcion: `<script>alert(1)</script>`, categoria: 'tecnologia', precio: 1000 })
+      body: JSON.stringify({ sku, nombre: carga, descripcion: `<script>alert(1)</script>`, categoria: 'tecnologia', subcategoria: 'accesorios', precio: 1000 })
     });
     const leido = await pedir(`/catalogo/productos/${sku}`);
     const almacenadoTalCual = leido.cuerpo?.nombre === carga;
@@ -686,6 +686,83 @@ const ejecutar = async (): Promise<void> => {
           ? `Bruno recibió 404 al cambiar la dirección del pedido ${deAna!.id} de Ana: un pedido ajeno se responde como inexistente (invariante 1).`
           : `Bruno recibió ${r.estado}: ${r.texto.slice(0, 120)}`,
       evidencia: { estado: r?.estado ?? null }
+    });
+  }
+
+  // -------------------------------------------------------------- V-24
+  // F5c: subida de fotos. Un HTML o un SVG con script disfrazado de imagen se
+  // rechaza por su contenido, y las fotos se sirven con nosniff y una CSP sin
+  // scripts: aunque algo se colara, el navegador no lo ejecutaria.
+  {
+    const subir = (cuerpo: Buffer, tipo: string, token: string) =>
+      pedir('/catalogo/productos/SKU-TEC-060/imagenes', { method: 'POST', token, headers: { 'Content-Type': tipo }, body: new Uint8Array(cuerpo) });
+    const html = await subir(Buffer.from('<html><body><script>alert(document.cookie)</script></body></html>'), 'image/png', vendedor.token);
+    const svg = await subir(Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"/>'), 'image/webp', vendedor.token);
+    const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(64)]);
+    const cliente = await subir(png, 'image/png', ana.token);
+    const grande = await subir(Buffer.concat([png, Buffer.alloc(2 * 1024 * 1024)]), 'image/png', vendedor.token);
+    const servida = await pedir('/catalogo/imagenes/sku-tec-060.webp');
+    const seguro =
+      html.estado === 400 && svg.estado === 400 && cliente.estado === 403 && grande.estado === 413 &&
+      servida.cabeceras['x-content-type-options'] === 'nosniff' && /default-src 'none'/.test(servida.cabeceras['content-security-policy'] ?? '');
+    registrar({
+      id: 'V-24',
+      area: 'Subida de archivos',
+      titulo: 'Subir un HTML o SVG disfrazado de foto de producto',
+      resultado: seguro ? 'SEGURO' : 'HALLAZGO',
+      detalle: `HTML como PNG: ${html.estado}; SVG con onload como WebP: ${svg.estado}; un cliente sube: ${cliente.estado}; 2 MB y algo: ${grande.estado}. La foto publica se sirve con nosniff y CSP "${servida.cabeceras['content-security-policy'] ?? 'sin CSP'}".`,
+      evidencia: { html: html.estado, svg: svg.estado, cliente: cliente.estado, grande: grande.estado }
+    });
+  }
+
+  // -------------------------------------------------------------- V-25
+  // F5c: el precio lo pone el catalogo (invariante 2). Un cliente no cambia
+  // precios, y ni el vendedor puede regalar un producto (descuento > 90 %,
+  // precio negativo).
+  {
+    const antes = await pedir('/catalogo/productos/SKU-TEC-060');
+    const cliente = await pedir('/catalogo/productos/SKU-TEC-060', { method: 'PATCH', token: ana.token, body: JSON.stringify({ precio: 1000 }) });
+    const regalo = await pedir('/catalogo/productos/SKU-TEC-060', { method: 'PATCH', token: vendedor.token, body: JSON.stringify({ descuento_porcentaje: 100 }) });
+    const negativo = await pedir('/catalogo/productos/SKU-TEC-060', { method: 'PATCH', token: vendedor.token, body: JSON.stringify({ precio: -5 }) });
+    const despues = await pedir('/catalogo/productos/SKU-TEC-060');
+    const intacto = antes.cuerpo?.precio_final === despues.cuerpo?.precio_final;
+    registrar({
+      id: 'V-25',
+      area: 'Control de acceso',
+      titulo: 'Cambiar el precio como cliente o regalar un producto desde el panel',
+      resultado: cliente.estado === 403 && regalo.estado === 400 && negativo.estado === 400 && intacto ? 'SEGURO' : 'HALLAZGO',
+      detalle: `Cliente: ${cliente.estado}; descuento 100 %: ${regalo.estado}; precio negativo: ${negativo.estado}; precio final antes ${antes.cuerpo?.precio_final} y despues ${despues.cuerpo?.precio_final}.`,
+      evidencia: { cliente: cliente.estado, regalo: regalo.estado, negativo: negativo.estado }
+    });
+  }
+
+  // -------------------------------------------------------------- V-26
+  // F5c: consultas al vendedor y campana. Autorizacion por dato: Bruno no lee
+  // la consulta de Ana ni puede marcar como leidas sus notificaciones.
+  {
+    const bruno = await login('bruno@correo.co');
+    const consulta = await pedir('/asistente/consultas', {
+      method: 'POST',
+      token: ana.token,
+      body: JSON.stringify({ motivo: 'otro', mensaje: 'Consulta de la verificacion V-26' })
+    });
+    const numero = consulta.cuerpo?.consulta?.numero as string | undefined;
+    const leer = numero ? await pedir(`/asistente/consultas/${numero}`, { token: bruno.token }) : null;
+    const lista = await pedir('/asistente/consultas', { token: bruno.token });
+    const ajenaEnLista = Array.isArray(lista.cuerpo) && lista.cuerpo.some((c: { numero: string }) => c.numero === numero);
+    const bandejaAna = await pedir('/notificaciones/bandeja?limite=50', { token: ana.token });
+    const idsAna = ((bandejaAna.cuerpo?.notificaciones ?? []) as Array<{ id: string; leida: boolean }>).filter((n) => !n.leida).map((n) => n.id);
+    const marcar = await pedir('/notificaciones/bandeja/leidas', { method: 'POST', token: bruno.token, body: JSON.stringify({ ids: idsAna.slice(0, 5) }) });
+    const seguro = leer?.estado === 404 && !ajenaEnLista && (idsAna.length === 0 || marcar.cuerpo?.marcadas === 0);
+    registrar({
+      id: 'V-26',
+      area: 'Control de acceso',
+      titulo: 'Leer la consulta de otro cliente o marcar sus notificaciones',
+      resultado: !numero ? 'INFO' : seguro ? 'SEGURO' : 'HALLAZGO',
+      detalle: !numero
+        ? `No se pudo crear la consulta de Ana (${consulta.estado}).`
+        : `Bruno leyendo ${numero}: ${leer?.estado}; aparece en su lista: ${ajenaEnLista ? 'si' : 'no'}; marcar ${Math.min(idsAna.length, 5)} notificaciones de Ana: ${marcar.cuerpo?.marcadas ?? marcar.estado} marcadas.`,
+      evidencia: { leer: leer?.estado ?? null, ajenaEnLista, marcadas: marcar.cuerpo?.marcadas ?? null }
     });
   }
 

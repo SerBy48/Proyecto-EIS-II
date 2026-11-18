@@ -175,10 +175,36 @@ const principal = async (): Promise<void> => {
   afirmar(!JSON.stringify(guardada.datos).includes('4111'), 'La conversacion se guarda sin el numero de tarjeta (enmascarado)');
 
   // ------------------------------------------------------------------
-  titulo('4. Escalamiento a un humano');
-  const escalar = await decir('quiero hablar con un asesor', { token: ana });
-  const ticket = textos(escalar).match(/TCK-[A-Z0-9]+/)?.[0];
-  afirmar(escalar.datos.intencion === 'humano' && Boolean(ticket), 'Registra un ticket y le da el numero al cliente', escalar.datos);
+  titulo('4. Contactar al vendedor (RF-53): formulario en el chat, consulta y respuesta');
+  const escalar = await decir('quiero contactar al vendedor', { token: ana });
+  const formulario = escalar.datos.respuestas?.find((r: any) => r.tipo === 'formulario_consulta');
+  afirmar(escalar.datos.intencion === 'humano' && Boolean(formulario?.motivos?.length), 'Con sesion, el asistente muestra el formulario de consulta', escalar.datos);
+  const creada = await pedir('/api/asistente/consultas', {
+    metodo: 'POST',
+    token: ana,
+    cuerpo: { motivo: 'producto', referencia: 'SKU-TEC-002', mensaje: 'Los audifonos traen estuche? mi tarjeta es 4111 1111 1111 1111', conversacion_id: escalar.datos.conversacion_id }
+  });
+  const ticket = creada.datos?.consulta?.numero as string | undefined;
+  afirmar(creada.estado === 201 && /^TCK-/.test(ticket ?? ''), 'POST /consultas crea la consulta y le da el numero al cliente', creada.datos);
+  const vista = await pedir(`/api/asistente/consultas/${ticket}`, { token: ana });
+  afirmar(vista.estado === 200 && !JSON.stringify(vista.datos).includes('4111 1111'), 'La tarjeta escrita en la consulta se guarda enmascarada');
+  afirmar((await pedir(`/api/asistente/consultas/${ticket}`, { token: bruno })).estado === 404, 'Otro cliente no ve la consulta (404, no se confirma que existe)');
+  afirmar((await pedir(`/api/asistente/consultas/${ticket}/mensajes`, { metodo: 'POST', token: bruno, cuerpo: { texto: 'me meto en tu consulta' } })).estado === 404, 'Ni puede responder en ella');
+  afirmar((await pedir('/api/asistente/consultas', { metodo: 'POST', token: vendedor, cuerpo: { motivo: 'otro', mensaje: 'soy personal interno' } })).estado === 403, 'El personal no crea consultas (403): las responde');
+  const respondida = await pedir(`/api/asistente/consultas/${ticket}/mensajes`, { metodo: 'POST', token: vendedor, cuerpo: { texto: 'Si, incluyen estuche rigido.' } });
+  afirmar(respondida.estado === 200 && respondida.datos.estado === 'respondida', 'El vendedor responde y la consulta queda respondida');
+  let bandeja: any = null;
+  for (let i = 0; i < 30 && !bandeja?.notificaciones?.some((n: any) => n.evento === 'asistente.consulta_respondida'); i++) {
+    bandeja = (await pedir('/api/notificaciones/bandeja', { token: ana })).datos;
+    if (!bandeja?.notificaciones?.some((n: any) => n.evento === 'asistente.consulta_respondida')) await new Promise((x) => setTimeout(x, 500));
+  }
+  afirmar(bandeja?.no_leidas > 0 && bandeja.notificaciones.some((n: any) => n.evento === 'asistente.consulta_respondida' && n.ticket === ticket), 'La respuesta le llega a la campana del cliente (sin leer)', bandeja);
+  const marcar = await pedir('/api/notificaciones/bandeja/leidas', { metodo: 'POST', token: ana, cuerpo: {} });
+  afirmar(marcar.estado === 200 && (await pedir('/api/notificaciones/bandeja', { token: ana })).datos.no_leidas === 0, 'Marcar todas como leidas deja el contador en 0');
+  const cerrada = await pedir(`/api/asistente/consultas/${ticket}`, { metodo: 'PATCH', token: vendedor, cuerpo: { estado: 'cerrada' } });
+  afirmar(cerrada.datos?.estado === 'cerrada' && (await pedir(`/api/asistente/consultas/${ticket}/mensajes`, { metodo: 'POST', token: ana, cuerpo: { texto: 'una cosa mas por favor' } })).estado === 409, 'Cerrada, ya no admite mensajes (409)');
+  const visitante = await decir('quiero hablar con un asesor');
+  afirmar(/TCK-[A-Z0-9]+/.test(textos(visitante)), 'Un visitante sigue recibiendo un ticket y la invitacion a iniciar sesion', visitante.datos);
   const ticketsAdmin = await pedir('/api/asistente/tickets', { token: admin });
   afirmar(ticketsAdmin.datos.some((t: any) => t.numero === ticket && t.email === 'ana@correo.co'), 'El administrador ve el ticket con el contacto');
   afirmar((await pedir('/api/asistente/tickets', { token: vendedor })).estado === 200, 'El vendedor tambien');
@@ -190,7 +216,7 @@ const principal = async (): Promise<void> => {
     correo = (r as any)?.messages?.[0] ?? null;
     if (!correo) await new Promise((x) => setTimeout(x, 500));
   }
-  afirmar(Boolean(correo), 'Operaciones recibe el aviso por correo (evento asistente.escalamiento -> notificaciones -> Mailpit)', { ticket });
+  afirmar(Boolean(correo), 'Operaciones recibe la consulta por correo (evento asistente.consulta_nueva -> notificaciones -> Mailpit)', { ticket });
 
   // ------------------------------------------------------------------
   titulo('5. El administrador edita la FAQ sin desplegar');

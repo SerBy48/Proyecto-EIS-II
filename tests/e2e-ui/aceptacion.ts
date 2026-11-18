@@ -4,7 +4,7 @@
  *   npm run test:e2e:ui            web en http://localhost:8081 (contenedor ecom_web)
  *   URL_WEB=http://... npm run test:e2e:ui
  *
- * Un caso por criterio de docs/aceptacion/CRITERIOS.md (CA-01 a CA-18), con
+ * Un caso por criterio de docs/aceptacion/CRITERIOS.md (CA-01 a CA-23), con
  * Playwright sobre Chromium y selectores accesibles (getByRole, getByLabel):
  * los mismos nombres que anuncia un lector de pantalla.
  *
@@ -544,6 +544,164 @@ const principal = async (): Promise<void> => {
     await panel.getByText(/El envío cuesta/).waitFor();
     afirmar((await panel.getByText(/no está disponible/).count()) === 0, 'El chat mostró "no disponible"');
     return 'aviso de sesión vencida, botón "Iniciar sesión" y el chat responde como visitante';
+  });
+
+  // ---------------------------------------------------------------- F5c
+  /** Producto nuevo por la API, con stock, para no tocar los de la semilla. */
+  const productoNuevo = async (prefijo: string, stock: number, precio = 120000) => {
+    const sku = `SKU-${prefijo}-${Date.now().toString(36).toUpperCase()}`;
+    const creado = await api('/catalogo/productos', {
+      metodo: 'POST',
+      token: vendedor.token,
+      cuerpo: { sku, nombre: `Producto ${prefijo} ${sku.slice(-5)}`, marca: 'Prueba', subcategoria: 'accesorios', precio }
+    });
+    if (creado.estado !== 201) throw new Error(`No se pudo crear ${sku}: ${creado.estado} ${JSON.stringify(creado.datos)}`);
+    if (stock) await api(`/inventario/stock/${sku}/entrada`, { metodo: 'POST', token: vendedor.token, cuerpo: { cantidad: stock } });
+    return sku;
+  };
+
+  await caso('CA-19', 'Productos: precio y oferta con fecha de fin desde el panel', async (p) => {
+    const sku = await productoNuevo('CA19', 10, 200000);
+    await iniciarSesionUI(p, 'vendedor@tienda.co');
+    await p.getByRole('navigation', { name: 'Secciones de administración' }).getByRole('button', { name: 'Productos' }).click();
+    await p.getByLabel('Buscar').fill(sku);
+    await p.getByRole('button', { name: new RegExp(`^Editar Producto CA19`) }).click();
+    await p.locator('#editar-precio').fill('180000');
+    await p.locator('#editar-descuento').fill('25');
+    const fin = new Date(Date.now() + 10 * 86400000).toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
+    await p.locator('#editar-hasta').fill(fin);
+    await p.getByRole('button', { name: 'Guardar cambios' }).click();
+    await p.getByText(/cambios guardados/).waitFor();
+    const leido = await api(`/catalogo/productos/${sku}`);
+    afirmar(leido.datos.precio_final === 135000, `Precio final ${leido.datos.precio_final}, se esperaba 135000`);
+    afirmar(String(leido.datos.oferta_hasta ?? '').length > 0, 'La oferta no quedó con fecha de fin');
+    const historial = await api(`/catalogo/productos/${sku}/historial-precios`, { token: vendedor.token });
+    afirmar(historial.datos.length >= 2 && historial.datos[0].usuario === 'vendedor@tienda.co', 'El cambio no quedó en el historial');
+    await p.screenshot({ path: path.join(SALIDA, 'CA-19-productos.png') });
+    return `${sku}: $200.000 -> $180.000 con 25 % hasta el ${fin} (precio final $135.000), en el historial`;
+  });
+
+  await caso('CA-20', 'Productos: subir una foto desde el PC', async (p) => {
+    const sku = await productoNuevo('CA20', 5);
+    await iniciarSesionUI(p, 'vendedor@tienda.co');
+    await p.getByRole('navigation', { name: 'Secciones de administración' }).getByRole('button', { name: 'Productos' }).click();
+    await p.getByLabel('Buscar').fill(sku);
+    await p.getByRole('button', { name: /^Editar Producto CA20/ }).click();
+    // PNG valido de 1 x 1 pixel.
+    const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
+    await p.locator('#editar-foto').setInputFiles({ name: 'foto.png', mimeType: 'image/png', buffer: png });
+    await p.getByRole('button', { name: 'Subir foto' }).click();
+    // El aviso exacto: la ayuda del formulario tambien dice "foto subida".
+    await p.getByText(/: foto subida.$/).waitFor();
+    const leido = await api(`/catalogo/productos/${sku}`);
+    const ruta = leido.datos.imagenes?.[0] as string;
+    afirmar(/^\/api\/catalogo\/imagenes\/[a-f0-9]{24}$/.test(ruta), `La foto no reemplazó la de la sección: ${ruta}`);
+    const foto = await fetch(`${WEB}${ruta}`);
+    afirmar(foto.status === 200 && foto.headers.get('content-type') === 'image/png', `La foto no se sirve (${foto.status})`);
+    return `${sku}: foto subida y servida en ${ruta}`;
+  });
+
+  await caso('CA-21', 'Inventario: entrada con proveedor, costo y factura', async (p) => {
+    const sku = 'SKU-TEC-026';
+    const antes = await stockDe(sku, admin.token);
+    await iniciarSesionUI(p, 'vendedor@tienda.co');
+    await p.getByRole('navigation', { name: 'Secciones de administración' }).getByRole('button', { name: 'Inventario', exact: true }).click();
+    await p.locator('#entrada-sku').fill(sku);
+    await p.locator('#entrada-cantidad').fill('4');
+    await p.locator('#entrada-costo').fill('550000');
+    await p.locator('#entrada-proveedor').selectOption({ index: 1 });
+    const factura = `FV-CA21-${Date.now().toString().slice(-5)}`;
+    await p.locator('#entrada-documento').fill(factura);
+    await p.getByRole('button', { name: 'Registrar entrada' }).click();
+    await p.getByText(/ahora hay \d+ unidades/).waitFor();
+    await p.getByRole('cell', { name: new RegExp(factura) }).waitFor();
+    const despues = await stockDe(sku, admin.token);
+    afirmar(despues === antes + 4, `Stock ${antes} -> ${despues}`);
+    const entradas = await api(`/inventario/entradas?sku=${sku}`, { token: vendedor.token });
+    const e = entradas.datos.find((x: { documento: string }) => x.documento === factura);
+    afirmar(e && e.proveedor && e.costo_unitario === 550000 && e.registrado_por === 'vendedor@tienda.co', 'La entrada no guardó su soporte');
+    return `${sku}: ${antes} -> ${despues}; ${factura} de ${e.proveedor} a $550.000 c/u`;
+  });
+
+  await caso('CA-22', 'Límite por cliente: el carrito dice cuántas puede llevar', async (p) => {
+    // 7 unidades: el cliente debe dejar 5, puede llevar 2.
+    const sku = await productoNuevo('CA22', 7);
+    const cliente = await clienteNuevo('ca22');
+    await api(`/carrito/${cliente.clienteId}/items`, { metodo: 'POST', token: cliente.token, cuerpo: { sku, cantidad: 2 } });
+    await iniciarSesionUI(p, cliente.correo);
+    await nav(p, /^Carrito/).click();
+    await p.getByText('Puedes llevar hasta 2.').waitFor();
+    afirmar(await p.getByRole('button', { name: /^Aumentar cantidad de Producto CA22/ }).isDisabled(), 'El botón + sigue activo en el máximo');
+    await api(`/carrito/${cliente.clienteId}/items/${sku}`, { metodo: 'PATCH', token: cliente.token, cuerpo: { cantidad: 3 } });
+    const r = await api('/pedidos/checkout', {
+      metodo: 'POST',
+      token: cliente.token,
+      clave: clave('ca22'),
+      cuerpo: { medio_pago: 'tarjeta_credito', token_medio_pago: 'tok_ok_4242', direccion_id: cliente.direccionId }
+    });
+    afirmar(r.estado === 409 && r.datos.codigo === 'LIMITE_POR_CLIENTE', `El checkout con 3 respondió ${r.estado} ${r.datos?.codigo}`);
+    afirmar((await stockDe(sku, admin.token)) === 7, 'El checkout rechazado tocó el stock');
+    await p.screenshot({ path: path.join(SALIDA, 'CA-22-limite.png') });
+    return `7 unidades: la web muestra "hasta 2" y desactiva +; con 3, 409 LIMITE_POR_CLIENTE ("${r.datos.mensaje}")`;
+  });
+
+  await caso('CA-23', 'Consulta al vendedor desde el asistente y respuesta en la campana', async (p, contexto) => {
+    const cliente = await clienteNuevo('ca23');
+    await iniciarSesionUI(p, cliente.correo);
+    await p.getByRole('button', { name: '¿Necesitas ayuda?' }).click();
+    const panel = p.getByRole('dialog', { name: 'Asistente virtual' });
+    await panel.getByLabel('Escribe tu pregunta').fill('quiero contactar al vendedor');
+    await panel.getByRole('button', { name: 'Enviar' }).click();
+    const formulario = panel.getByRole('form', { name: 'Consulta al vendedor' });
+    await formulario.getByLabel('Tu pregunta').fill('¿El hub UGREEN sirve para un portátil con USB-C de 2019?');
+    await formulario.getByRole('button', { name: 'Enviar al vendedor' }).click();
+    const confirmacion = await panel.getByText(/Envié tu consulta al vendedor con el número TCK-/).textContent();
+    const numero = confirmacion?.match(/TCK-[A-Z0-9]+/)?.[0] ?? '';
+    afirmar(numero, 'No se mostró el número de la consulta');
+
+    // El vendedor responde desde el panel.
+    // La sesion del vendedor se prepara por la API (como en CA-18): el criterio
+    // acepta la consulta y la campana; el inicio de sesion ya lo cubre CA-02.
+    // Con un segundo inicio de sesion por la interfaz en otra pagina, la
+    // peticion de login a veces no salia (fallo intermitente de la prueba).
+    const contextoVendedor = await contexto.browser()!.newContext({ viewport: { width: 1280, height: 860 }, locale: 'es-CO' });
+    const vend = await contextoVendedor.newPage();
+    vend.setDefaultTimeout(15_000);
+    const sesionVendedor = (await api('/auth/login', { metodo: 'POST', cuerpo: { email: 'vendedor@tienda.co', password: CLAVE } })).datos;
+    await vend.goto(WEB, { waitUntil: 'domcontentloaded' });
+    await vend.evaluate((s) => {
+      localStorage.setItem('token', s.token);
+      localStorage.setItem('refresh_token', s.refresh_token);
+      localStorage.setItem('usuario', JSON.stringify(s.usuario));
+    }, sesionVendedor);
+    await vend.reload({ waitUntil: 'domcontentloaded' });
+    await vend.getByRole('button', { name: 'Salir' }).waitFor();
+    await vend.getByRole('button', { name: 'Administración' }).click();
+    await vend.getByRole('navigation', { name: 'Secciones de administración' }).getByRole('button', { name: 'Consultas' }).click();
+    await vend.getByRole('button', { name: new RegExp(numero) }).click();
+    await vend.getByLabel('Respuesta al cliente').fill('Sí, funciona con cualquier USB-C con modo alterno de video.');
+    // Se espera la respuesta del servidor: getByText('Respondida') encontraba
+    // primero la opcion oculta "Respondidas" del filtro.
+    const [respuesta] = await Promise.all([
+      vend.waitForResponse((r) => r.url().includes(`/consultas/${numero}/mensajes`) && r.request().method() === 'POST'),
+      vend.getByRole('button', { name: 'Responder' }).click()
+    ]);
+    afirmar(respuesta.status() === 200 && (await respuesta.json()).estado === 'respondida', `La respuesta del vendedor dio ${respuesta.status()}`);
+    await contextoVendedor.close();
+
+    // La campana del cliente lo muestra (se actualiza al volver a la pestaña o cada 30 s).
+    let campana = p.getByRole('button', { name: /^Notificaciones, \d+ sin leer/ });
+    for (let i = 0; i < 20 && !(await campana.count()); i++) {
+      await p.reload({ waitUntil: 'domcontentloaded' });
+      await p.waitForTimeout(1000);
+      campana = p.getByRole('button', { name: /^Notificaciones, \d+ sin leer/ });
+    }
+    await campana.click();
+    await p.getByRole('button', { name: new RegExp(`Respondimos tu consulta ${numero}`) }).click();
+    await p.getByRole('heading', { name: 'Mis consultas' }).waitFor();
+    await p.getByRole('list', { name: 'Mensajes de la consulta' }).getByText('Sí, funciona con cualquier USB-C').waitFor();
+    await p.screenshot({ path: path.join(SALIDA, 'CA-23-consulta.png') });
+    return `${numero}: enviada desde el chat, respondida en el panel; el cliente la abre desde la campana`;
   });
 
   await navegador.close();
