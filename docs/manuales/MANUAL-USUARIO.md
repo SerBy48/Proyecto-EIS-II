@@ -78,7 +78,7 @@ El asistente funciona con reglas, sin inteligencia artificial: entiende frases n
 - **El costo del envío**, los medios de pago, los plazos de entrega, las devoluciones, el horario, los cupones, cómo crear la cuenta o cambiar la dirección, la seguridad de los pagos o quiénes somos.
 - **Por productos o marcas**, como lo diría a un vendedor: «¿hay audífonos disponibles?», «busco un mouse Logitech», «¿qué tienen de Samsung?», «portátiles Lenovo de menos de 4 millones», «quiero un celular barato» o «¿qué ofertas hay en monitores?». Responde con las tarjetas de los productos, su precio y su disponibilidad, y un botón para ver todos en el catálogo.
 - **Por sus pedidos**, solo si inició sesión. Por ejemplo, «estado del pedido PED-202611-001035». Si el pedido es de otra persona, responde que no lo encontró: nunca muestra pedidos ajenos.
-- **Por un asesor humano**: escriba «hablar con un asesor». Queda un ticket y el equipo de la tienda recibe el aviso.
+- **Por el vendedor**: escriba «quiero contactar al vendedor». Con la sesión iniciada, el asistente muestra un pequeño formulario: elija el motivo, indique si quiere el pedido o el SKU relacionado y escriba su pregunta. La respuesta del vendedor le llega a la **campana** y a su correo, y la conversación queda en **Mi perfil → Mis consultas**, donde puede contestar. Sin sesión, el asistente registra un ticket y le pide iniciar sesión para que le puedan responder.
 
 Los botones de opciones rápidas ahorran escribir. La tecla **Esc** cierra el asistente.
 
@@ -91,6 +91,8 @@ Los botones de opciones rápidas ahorran escribir. La tecla **Esc** cierra el as
 ### 3.1 Agregar productos al carrito
 
 Pulse **Agregar al carrito** en la tarjeta del producto. Un aviso verde confirma que se agregó y el contador de **Carrito (N)** sube.
+
+Cada tarjeta dice cuántas unidades hay disponibles y, cuando corresponde, el **máximo por cliente**. Para que todos puedan comprar, cada cliente debe dejar al menos 5 unidades para los demás (si quedan pocas, puede llevar una). Ese límite cuenta también lo que ya tiene en pedidos en curso. En el carrito, cada producto dice cuántas puede llevar y el botón **+** se desactiva al llegar al máximo; si intentara pagar más, el pago se rechaza sin cobrar nada.
 
 ![Producto agregado](img/04-buscar-y-agregar.png)
 
@@ -157,9 +159,13 @@ Si se equivocó de dirección, en el detalle del pedido pulse **Cambiar direcci�
 
 ![Cambiar la dirección de un pedido](img/16-cambiar-direccion.png)
 
-### 3.7 Mi perfil y eliminar la cuenta
+### 3.7 La campana de notificaciones
 
-En **Mi perfil** puede:
+Junto a su correo, en la cabecera, la **campana** muestra en rojo cuántas notificaciones tiene sin leer: la confirmación o la cancelación de un pedido, un pago rechazado y las respuestas del vendedor a sus consultas. Se actualiza sola cada 30 segundos y cada vez que vuelve a la pestaña. Al abrir una notificación se marca como leída y lo lleva a su pedido o a su consulta; **Marcar todas como leídas** deja el contador en cero.
+
+### 3.8 Mi perfil y eliminar la cuenta
+
+En **Mi perfil** hay dos secciones: **Mis datos** y **Mis consultas** (las preguntas que le hizo al vendedor desde el asistente, con sus respuestas). En **Mis datos** puede:
 
 - cambiar su nombre, apellido, teléfono y documento (el correo es su usuario y no se cambia);
 - agregar, editar o eliminar direcciones, y elegir la **predeterminada**, que es la que aparece marcada al pagar;
@@ -173,18 +179,33 @@ La eliminación está **bloqueada** mientras tenga pedidos pendientes de pago, p
 
 ## 4. Vendedor
 
-Al iniciar sesión como vendedor se abre **Administración**. El vendedor trabaja en **Inventario** y **Pedidos**; la bitácora de las compras y las notificaciones son del administrador.
+Al iniciar sesión como vendedor se abre **Administración**. El vendedor trabaja en **Productos**, **Inventario**, **Pedidos** y **Consultas**; la bitácora de las compras y las plantillas de correo son del administrador. La **campana** de la cabecera le avisa de las consultas nuevas de los clientes y de las alertas de reposición (el buzón de operaciones, compartido por el personal).
 
-### 4.1 Registrar una entrada de mercancía
+### 4.1 Productos: precio, oferta, fotos y productos nuevos
 
-1. En **Inventario → Registrar entrada**, escriba el SKU (por ejemplo `SKU-TEC-007`) y la cantidad recibida.
-2. Pulse **Registrar**. La confirmación indica cuántas unidades hay ahora.
+1. En **Productos**, busque por nombre, marca o SKU, o filtre por sección. La tabla muestra el precio, la oferta vigente (y hasta cuándo), el stock y si el producto está activo.
+2. Pulse **Editar** para cambiar el nombre, la marca, la sección, la descripción, el **precio de lista**, el **% de oferta** (de 0 a 90) y la **fecha de fin de la oferta** (opcional; vale hasta el final de ese día). El formulario muestra el precio que verá el cliente. Al vencer la fecha, el producto vuelve solo a su precio de lista.
+3. Desmarque **Activo** para ocultar un producto de la tienda sin borrarlo.
+4. En **Fotos**, elija una imagen de su computador (JPG, PNG o WebP de hasta 2 MB) y pulse **Subir foto**. La primera reemplaza la foto del catálogo; puede tener hasta 6 y quitar las que suba.
+5. **Historial de precios** muestra cada cambio de precio u oferta, con quién lo hizo y cuándo.
+
+Para crear un producto, pulse **Nuevo producto**: SKU, nombre, sección y precio son obligatorios; la marca, la oferta, la foto y el **stock inicial** son opcionales. Sin foto, el producto muestra la de su sección.
+
+![Productos](img/19-productos.png)
+
+### 4.2 Registrar una entrada de mercancía
+
+1. En **Inventario → Registrar entrada de mercancía**, escriba el nombre o el SKU del producto y elíjalo de la lista: verá su stock y su precio actual.
+2. Indique la cantidad recibida y, si quiere dejar el soporte, el **proveedor**, el **costo unitario**, la **factura o remisión** y una observación. Si el costo es igual o mayor que el precio de venta, el formulario lo advierte.
+3. Pulse **Registrar entrada**. La confirmación indica cuántas unidades hay ahora.
+
+El **Historial de entradas** muestra cada entrada con su proveedor, costo, factura y quién la registró. En **Proveedores** se crean, editan y desactivan los proveedores con su NIT y su contacto; también se puede crear uno al registrar la entrada (**+ Proveedor nuevo**).
 
 La lista **Alertas de reposición** muestra los productos que están por debajo de su stock mínimo. El equipo también recibe esas alertas por correo.
 
 ![Inventario del vendedor](img/11-vendedor-inventario.png)
 
-### 4.2 Avanzar los pedidos
+### 4.3 Avanzar los pedidos
 
 En **Pedidos**, cada fila ofrece la siguiente acción permitida:
 
@@ -195,6 +216,10 @@ En **Pedidos**, cada fila ofrece la siguiente acción permitida:
 | enviado | **Marcar entregado** |
 
 El cliente recibe un correo con cada cambio.
+
+### 4.4 Responder las consultas de los clientes
+
+En **Consultas** están las preguntas que los clientes enviaron desde el asistente; por defecto, las abiertas. Elija una para ver la conversación, escriba la respuesta y pulse **Responder**: al cliente le llega a su campana y a su correo, y la consulta queda «Respondida». Si el cliente contesta, vuelve a «Abierta». **Cerrar consulta** la termina (se puede reabrir).
 
 ---
 

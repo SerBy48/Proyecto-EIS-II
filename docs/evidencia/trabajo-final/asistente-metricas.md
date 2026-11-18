@@ -1,6 +1,6 @@
 # Asistente virtual: tasa de acierto de intenciones
 
-Generado con `npm run asistente:metricas -- --guardar` el 2026-11-17. Motor de reglas con las intenciones de `intenciones.json` y el vocabulario del catalogo; sin IA.
+Generado con `npm run asistente:metricas -- --guardar` el 2026-11-18. Motor de reglas con las intenciones de `intenciones.json` y el vocabulario del catalogo; sin IA.
 
 | Conjunto | Frases | Aciertos | Tasa de acierto |
 |---|---:|---:|---:|
@@ -8,11 +8,15 @@ Generado con `npm run asistente:metricas -- --guardar` el 2026-11-17. Motor de r
 | Evaluacion de la Fase 3 (no se ajusta) | 36 | 35 | 97,2 % |
 | **Evaluacion SerByTek (escrita antes del motor nuevo; es la cifra que se reporta)** | 50 | 50 | **100,0 %** |
 | **Evaluacion de marcas (escrita antes del reconocimiento de marcas)** | 27 | 27 | **100,0 %** |
-| Total | 170 | 169 | 99,4 % |
+| Contactar al vendedor: conjunto con el que se ajusto (RF-53) | 20 | 20 | 100,0 % |
+| **Contactar al vendedor: validacion (escrita despues del ajuste, sin volver a ajustar)** | 15 | 13 | **86,7 %** |
+| Total | 205 | 202 | 98,5 % |
 
 Primera medicion del conjunto SerByTek (2026-11-16): 49 de 50 (98,0 %). La frase fallida, "Hay audífonos disponibles?", revelo un defecto en `singular()` ("disponibles" -> "disponibl"); se corrigio la regla del plural, no los terminos, y la cifra de arriba es la medicion posterior (docs/PRUEBAS.md, 4.33).
 
 Conjunto de marcas (2026-11-16, catalogo con marcas reales): linea base sin reconocer marcas 20 de 27; primera medicion con el reconocimiento 26 de 27 ("hay audífonos Sony disponibles?" se iba a buscar, porque los refuerzos por seccion y marca solo favorecian a esa intencion). Un intento de dar los mismos refuerzos a precio_disponibilidad bajo a 19 de 27 y a 46 de 50 en SerByTek, y se descarto. La regla final, que no toca los pesos de los terminos: las entidades confirman una intencion que el mensaje ya sugiere con palabras, pero no la crean; resultado de arriba.
+
+Contactar al vendedor (2026-11-18): el conjunto de 20 frases se escribio antes de tocar la intencion humano y dio 10 de 20 (4 de las 14 frases de contacto); con esos fallos a la vista se agregaron terminos (vendedor, contactar, comunicarme...), por eso ese conjunto ya no es independiente. La cifra que se reporta es la de validacion: 15 frases nuevas medidas una sola vez despues del ajuste.
 
 ## Matriz de confusion (evaluacion SerByTek)
 
@@ -48,3 +52,5 @@ Filas: intencion esperada. Columnas: intencion que dio el motor. La diagonal en 
 | Conjunto | Frase | Esperada | Obtenida |
 |---|---|---|---|
 | evaluacion F3 | muéstrame el menú | ayuda | buscar_producto |
+| consultas (validacion) | tengo una inquietud sobre una garantía, con quién hablo | humano | faq_devoluciones |
+| consultas (validacion) | atención al cliente | humano | faq_horario |

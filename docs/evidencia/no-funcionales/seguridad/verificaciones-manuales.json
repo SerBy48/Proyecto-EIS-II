@@ -1,5 +1,5 @@
 {
-  "fecha": "2026-11-17T02:56:05.747Z",
+  "fecha": "2026-11-18T08:03:24.888Z",
   "gateway": "http://localhost:8080",
   "web": "http://localhost:4173",
   "resultados": [
@@ -60,13 +60,13 @@
       "area": "Validación de entradas",
       "titulo": "Inyección SQL en /pedidos/:id",
       "resultado": "SEGURO",
-      "detalle": "Estados: 404 (49 ms), 404 (19 ms), 404 (14 ms). Las consultas son parametrizadas (invariante 8) y pg_sleep no se ejecuta.",
+      "detalle": "Estados: 404 (46 ms), 404 (15 ms), 404 (13 ms). Las consultas son parametrizadas (invariante 8) y pg_sleep no se ejecuta.",
       "evidencia": {
         "cargas": [
           {
             "carga": "1'OR'1'='1",
             "estado": 404,
-            "ms": 49,
+            "ms": 46,
             "cuerpo": {
               "mensaje": "Pedido no encontrado.",
               "codigo": "NO_ENCONTRADO"
@@ -75,7 +75,7 @@
           {
             "carga": "1 OR 1=1",
             "estado": 404,
-            "ms": 19,
+            "ms": 15,
             "cuerpo": {
               "mensaje": "Pedido no encontrado.",
               "codigo": "NO_ENCONTRADO"
@@ -84,7 +84,7 @@
           {
             "carga": "1;SELECT pg_sleep(3)--",
             "estado": 404,
-            "ms": 14,
+            "ms": 13,
             "cuerpo": {
               "mensaje": "Pedido no encontrado.",
               "codigo": "NO_ENCONTRADO"
@@ -144,12 +144,12 @@
           "access-control-allow-credentials": "true",
           "access-control-expose-headers": "x-request-id",
           "connection": "keep-alive",
-          "content-length": "9006",
+          "content-length": "10093",
           "content-type": "application/json; charset=utf-8",
           "cross-origin-opener-policy": "same-origin",
           "cross-origin-resource-policy": "cross-origin",
-          "date": "Tue, 17 Nov 2026 02:56:02 GMT",
-          "etag": "W/\"232e-sfa4uTOeFHq8b0GmUSryWbDWsLg\"",
+          "date": "Wed, 18 Nov 2026 08:03:22 GMT",
+          "etag": "W/\"276d-SIusDksedAtkRoNq3yD+R6FKWT8\"",
           "origin-agent-cluster": "?1",
           "ratelimit": "limit=300, remaining=288, reset=59",
           "ratelimit-policy": "300;w=60",
@@ -161,7 +161,7 @@
           "x-download-options": "noopen",
           "x-frame-options": "SAMEORIGIN",
           "x-permitted-cross-domain-policies": "none",
-          "x-request-id": "3d4d36f4-3dbf-4e44-b7c7-931972df4e09",
+          "x-request-id": "2a367ffe-b715-47a7-a316-78110a9f16b9",
           "x-xss-protection": "0"
         }
       }
@@ -260,8 +260,8 @@
           "cross-origin-embedder-policy": "require-corp",
           "cross-origin-opener-policy": "same-origin",
           "cross-origin-resource-policy": "same-origin",
-          "date": "Tue, 17 Nov 2026 02:56:03 GMT",
-          "etag": "W/\"284-2J1PzWwI5hIkdFVukN2YPN7NOOE\"",
+          "date": "Wed, 18 Nov 2026 08:03:22 GMT",
+          "etag": "W/\"293-CNuMZ1BwPns3S1c15aXHgVwsFjc\"",
           "keep-alive": "timeout=5",
           "permissions-policy": "camera=(), microphone=(), geolocation=(), payment=()",
           "referrer-policy": "strict-origin-when-cross-origin",
@@ -319,7 +319,7 @@
       "area": "Validación de entradas",
       "titulo": "El registro acepta un correo sin formato de correo",
       "resultado": "SEGURO",
-      "detalle": "POST /auth/registro con email \"no-es-un-correo-1794884163919\" → 400. El escaneo activo creó además 115 usuarios administradores con \"correos\" como http://www.google.com/ o plantillas de inyección por POST /auth/usuarios.",
+      "detalle": "POST /auth/registro con email \"no-es-un-correo-1794989003243\" → 400. El escaneo activo creó además 115 usuarios administradores con \"correos\" como http://www.google.com/ o plantillas de inyección por POST /auth/usuarios.",
       "evidencia": {
         "estado": 400,
         "cuerpo": {
@@ -440,6 +440,43 @@
       "detalle": "Bruno recibió 404 al cambiar la dirección del pedido 7 de Ana: un pedido ajeno se responde como inexistente (invariante 1).",
       "evidencia": {
         "estado": 404
+      }
+    },
+    {
+      "id": "V-24",
+      "area": "Subida de archivos",
+      "titulo": "Subir un HTML o SVG disfrazado de foto de producto",
+      "resultado": "SEGURO",
+      "detalle": "HTML como PNG: 400; SVG con onload como WebP: 400; un cliente sube: 403; 2 MB y algo: 413. La foto publica se sirve con nosniff y CSP \"default-src 'none'; sandbox\".",
+      "evidencia": {
+        "html": 400,
+        "svg": 400,
+        "cliente": 403,
+        "grande": 413
+      }
+    },
+    {
+      "id": "V-25",
+      "area": "Control de acceso",
+      "titulo": "Cambiar el precio como cliente o regalar un producto desde el panel",
+      "resultado": "SEGURO",
+      "detalle": "Cliente: 403; descuento 100 %: 400; precio negativo: 400; precio final antes 59000 y despues 59000.",
+      "evidencia": {
+        "cliente": 403,
+        "regalo": 400,
+        "negativo": 400
+      }
+    },
+    {
+      "id": "V-26",
+      "area": "Control de acceso",
+      "titulo": "Leer la consulta de otro cliente o marcar sus notificaciones",
+      "resultado": "SEGURO",
+      "detalle": "Bruno leyendo TCK-MWLU3W9Q9B47: 404; aparece en su lista: no; marcar 0 notificaciones de Ana: 0 marcadas.",
+      "evidencia": {
+        "leer": 404,
+        "ajenaEnLista": false,
+        "marcadas": 0
       }
     }
   ]

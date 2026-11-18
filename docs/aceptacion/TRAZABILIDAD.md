@@ -71,7 +71,7 @@ Trabajo Final, Fase 5. Une cada requisito de [`01-escenario-requisitos.md`](../e
 | RF-ASIS-04 Precio y disponibilidad | — | `test:asistente` | Pasa | `PRUEBAS.md` §3 |
 | RF-ASIS-05 Estado de mis pedidos | CA-10 | `test:asistente` (pedido ajeno → «no encontré», invariante 15) | Pasa | `CA-10-cliente.png` |
 | RF-ASIS-06 Guía de cancelación | — | `test:asistente` | Pasa | `PRUEBAS.md` §3 |
-| RF-ASIS-07 Escalamiento | — | `test:asistente` (ticket y evento) | Pasa | `PRUEBAS.md` §3 |
+| RF-ASIS-07 Escalamiento (F5c: con sesión, formulario de consulta, RF-53) | CA-23 | `test:asistente` (ticket del visitante y consulta del cliente) | Pasa | `PRUEBAS.md` §4.39 |
 | RF-ASIS-08 Contexto de varios turnos | — | `test:asistente` | Pasa | `PRUEBAS.md` §3 |
 | RF-ASIS-09 Frase no entendida | — | `test:asistente`, `asistente:metricas` | Pasa | `PRUEBAS.md` §3 |
 | RF-ASIS-10 Tickets | — | `test:asistente` (RBAC) | Pasa | `PRUEBAS.md` §3 |
@@ -85,6 +85,13 @@ Trabajo Final, Fase 5. Une cada requisito de [`01-escenario-requisitos.md`](../e
 | RF-44 Tema oscuro (F5b) | CA-16 | `usabilidad:recorrido` (axe en los dos temas) | Pasa | `CA-16.png` |
 | RF-45 Mostrar contraseña (F5b) | CA-16 | — | Pasa | `CA-16.png` |
 | RF-46 Sesión vencida (F5b, H-F5-02) | CA-18 | — | Pasa | `CA-18.png` |
+| RF-47 Límite por cliente (F5c) | CA-22 | `test:unit` (`limites.test.ts`), `test:e2e:ui` (409 `LIMITE_POR_CLIENTE` sin tocar el stock) | Pasa | `CA-22-limite.png` |
+| RF-48 Precio, oferta con fecha de fin e historial (F5c) | CA-19 | `test:unit` (`gestion.test.ts`), `test:seguridad` V-25 | Pasa | `CA-19-productos.png` |
+| RF-49 Crear productos desde el panel (F5c) | CA-19, CA-20 | `test:openapi`, `test:http` C-10 | Pasa | `CA-20.png` |
+| RF-50 Fotos por producto y subida (F5c) | CA-20 | `test:unit` (tipo por contenido, foto de cada producto de la semilla), `test:seguridad` V-24 | Pasa | `CA-20.png`, `services/catalogo-service/imagenes/CREDITOS.md` |
+| RF-51 Entradas con proveedor (F5c) | CA-21 | `test:unit` (`proveedores.test.ts`) | Pasa | `CA-21.png` |
+| RF-52 Campana de notificaciones (F5c) | CA-23 | `test:asistente` (no leídas y marcar), `test:seguridad` V-26 | Pasa | `CA-23-consulta.png` |
+| RF-53 Consultas al vendedor (F5c) | CA-23 | `test:asistente` (aislamiento, cierre, correo a operaciones), `asistente:metricas` (validación 13/15), `test:seguridad` V-26 | Pasa | `CA-23-consulta.png` |
 
 ## Requisitos no funcionales
 

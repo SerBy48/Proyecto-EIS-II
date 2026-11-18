@@ -69,6 +69,9 @@ La columna **Rol** usa: *pública* (sin sesión), *sesión* (cualquier usuario a
 | RF-13 | Listar categorías con sus subcategorías, conteos y sinónimos (F5b: 1 categoría, tecnología, y 10 subcategorías) | `GET /api/catalogo/categorias` | pública |
 | RF-14 | Consultar una promoción por código | `GET /api/catalogo/promociones/:codigo` | sesión |
 | RF-15 | Crear y editar productos | `POST`, `PATCH /api/catalogo/productos` | administrador, vendedor |
+| RF-48 F5c | Pestaña Productos del panel: editar nombre, marca, sección, precio, % de oferta (0 a 90) con **fecha de fin** opcional y estado activo, con validación en el servidor; la oferta vencida vuelve sola al precio de lista; cada cambio de precio u oferta queda en un historial (quién y cuándo) | `PATCH /api/catalogo/productos/:sku`, `GET /api/catalogo/productos/:sku/historial-precios` | administrador, vendedor |
+| RF-49 F5c | Crear un producto desde el panel con su sección, foto y stock inicial opcionales | `POST /api/catalogo/productos` (+ entrada de stock) | administrador, vendedor |
+| RF-50 F5c | Una foto propia por producto (60 de la semilla, Unsplash) y subir fotos desde el PC (JPEG, PNG o WebP verificados por su contenido, máximo 2 MB y 6 por producto); el catálogo las sirve por el gateway a la web y a la app móvil | `POST`, `DELETE /api/catalogo/productos/:sku/imagenes*`, `GET /api/catalogo/imagenes/:nombre` | administrador, vendedor (subir); pública (ver) |
 
 ### Inventario (`inventario-service`)
 
@@ -77,6 +80,7 @@ La columna **Rol** usa: *pública* (sin sesión), *sesión* (cualquier usuario a
 | RF-16 | Consultar disponibilidad y stock por SKU | `GET /api/inventario/disponibilidad`, `/stock/:sku` | sesión |
 | RF-17 | Registrar entradas de stock | `POST /api/inventario/stock/:sku/entrada` | administrador, vendedor |
 | RF-18 | Consultar movimientos y alertas de stock mínimo | `GET /api/inventario/movimientos/:sku`, `/alertas` | administrador, vendedor |
+| RF-51 F5c | Registrar la entrada con su soporte (proveedor, costo unitario, factura o remisión, observación y quién la registró), consultar el historial de entradas y administrar los proveedores con su contacto | `POST /api/inventario/stock/:sku/entrada`, `GET /api/inventario/entradas`, `/api/inventario/proveedores*` | administrador, vendedor |
 | RF-19 | Reservar stock con vigencia (15 min) sin sobreventa; confirmar o liberar la reserva | `/api/inventario/reservas*` | interno (saga) |
 | RF-20 | Liberar automáticamente las reservas vencidas y publicar `inventario.reserva_expirada` | barrido cada 60 s | sistema |
 
@@ -99,6 +103,7 @@ La columna **Rol** usa: *pública* (sin sesión), *sesión* (cualquier usuario a
 | RF-28 | Cambiar el estado según las transiciones permitidas y notificar | `PATCH /api/pedidos/:id/estado` | administrador, vendedor |
 | RF-29 | Consultar la bitácora de la saga de un pedido | `GET /api/pedidos/:id/saga` | administrador |
 | RF-41 F5b | Elegir al pagar la dirección de envío entre las guardadas o agregar una nueva | `POST /api/pedidos/checkout` (`direccion_id`) | cliente |
+| RF-47 F5c | Límite de compra por cliente: debe dejar al menos 5 unidades para los demás (mínimo 1 por cliente), contando sus pedidos en curso; el catálogo y el carrito muestran las unidades disponibles y cuántas puede llevar, y el checkout rechaza el exceso con 409 `LIMITE_POR_CLIENTE` antes de reservar | `GET /api/pedidos/limites`, `POST /api/pedidos/checkout` | cliente; personal con `cliente_id` |
 | RF-42 F5b | Cambiar la dirección de envío de un pedido como máximo 2 veces, mientras esté creado, pagado o en preparación, con aviso por correo | `PATCH /api/pedidos/:id/direccion` | cliente (solo el propio) |
 
 ### Pagos (`pagos-service`)
@@ -115,6 +120,7 @@ La columna **Rol** usa: *pública* (sin sesión), *sesión* (cualquier usuario a
 | RF-32 | Notificar al cliente los eventos de su pedido y al personal las alertas de stock, sin duplicados | consumo de la cola `notificaciones.envio` | sistema |
 | RF-33 | Consultar los mensajes propios | `GET /api/notificaciones/mensajes` | sesión |
 | RF-34 | Editar las plantillas de notificación | `GET`, `PATCH /api/notificaciones/plantillas*` | administrador |
+| RF-52 F5c | Campana de notificaciones junto al perfil: contador de no leídas que se actualiza cada 30 s y al volver a la pestaña, últimas 10 notificaciones, marcar como leídas (por persona) y abrir el pedido, la consulta o el inventario; el personal ve además el buzón de operaciones | `GET /api/notificaciones/bandeja`, `POST /api/notificaciones/bandeja/leidas` | sesión |
 | RF-35 🆕 | Enviar los correos por SMTP real (Mailpit); un fallo de SMTP se reintenta y termina en la DLQ, nunca se pierde | adaptador `CanalCorreo` | sistema |
 
 ### Plataforma y documentación
@@ -149,6 +155,7 @@ La columna **Rol** usa: *pública* (sin sesión), *sesión* (cualquier usuario a
 | RF-ASIS-10 | Consultar los tickets de escalamiento | administrador, vendedor |
 | RF-ASIS-11 F5b | Mostrar las ofertas vigentes, de una sección o de todo el catálogo, con el mayor descuento primero | pública |
 | RF-ASIS-12 F5b | Responder preguntas de la tienda y de la cuenta: secciones del catálogo, cupones, crear cuenta, contraseña, dirección, eliminar cuenta, seguridad de los pagos, factura y quiénes somos | pública |
+| RF-53 F5c | Contactar al vendedor: con sesión, el asistente muestra un formulario (motivo, pedido o SKU y pregunta); la consulta queda como hilo que el personal responde en la pestaña Consultas y el cliente sigue en Mi perfil > Mis consultas; cada mensaje llega a la campana y al correo del otro lado. Un visitante recibe el ticket de F3 y la invitación a iniciar sesión | sesión (cliente); administrador y vendedor responden |
 
 ## 1.4 Atributos de calidad como escenarios medibles
 

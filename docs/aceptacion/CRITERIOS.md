@@ -1,6 +1,6 @@
 # Criterios de aceptación
 
-Trabajo Final, Fase 5 (CA-01 a CA-12) y ajustes de SerByTek, F5b (CA-13 a CA-18). Un criterio por historia principal, en formato **Dado / Cuando / Entonces**, derivado de los requisitos de [`01-escenario-requisitos.md`](../especificacion/01-escenario-requisitos.md).
+Trabajo Final, Fase 5 (CA-01 a CA-12) ajustes de SerByTek, F5b (CA-13 a CA-18), y gestión de la tienda, F5c (CA-19 a CA-23). Un criterio por historia principal, en formato **Dado / Cuando / Entonces**, derivado de los requisitos de [`01-escenario-requisitos.md`](../especificacion/01-escenario-requisitos.md).
 
 Cada criterio se verifica en dos capas que se complementan:
 - **E2E de interfaz**: `npm run test:e2e:ui`, que usa Playwright contra la web en contenedor.
@@ -28,6 +28,11 @@ La [matriz de trazabilidad](TRAZABILIDAD.md) une cada requisito con su criterio,
 | **CA-16** | Modo oscuro y contraseña visible | un visitante | activa el modo oscuro, recarga, y en el inicio de sesión pulsa el ojo | el tema oscuro sigue tras recargar; la contraseña aparece en claro y el botón cambia a «Ocultar contraseña» |
 | **CA-17** | Administrador: usuarios | un administrador con sesión | crea un vendedor desde «Usuarios» y luego lo desactiva | el vendedor nuevo inicia sesión con su rol; una vez desactivado, ya no puede |
 | **CA-18** | Sesión vencida (H-F5-02) | un navegador con una sesión que el servidor ya no acepta | abre la tienda y usa el chat | ve «Tu sesión expiró», el botón «Iniciar sesión» y el chat le responde como visitante, sin «no está disponible» |
+| **CA-19** | Precio y oferta (F5c) | un vendedor con sesión y un producto de $200.000 | en «Productos» cambia el precio a $180.000 con 25 % de oferta y una fecha de fin | la tienda cobra $135.000 hasta esa fecha y el cambio queda en el historial con su correo |
+| **CA-20** | Foto desde el PC (F5c) | un vendedor con sesión | sube una foto PNG desde «Editar» del producto | la foto reemplaza la de la sección y la sirve el catálogo |
+| **CA-21** | Entrada con proveedor (F5c) | un vendedor con sesión | registra 4 unidades con proveedor, costo unitario y factura | el stock sube en 4 y la entrada aparece en el historial con su proveedor, costo, factura y quién la registró |
+| **CA-22** | Límite por cliente (F5c) | un producto con 7 unidades y un cliente con 2 en el carrito | abre el carrito y luego intenta pagar 3 | ve «Puedes llevar hasta 2» con el botón + desactivado; con 3, el pago se rechaza (409 `LIMITE_POR_CLIENTE`) sin tocar el stock |
+| **CA-23** | Consulta al vendedor (F5c) | un cliente con sesión | escribe «quiero contactar al vendedor» en el asistente, envía su pregunta y el vendedor responde desde «Consultas» | la campana del cliente marca la respuesta sin leer y, al abrirla, lo lleva a «Mis consultas» con la respuesta |
 
 ## Notas
 

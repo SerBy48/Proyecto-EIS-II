@@ -1,0 +1,73 @@
+
+> ecommerce-distribuido@1.0.0 test:concurrencia
+> tsx --env-file-if-exists=.env tests/concurrencia-stock.ts
+
+[36m=======================================================[0m
+[36m Prueba de concurrencia del servicio de inventario[0m
+[36m Pregunta 5 del analisis: evitar la sobreventa[0m
+[36m=======================================================[0m
+
+[36mEscenario 1: dos compradores, una sola unidad[0m
+[90m---------------------------------------------[0m
+  [90mStock inicial de SKU-TEC-004: 1 unidad[0m
+  [90mAna y Bruno pulsan "Comprar" en el mismo instante...[0m
+  [90mAna:   reservado[0m
+  [90mBruno: sin_stock[0m
+  [32mPASA[0m  Exactamente un comprador obtiene la unidad
+  [32mPASA[0m  El otro comprador recibe sin_stock
+  [32mPASA[0m  El stock disponible queda en 0, nunca negativo
+  [32mPASA[0m  Hay exactamente 1 unidad reservada
+  [32mPASA[0m  Se creo una sola reserva activa
+
+[36mEscenario 2: veinte compradores, cinco unidades[0m
+[90m-----------------------------------------------[0m
+  [90mStock inicial: 5 unidades. Compradores simultaneos: 20[0m
+  [90mReservas concedidas: 5 | rechazadas: 15[0m
+  [32mPASA[0m  Se conceden exactamente 5 reservas
+  [32mPASA[0m  El resto se rechaza por falta de stock
+  [32mPASA[0m  El stock disponible queda en 0
+  [32mPASA[0m  Quedan 5 unidades reservadas
+
+[36mEscenario 3: idempotencia ante un reintento[0m
+[90m-------------------------------------------[0m
+  [90mPrimera llamada: reservado (disponible: 7)[0m
+  [90mReintento:       idempotente (disponible: 7)[0m
+  [32mPASA[0m  La primera llamada reserva
+  [32mPASA[0m  El reintento se reconoce como idempotente
+  [32mPASA[0m  Devuelve la MISMA reserva, no una nueva
+  [32mPASA[0m  El stock se descuenta una sola vez (10 -> 7)
+  [32mPASA[0m  Existe una sola fila de reserva para esa clave
+
+[36mEscenario 4: compensacion de la saga (pago rechazado)[0m
+[90m-----------------------------------------------------[0m
+  [90mStock: 1 unidad. Ana reserva, pero su pago es rechazado.[0m
+  [32mPASA[0m  Ana reserva la ultima unidad
+  [32mPASA[0m  Mientras paga, el producto figura agotado
+  [32mPASA[0m  Bruno no puede comprarla mientras esta reservada
+  [90mCompensacion: liberada[0m
+  [32mPASA[0m  La reserva se libera
+  [32mPASA[0m  La unidad vuelve a estar disponible
+  [32mPASA[0m  No queda nada reservado
+  [32mPASA[0m  Bruno ya puede comprar la unidad liberada
+  [32mPASA[0m  Liberar dos veces no devuelve stock de mas
+
+[36mEscenario 5: confirmacion tras un pago aprobado[0m
+[90m-----------------------------------------------[0m
+  [32mPASA[0m  Se reservan 2 de 4 unidades
+  [32mPASA[0m  Quedan 2 disponibles
+  [32mPASA[0m  Hay 2 reservadas
+  [90mConfirmacion: confirmada[0m
+  [32mPASA[0m  La reserva se confirma
+  [32mPASA[0m  El disponible NO cambia al confirmar (ya se habia descontado)
+  [32mPASA[0m  Las unidades salen de reservado: descuento definitivo
+  [32mPASA[0m  Se registro un movimiento de salida
+  [32mPASA[0m  Confirmar dos veces es idempotente
+
+[36mEscenario 6: el stock nunca puede quedar negativo[0m
+[90m-------------------------------------------------[0m
+  [32mPASA[0m  Una reserva mayor al stock se rechaza
+  [32mPASA[0m  El stock permanece intacto tras el rechazo
+  [32mPASA[0m  La restriccion CHECK de la base impide un stock negativo directo
+
+[32mTodas las comprobaciones pasaron: la sobreventa es imposible.[0m
+
