@@ -78,13 +78,14 @@ const renovarToken = async () => {
 };
 
 const ejecutar = async (ruta, opciones, token) => {
-  const cabeceras = { 'Content-Type': 'application/json', ...(opciones.headers || {}) };
+  // Un archivo (foto de producto) viaja crudo con su tipo; lo demas, como JSON.
+  const cabeceras = { 'Content-Type': opciones.archivo ? opciones.archivo.type : 'application/json', ...(opciones.headers || {}) };
   if (token) cabeceras.Authorization = `Bearer ${token}`;
 
   const respuesta = await fetch(`${BASE}${ruta}`, {
     method: opciones.metodo || 'GET',
     headers: cabeceras,
-    body: opciones.cuerpo === undefined ? undefined : JSON.stringify(opciones.cuerpo)
+    body: opciones.archivo ?? (opciones.cuerpo === undefined ? undefined : JSON.stringify(opciones.cuerpo))
   });
 
   const texto = await respuesta.text();
@@ -155,6 +156,16 @@ export const iniciarSesion = async (email, password) => {
 export const cerrarSesion = async () => {
   await api('/auth/logout', { metodo: 'POST' }).catch(() => undefined);
   sesion.limpiar();
+};
+
+/**
+ * Ruta de una foto de producto. El catalogo las sirve en /api/catalogo/imagenes;
+ * si la API esta en otro origen (VITE_API_URL), se carga de alla.
+ */
+export const urlImagen = (ruta) => {
+  if (!ruta) return '';
+  if (/^https?:/.test(BASE) && ruta.startsWith('/api/')) return new URL(BASE).origin + ruta;
+  return ruta;
 };
 
 export const moneda = (valor) =>

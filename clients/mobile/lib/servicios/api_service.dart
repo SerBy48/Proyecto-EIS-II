@@ -193,6 +193,16 @@ class ApiService {
 
   static int get _clienteId => _usuario?['cliente_id'] as int? ?? 0;
 
+  /// Cuanto puede llevar el cliente de cada producto (RF-47: deja 5 para los demas).
+  static Future<Map<String, Map<String, dynamic>>> limites(List<String> skus) async {
+    if (skus.isEmpty) return {};
+    final datos = await _peticion('GET', '/pedidos/limites?skus=${Uri.encodeComponent(skus.join(','))}') as Map<String, dynamic>;
+    return {
+      for (final l in (datos['limites'] as List<dynamic>? ?? []))
+        (l as Map<String, dynamic>)['sku'] as String: l,
+    };
+  }
+
   static Future<Map<String, dynamic>> carrito() async =>
       await _peticion('GET', '/carrito/$_clienteId') as Map<String, dynamic>;
 

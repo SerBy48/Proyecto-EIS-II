@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../servicios/api';
 import CampoContrasena from '../componentes/CampoContrasena.jsx';
+import Consultas from '../componentes/Consultas.jsx';
 import FormularioDireccion, { describirDireccion } from '../componentes/FormularioDireccion.jsx';
 
 /** Pedidos que impiden eliminar la cuenta (los mismos que valida auth-service). */
@@ -319,10 +320,42 @@ function EliminarCuenta({ alEliminar }) {
   );
 }
 
-export default function Perfil({ usuario, alEliminarCuenta }) {
+export default function Perfil({ usuario, alEliminarCuenta, seccionInicial, consultaInicial }) {
+  const [seccion, setSeccion] = useState(seccionInicial === 'consultas' ? 'consultas' : 'datos');
+  const pestanas = (
+    <nav aria-label="Secciones del perfil" className="flex gap-2 border-b border-gray-200">
+      {[
+        ['datos', 'Mis datos'],
+        ['consultas', 'Mis consultas']
+      ].map(([id, texto]) => (
+        <button
+          key={id}
+          onClick={() => setSeccion(id)}
+          aria-current={seccion === id ? 'page' : undefined}
+          className={`px-4 py-2 text-sm font-semibold border-b-2 ${
+            seccion === id ? 'border-marca-600 text-marca-700' : 'border-transparent text-gray-500 hover:text-gray-800'
+          }`}
+        >
+          {texto}
+        </button>
+      ))}
+    </nav>
+  );
+
+  if (seccion === 'consultas') {
+    return (
+      <div className="max-w-6xl mx-auto p-4 sm:p-6 space-y-6">
+        <h1 className="text-2xl font-bold text-gray-900">Mi perfil</h1>
+        {pestanas}
+        <Consultas inicial={consultaInicial ?? null} />
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-3xl mx-auto p-4 sm:p-6 space-y-6">
       <h1 className="text-2xl font-bold text-gray-900">Mi perfil</h1>
+      {pestanas}
       <Seccion titulo="Datos personales">
         <DatosPersonales clienteId={usuario.cliente_id} />
       </Seccion>

@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { api, BASE, moneda } from '../servicios/api';
+import Consultas from '../componentes/Consultas.jsx';
+import Inventario from './admin/Inventario.jsx';
+import Productos from './admin/Productos.jsx';
 
 /**
  * Panel de administracion (seccion 5.1: panel utilizado por el personal
@@ -7,8 +10,8 @@ import { api, BASE, moneda } from '../servicios/api';
  * que el operador responde la pregunta 4 del analisis: ver de un vistazo que
  * servicio esta caido y que sigue funcionando.
  */
-export default function Admin({ usuario }) {
-  const [vista, setVista] = useState('salud');
+export default function Admin({ usuario, pestanaInicial, consultaInicial }) {
+  const [vista, setVista] = useState(pestanaInicial ?? 'salud');
   const esAdministrador = usuario?.rol === 'administrador';
 
   return (
@@ -17,8 +20,10 @@ export default function Admin({ usuario }) {
       <nav aria-label="Secciones de administración" className="relative flex gap-2 mb-6 border-b border-gray-200 overflow-x-auto">
         {[
           ['salud', 'Salud del sistema'],
+          ['productos', 'Productos'],
           ['inventario', 'Inventario'],
           ['pedidos', 'Pedidos'],
+          ['consultas', 'Consultas'],
           ['notificaciones', 'Notificaciones'],
           ...(esAdministrador ? [['usuarios', 'Usuarios']] : [])
         ].map(([id, etiqueta]) => (
@@ -38,7 +43,9 @@ export default function Admin({ usuario }) {
       </nav>
 
       {vista === 'salud' && <Salud />}
+      {vista === 'productos' && <Productos />}
       {vista === 'inventario' && <Inventario />}
+      {vista === 'consultas' && <Consultas personal inicial={consultaInicial} />}
       {vista === 'pedidos' && <PedidosAdmin />}
       {vista === 'notificaciones' && <Notificaciones />}
       {vista === 'usuarios' && esAdministrador && <Usuarios yo={usuario} />}
@@ -296,115 +303,6 @@ function Salud() {
         sin que el servicio se considere fuera de línea: los eventos quedan pendientes y se
         procesan al restablecerse, pero la venta sigue funcionando.
       </p>
-    </div>
-  );
-}
-
-function Inventario() {
-  const [alertas, setAlertas] = useState([]);
-  const [sku, setSku] = useState('');
-  const [cantidad, setCantidad] = useState(10);
-  const [mensaje, setMensaje] = useState(null);
-  const [error, setError] = useState(null);
-
-  const cargar = async () => {
-    try {
-      setAlertas(await api('/inventario/alertas'));
-      setError(null);
-    } catch (e) {
-      setError(e.message);
-    }
-  };
-
-  useEffect(() => {
-    cargar();
-  }, []);
-
-  const reponer = async () => {
-    setMensaje(null);
-    setError(null);
-    try {
-      const r = await api(`/inventario/stock/${encodeURIComponent(sku)}/entrada`, {
-        metodo: 'POST',
-        cuerpo: { cantidad: Number(cantidad) }
-      });
-      setMensaje(`${sku}: ahora hay ${r.stock.cantidad_disponible} unidades.`);
-      await cargar();
-    } catch (e) {
-      setError(e.message);
-    }
-  };
-
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <div className="lg:col-span-2">
-        <h2 className="font-bold mb-3">Alertas de reposicion</h2>
-        {error && <p role="alert" className="text-red-700 text-sm mb-3">{error}</p>}
-        <div className="relative bg-superficie border border-gray-200 rounded-xl overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead className="bg-gray-50 text-xs uppercase text-gray-500 text-left">
-              <tr>
-                <th className="px-4 py-2">SKU</th>
-                <th className="px-4 py-2">Bodega</th>
-                <th className="px-4 py-2">Disponible</th>
-                <th className="px-4 py-2">Mínimo</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {alertas.map((a, i) => (
-                <tr key={i} className={a.cantidad_disponible === 0 ? 'bg-red-50' : ''}>
-                  <td className="px-4 py-2 font-mono text-xs">{a.sku}</td>
-                  <td className="px-4 py-2">{a.bodega}</td>
-                  <td className="px-4 py-2 font-semibold">{a.cantidad_disponible}</td>
-                  <td className="px-4 py-2 text-gray-500">{a.stock_minimo}</td>
-                </tr>
-              ))}
-              {alertas.length === 0 && (
-                <tr>
-                  <td colSpan="4" className="px-4 py-6 text-center text-gray-500">
-                    Ningún producto por debajo del mínimo.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div className="bg-superficie border border-gray-200 rounded-xl p-5 h-fit">
-        <h2 className="font-bold mb-3">Registrar entrada</h2>
-        <div role="status">
-          {mensaje && <p className="text-green-700 text-sm mb-3">{mensaje}</p>}
-        </div>
-        <label htmlFor="entrada-sku" className="block text-xs font-semibold text-gray-700 mb-1">
-          SKU
-        </label>
-        <input
-          id="entrada-sku"
-          value={sku}
-          onChange={(e) => setSku(e.target.value.toUpperCase())}
-          placeholder="SKU-TEC-004"
-          className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm mb-3"
-        />
-        <label htmlFor="entrada-cantidad" className="block text-xs font-semibold text-gray-700 mb-1">
-          Cantidad
-        </label>
-        <input
-          id="entrada-cantidad"
-          type="number"
-          min="1"
-          value={cantidad}
-          onChange={(e) => setCantidad(e.target.value)}
-          className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm mb-4"
-        />
-        <button
-          onClick={reponer}
-          disabled={!sku}
-          className="w-full btn-primario text-sm py-2 rounded"
-        >
-          Registrar
-        </button>
-      </div>
     </div>
   );
 }

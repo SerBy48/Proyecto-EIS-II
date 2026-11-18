@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { api, moneda } from '../servicios/api';
+import { api, moneda, urlImagen } from '../servicios/api';
 
 /**
  * Catalogo de productos de SerByTek (consume el servicio de catalogo a traves
@@ -39,7 +39,7 @@ const icono = (subcategoria) => ICONOS[subcategoria] ?? '🔋';
  */
 export function FotoProducto({ producto, className = '' }) {
   const [fallo, setFallo] = useState(false);
-  const url = producto.imagenes?.[0];
+  const url = urlImagen(producto.imagenes?.[0]);
   if (!url || fallo) {
     return (
       <div aria-hidden="true" className={`bg-gradient-to-br from-marca-50 to-gray-100 flex items-center justify-center text-5xl ${className}`}>
@@ -132,7 +132,7 @@ export default function Catalogo({ usuario, alAgregar, filtrosIniciales }) {
   const agregar = async (sku) => {
     setAgregando(sku);
     try {
-      await alAgregar(sku);
+      await alAgregar(sku, productos.find((x) => x.sku === sku));
     } finally {
       setAgregando(null);
     }
@@ -147,14 +147,27 @@ export default function Catalogo({ usuario, alAgregar, filtrosIniciales }) {
     if (!p.hay_stock) {
       return <span className="text-xs font-semibold text-red-700">Agotado</span>;
     }
+    // RF-47: el cliente ve cuantas hay y cuantas puede llevar, sin adivinar en el carrito.
+    const maximo = p.maximo_por_cliente;
+    const limite = maximo && maximo < p.disponible ? (
+      <span className="block text-xs text-gray-600">Máximo {maximo} por cliente</span>
+    ) : null;
     if (p.disponible <= 3) {
       return (
-        <span className="text-xs font-semibold text-amber-800">
-          {p.disponible === 1 ? 'Última unidad' : `Últimas ${p.disponible} unidades`}
-        </span>
+        <>
+          <span className="text-xs font-semibold text-amber-800">
+            {p.disponible === 1 ? 'Última unidad' : `Últimas ${p.disponible} unidades`}
+          </span>
+          {limite}
+        </>
       );
     }
-    return <span className="text-xs font-semibold text-green-800">Disponible</span>;
+    return (
+      <>
+        <span className="text-xs font-semibold text-green-800">Disponible: {p.disponible} unidades</span>
+        {limite}
+      </>
+    );
   };
 
   const chip = (activo) =>
