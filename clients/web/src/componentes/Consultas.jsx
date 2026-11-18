@@ -27,11 +27,17 @@ export default function Consultas({ personal = false, inicial = null }) {
   const [abierta, setAbierta] = useState(inicial);
   const [error, setError] = useState(null);
 
+  // Solo cuenta la respuesta del ultimo filtro elegido (H-F5c-04).
+  const ultimaPeticion = useRef(0);
   const cargar = async () => {
+    const numero = ++ultimaPeticion.current;
     try {
-      setConsultas(await api(`/asistente/consultas${filtro ? `?estado=${filtro}` : ''}`));
+      const lista = await api(`/asistente/consultas${filtro ? `?estado=${filtro}` : ''}`);
+      if (numero !== ultimaPeticion.current) return;
+      setConsultas(lista);
       setError(null);
     } catch (e) {
+      if (numero !== ultimaPeticion.current) return;
       setError(e.message);
       setConsultas([]);
     }

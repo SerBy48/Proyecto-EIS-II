@@ -183,16 +183,22 @@ function RegistrarEntrada({ proveedores, alProveedorNuevo, alRegistrar }) {
   useEffect(() => {
     const texto = datos.sku.trim();
     if (texto.length < 2) return setSugerencias([]);
+    // Una respuesta que llega despues de que se siguio escribiendo se descarta.
+    let vigente = true;
     const t = setTimeout(() => {
       api(`/catalogo/productos?q=${encodeURIComponent(texto)}&limite=8&incluir_inactivos=true`)
         .then((r) => {
+          if (!vigente) return;
           setSugerencias(r.productos ?? []);
           const exacto = (r.productos ?? []).find((p) => p.sku === texto.toUpperCase());
           setProducto(exacto ?? null);
         })
         .catch(() => setSugerencias([]));
     }, 250);
-    return () => clearTimeout(t);
+    return () => {
+      vigente = false;
+      clearTimeout(t);
+    };
   }, [datos.sku]);
 
   const costo = Number(datos.costo_unitario || 0);

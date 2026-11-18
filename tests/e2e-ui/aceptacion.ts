@@ -548,8 +548,13 @@ const principal = async (): Promise<void> => {
 
   // ---------------------------------------------------------------- F5c
   /** Producto nuevo por la API, con stock, para no tocar los de la semilla. */
+  // Se desactivan al final de la suite, aunque un criterio falle: si no,
+  // cada corrida dejaria sus productos en la primera pagina de la tienda
+  // (mismo criterio que U-17 en test:http y CA-07 aqui).
+  const productosDePrueba: string[] = [];
   const productoNuevo = async (prefijo: string, stock: number, precio = 120000) => {
     const sku = `SKU-${prefijo}-${Date.now().toString(36).toUpperCase()}`;
+    productosDePrueba.push(sku);
     const creado = await api('/catalogo/productos', {
       metodo: 'POST',
       token: vendedor.token,
@@ -703,6 +708,10 @@ const principal = async (): Promise<void> => {
     await p.screenshot({ path: path.join(SALIDA, 'CA-23-consulta.png') });
     return `${numero}: enviada desde el chat, respondida en el panel; el cliente la abre desde la campana`;
   });
+
+  for (const sku of productosDePrueba) {
+    await api(`/catalogo/productos/${sku}`, { metodo: 'PATCH', token: vendedor.token, cuerpo: { activo: false } });
+  }
 
   await navegador.close();
 
