@@ -123,19 +123,26 @@ export default function Productos() {
       .catch(() => setSecciones([]));
   }, []);
 
+  // Solo se pinta la respuesta de la ultima peticion: si la del listado
+  // completo llega despues de la filtrada, no debe sobrescribirla (H-F5c-04).
+  const ultimaPeticion = useRef(0);
+
   const cargar = async () => {
+    const numero = ++ultimaPeticion.current;
     setCargando(true);
     const p = new URLSearchParams({ pagina: String(pagina), limite: String(POR_PAGINA), orden: 'nombre' });
     if (filtros.q.trim()) p.set('q', filtros.q.trim());
     if (filtros.subcategoria) p.set('subcategoria', filtros.subcategoria);
     if (filtros.inactivos) p.set('incluir_inactivos', 'true');
     try {
-      setDatos(await api(`/catalogo/productos?${p}`));
+      const respuesta = await api(`/catalogo/productos?${p}`);
+      if (numero !== ultimaPeticion.current) return;
+      setDatos(respuesta);
       setError(null);
     } catch (e) {
-      setError(e.message);
+      if (numero === ultimaPeticion.current) setError(e.message);
     } finally {
-      setCargando(false);
+      if (numero === ultimaPeticion.current) setCargando(false);
     }
   };
 
