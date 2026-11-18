@@ -404,3 +404,25 @@ Se revisarán al contenerizar la web en la Fase 5. Hasta que exista el CI, la au
 
 **Cuándo se revisa.** Cuando `picomatch` publique una versión corregida (y entonces se fuerza con `overrides` o se actualiza `http-proxy-middleware`), o si el gateway empieza a filtrar rutas con patrones glob, lo que primero ocurra.
 
+## 12. Revisión manual (F5d): recuperación de contraseña
+
+La revisión manual del aplicativo pidió recuperar la contraseña desde el inicio de sesión con un enlace por correo (RF-54). Es una función de autenticación pública, así que se diseñó contra cuatro riesgos conocidos:
+
+| Riesgo | Control |
+|---|---|
+| Enumerar cuentas | `POST /api/auth/recuperar` responde **202 con el mismo mensaje** exista o no el correo; la diferencia queda solo en `auditoria_accesos` |
+| Enlace robado o adivinado | Token aleatorio de 256 bits, de **un solo uso** y con vencimiento a los **30 minutos**; al pedir uno nuevo, los anteriores dejan de servir. En `auth_db` se guarda su **hash SHA-256**, no el token (como los refresh tokens) |
+| Enlace a la vista de terceros | El enlace va **solo en el correo**: notificaciones guarda el mensaje con `[enlace enviado solo al correo]` en el texto de la campana, en el registro de envíos del administrador y en `datos_evento`. El token viaja en el fragmento de la URL (`#restablecer=`), que el navegador no envía al servidor web, y la web lo quita de la barra de direcciones al leerlo |
+| Abuso del envío de correos | Límite de **5 solicitudes por IP cada 15 minutos** en el gateway (`LIMITE_RECUPERACION`) y **3 por cuenta** en el servicio; `restablecer` comparte el límite de intentos fallidos del login |
+
+Al restablecer, la contraseña cambia, la cuenta se **desbloquea** y se **revocan todas sus sesiones** (refresh tokens): si alguien entró con la contraseña anterior, queda fuera. Una cuenta desactivada no recupera el acceso por esta vía.
+
+### 12.1 Verificación nueva
+
+`test:seguridad` pasa de 26 a 27 verificaciones. La nueva es segura:
+
+| ID | Qué se intenta | Resultado |
+|---|---|---|
+| V-27 | Distinguir un correo registrado de uno inexistente; leer el enlace en notificaciones o el token en `auth_db`; usar el enlace dos veces; seguir con la sesión abierta antes del cambio | 202/202 con el mismo mensaje; el enlace no está en notificaciones y el token no está en claro; primer uso 200, segundo 400; el refresh anterior responde 401 y la contraseña nueva entra |
+
+La prueba unitaria `services/notificaciones-service/test/secretos.test.ts` cubre además que lo guardado no lleva el enlace y que el HTML del correo convierte en vínculo solo un enlace `http(s)`, con el resto del cuerpo escapado (S-11).

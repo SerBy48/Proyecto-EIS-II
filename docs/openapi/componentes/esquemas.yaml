@@ -402,6 +402,7 @@ PedidoResumen:
     estado: { $ref: '#/EstadoPedido' }
     total: { $ref: '#/Dinero' }
     creado_en: { type: string, format: date-time }
+    actualizado_en: { type: string, format: date-time, description: 'Ultimo cambio (estado o direccion).' }
     cantidad_items: { type: integer }
 
 Pedido:
@@ -725,6 +726,9 @@ Bandeja:
   type: object
   properties:
     no_leidas: { type: integer, example: 2 }
+    total: { type: integer, description: 'Cuantas hay con el filtro pedido.' }
+    pagina: { type: integer }
+    paginas: { type: integer }
     notificaciones:
       type: array
       items:
@@ -736,6 +740,7 @@ Bandeja:
           texto: { type: string }
           destino: { type: string, enum: [pedidos, consultas, inventario, carrito, inicio] }
           ticket: { type: string, nullable: true }
+          pedido: { type: string, nullable: true, description: 'Numero del pedido (PED-...) si la notificacion es de un pedido.' }
           de_operaciones: { type: boolean }
           leida: { type: boolean }
           creado_en: { type: string, format: date-time }

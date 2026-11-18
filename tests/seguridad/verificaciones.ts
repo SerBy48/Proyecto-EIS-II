@@ -766,6 +766,56 @@ const ejecutar = async (): Promise<void> => {
     });
   }
 
+  // -------------------------------------------------------------- V-27
+  // F5d: recuperacion de contrasena (RF-54). La respuesta no revela si el
+  // correo existe; el enlace sirve una vez, no queda guardado (ni el token en
+  // auth_db, solo su hash, ni el enlace en notificaciones) y al usarlo se
+  // cierran las sesiones abiertas. Usa una cuenta propia que se borra al final.
+  {
+    const MAILPIT = process.env.MAILPIT_URL || 'http://localhost:8025';
+    const email = `recupera-${Date.now()}@correo.co`;
+    await pedir('/auth/registro', { method: 'POST', body: JSON.stringify({ email, password: CLAVE }) });
+    const sesionVieja = await login(email);
+    const existe = await pedir('/auth/recuperar', { method: 'POST', body: JSON.stringify({ email }) });
+    const noExiste = await pedir('/auth/recuperar', { method: 'POST', body: JSON.stringify({ email: `nadie-${Date.now()}@correo.co` }) });
+    const mismaRespuesta = existe.estado === 202 && noExiste.estado === 202 && existe.cuerpo?.mensaje === noExiste.cuerpo?.mensaje;
+
+    // El enlace llega al correo (Mailpit).
+    let token: string | null = null;
+    for (let intento = 0; intento < 30 && !token; intento++) {
+      const busqueda = await fetch(`${MAILPIT}/api/v1/search?query=${encodeURIComponent(`to:"${email}"`)}`).then((r) => r.json()).catch(() => null);
+      const id = busqueda?.messages?.[0]?.ID;
+      if (id) {
+        const mensaje = await fetch(`${MAILPIT}/api/v1/message/${id}`).then((r) => r.json()).catch(() => null);
+        token = /#restablecer=([a-f0-9]{64})/.exec(String(mensaje?.Text ?? ''))?.[1] ?? null;
+      }
+      if (!token) await new Promise((r) => setTimeout(r, 500));
+    }
+
+    const guardados = await pedir(`/notificaciones/mensajes?destinatario=${encodeURIComponent(email)}`, { token: admin.token });
+    const enlaceGuardado = token !== null && guardados.texto.includes(token);
+    const tokenEnClaro = token ? (await pg.query('SELECT COUNT(*)::INT AS n FROM restablecimientos_contrasena WHERE token_hash = $1', [token])).rows[0].n > 0 : false;
+    const uso = token ? await pedir('/auth/restablecer', { method: 'POST', body: JSON.stringify({ token, password: 'NuevaClave456' }) }) : null;
+    const reuso = token ? await pedir('/auth/restablecer', { method: 'POST', body: JSON.stringify({ token, password: 'OtraClave789' }) }) : null;
+    const renovar = await pedir('/auth/renovar', { method: 'POST', body: JSON.stringify({ refresh_token: sesionVieja.refresh_token }) });
+    const nueva = await pedir('/auth/login', { method: 'POST', body: JSON.stringify({ email, password: 'NuevaClave456' }) });
+
+    const seguro = mismaRespuesta && Boolean(token) && !enlaceGuardado && !tokenEnClaro && uso?.estado === 200 && reuso?.estado === 400 && renovar.estado === 401 && nueva.estado === 200;
+    registrar({
+      id: 'V-27',
+      area: 'Autenticación',
+      titulo: 'Recuperación de contraseña: enumerar cuentas, reutilizar o leer el enlace',
+      resultado: !token ? 'INFO' : seguro ? 'SEGURO' : 'HALLAZGO',
+      detalle: !token
+        ? `No llegó el correo de recuperación a Mailpit (${existe.estado}); revisa notificaciones y Mailpit.`
+        : `Correo existente y no existente: ${existe.estado}/${noExiste.estado}, ${mismaRespuesta ? 'mismo mensaje' : 'mensajes distintos'}; enlace guardado en notificaciones: ${enlaceGuardado ? 'si' : 'no'}; token en claro en auth_db: ${tokenEnClaro ? 'si' : 'no'}; primer uso ${uso?.estado}, segundo uso ${reuso?.estado}; refresh anterior al cambio: ${renovar.estado}; login con la nueva: ${nueva.estado}.`,
+      evidencia: { mismaRespuesta, enlaceGuardado, tokenEnClaro, uso: uso?.estado ?? null, reuso: reuso?.estado ?? null, renovar: renovar.estado, login: nueva.estado }
+    });
+    // Limpieza: la cuenta de la prueba no queda viva.
+    await pg.query(`DELETE FROM auditoria_accesos WHERE email = $1`, [email]).catch(() => undefined);
+    await pg.query(`DELETE FROM usuarios WHERE email = $1`, [email]).catch(() => undefined);
+  }
+
   mkdirSync(path.dirname(SALIDA), { recursive: true });
   writeFileSync(SALIDA, JSON.stringify({ fecha: new Date().toISOString(), gateway: G, web: WEB, resultados }, null, 2));
   const hallazgos = resultados.filter((r) => r.resultado === 'HALLAZGO').length;

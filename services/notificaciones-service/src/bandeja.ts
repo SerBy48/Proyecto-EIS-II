@@ -30,21 +30,33 @@ const destinoDe = (evento: string): string =>
   : evento === 'carrito.abandonado' ? 'carrito'
   : 'inicio';
 
-/** GET /bandeja?limite=10 */
+/**
+ * GET /bandeja?limite=10&pagina=1&solo_no_leidas=true
+ * La campana pide las 10 ultimas; la pagina de notificaciones pagina el resto.
+ */
 export const verBandeja = async (req: PeticionAutenticada, res: Response): Promise<void> => {
   const yo = req.usuario!.email;
-  const filtro = { destinatario: { $in: destinatariosDe(req) } };
+  const base = { destinatario: { $in: destinatariosDe(req) } };
+  const filtro = req.query.solo_no_leidas === 'true' ? { ...base, leida_por: { $ne: yo } } : base;
   const limite = Math.min(Math.max(Number(req.query.limite) || 10, 1), 50);
-  const [mensajes, no_leidas] = await Promise.all([
+  const pagina = Math.min(Math.max(Math.trunc(Number(req.query.pagina)) || 1, 1), 1000);
+  const [mensajes, total, no_leidas] = await Promise.all([
     coleccionMensajes()
-      .find(filtro, { projection: { evento: 1, asunto: 1, texto: 1, creado_en: 1, leida_por: 1, destinatario: 1, 'datos_evento.ticket': 1 } })
-      .sort({ creado_en: -1 })
+      .find(filtro, {
+        projection: { evento: 1, asunto: 1, texto: 1, creado_en: 1, leida_por: 1, destinatario: 1, 'datos_evento.ticket': 1, 'datos_evento.numero': 1 }
+      })
+      .sort({ creado_en: -1, _id: -1 })
+      .skip((pagina - 1) * limite)
       .limit(limite)
       .toArray(),
-    coleccionMensajes().countDocuments({ ...filtro, leida_por: { $ne: yo } })
+    coleccionMensajes().countDocuments(filtro),
+    coleccionMensajes().countDocuments({ ...base, leida_por: { $ne: yo } })
   ]);
   res.status(200).json({
     no_leidas,
+    total,
+    pagina,
+    paginas: Math.max(1, Math.ceil(total / limite)),
     notificaciones: mensajes.map((m) => ({
       id: String(m._id),
       evento: m.evento,
@@ -52,6 +64,8 @@ export const verBandeja = async (req: PeticionAutenticada, res: Response): Promi
       texto: m.texto ?? '',
       destino: destinoDe(String(m.evento)),
       ticket: m.datos_evento?.ticket ?? null,
+      // Numero del pedido (PED-...), para abrir su detalle desde la notificacion.
+      pedido: typeof m.datos_evento?.numero === 'string' ? m.datos_evento.numero : null,
       de_operaciones: m.destinatario !== yo,
       leida: Array.isArray(m.leida_por) && m.leida_por.includes(yo),
       creado_en: m.creado_en
@@ -98,6 +112,14 @@ const PLANTILLAS_BASE = [
     canal: 'email',
     asunto: 'Respondimos tu consulta {{ticket}}',
     cuerpo: 'Hola, SerByTek respondió tu consulta {{ticket}}: "{{mensaje}}". Puedes verla y contestar en Mi perfil, sección Mis consultas.'
+  },
+  {
+    // RF-54. {{enlace}} solo existe en el correo: lo guardado lo lleva oculto.
+    clave: 'auth.recuperacion_solicitada',
+    canal: 'email',
+    asunto: 'Restablece tu contraseña de SerByTek',
+    cuerpo:
+      'Recibimos una solicitud para cambiar la contraseña de tu cuenta. Para crear una nueva, abre este enlace (vence en {{minutos}} minutos y sirve una sola vez): {{enlace}}\nSi no fuiste tú, ignora este correo: tu contraseña no cambia.'
   }
 ];
 

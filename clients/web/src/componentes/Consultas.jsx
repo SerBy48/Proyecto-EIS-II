@@ -103,7 +103,7 @@ export default function Consultas({ personal = false, inicial = null }) {
 
       <div className="lg:col-span-3">
         {abierta ? (
-          <Hilo key={abierta} numero={abierta} personal={personal} alCambiar={cargar} />
+          <Hilo key={abierta} numero={abierta} personal={personal} alCambiar={cargar} listoParaResponder={abierta === inicial} />
         ) : (
           consultas?.length > 0 && <p className="text-sm text-gray-500">Elige una consulta para ver la conversación.</p>
         )}
@@ -112,21 +112,37 @@ export default function Consultas({ personal = false, inicial = null }) {
   );
 }
 
-function Hilo({ numero, personal, alCambiar }) {
+/**
+ * Hilo de una consulta. Si se llego desde una notificacion (listoParaResponder),
+ * el foco queda en el campo de respuesta: abrir la notificacion y escribir.
+ */
+function Hilo({ numero, personal, alCambiar, listoParaResponder = false }) {
   const [consulta, setConsulta] = useState(null);
   const [texto, setTexto] = useState('');
   const [error, setError] = useState(null);
   const [enviando, setEnviando] = useState(false);
   const titulo = useRef(null);
+  const respuesta = useRef(null);
+  const seccion = useRef(null);
 
   useEffect(() => {
     api(`/asistente/consultas/${encodeURIComponent(numero)}`)
-      .then((c) => {
-        setConsulta(c);
-        titulo.current?.focus();
-      })
+      .then((c) => setConsulta(c))
       .catch((e) => setError(e.message));
   }, [numero]);
+
+  // Con la consulta ya pintada: foco en la respuesta o en el titulo.
+  const cargada = Boolean(consulta);
+  useEffect(() => {
+    if (!cargada) return;
+    if (listoParaResponder && respuesta.current) {
+      seccion.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+      respuesta.current.focus({ preventScroll: true });
+    } else {
+      titulo.current?.focus();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cargada]);
 
   const enviar = async (e) => {
     e.preventDefault();
@@ -164,7 +180,7 @@ function Hilo({ numero, personal, alCambiar }) {
   }
 
   return (
-    <section aria-labelledby="hilo-titulo" className="bg-superficie border border-gray-200 rounded-xl p-5">
+    <section ref={seccion} aria-labelledby="hilo-titulo" className="bg-superficie border border-gray-200 rounded-xl p-5 scroll-mt-24">
       <div className="flex flex-wrap items-start justify-between gap-2 mb-1">
         <h3 id="hilo-titulo" ref={titulo} tabIndex={-1} className="font-bold focus:outline-none">
           {consulta.motivo_texto}
@@ -208,6 +224,7 @@ function Hilo({ numero, personal, alCambiar }) {
             {personal ? 'Respuesta al cliente' : 'Tu mensaje'}
           </label>
           <textarea
+            ref={respuesta}
             id="hilo-respuesta"
             value={texto}
             onChange={(e) => setTexto(e.target.value)}

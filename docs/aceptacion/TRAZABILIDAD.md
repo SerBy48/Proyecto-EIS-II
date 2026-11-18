@@ -5,19 +5,19 @@ Trabajo Final, Fase 5. Une cada requisito de [`01-escenario-requisitos.md`](../e
 - los casos de prueba que lo verifican;
 - el resultado de la última regresión y su evidencia.
 
-**Resultado de la regresión del 2026-11-16, ajustes de SerByTek** (sección 4.36 de [`PRUEBAS.md`](../PRUEBAS.md)), desde volúmenes vacíos con la web compilada en modo pruebas:
+**Resultado de la regresión del 2026-11-18, ajustes de la revisión manual (F5d)** (sección 4.42 de [`PRUEBAS.md`](../PRUEBAS.md)), desde volúmenes vacíos con la web compilada en modo pruebas:
 
 | Suite | Resultado |
 |---|---|
-| `test:e2e:ui` | 18/18 criterios |
+| `test:e2e:ui` | 27/27 criterios |
 | `test:e2e` | 53 comprobaciones |
 | `test:http` | 73 casos |
 | `test:concurrencia` | 33 comprobaciones |
-| `test:asistente` | 46 comprobaciones |
-| `test:seguridad` | 23 verificaciones (22 seguras + S-09 aceptado) |
-| `test:openapi` | 409 comprobaciones |
-| `test:unit` | 135 pruebas |
-| axe (temas claro y oscuro) | 21 pantallas, 0 reglas WCAG incumplidas |
+| `test:asistente` | 56 comprobaciones (con la degradación) |
+| `test:seguridad` | 27 verificaciones (26 seguras + S-09 aceptado) |
+| `test:openapi` | 517 comprobaciones |
+| `test:unit` | 160 pruebas |
+| axe (temas claro y oscuro) | vistas F5c (20) y F5d (18), 0 reglas WCAG incumplidas |
 
 **Convenciones de la tabla:**
 - **Interfaz:** el número `CA-nn` es el criterio que lo verifica en la web; un guion indica que el requisito no tiene pantalla propia.
@@ -56,7 +56,7 @@ Trabajo Final, Fase 5. Une cada requisito de [`01-escenario-requisitos.md`](../e
 | RF-26 Listar mis pedidos | CA-05, CA-08 | `test:http` (aislamiento) | Pasa | `CA-08.png` |
 | RF-27 Cancelar pedido | CA-08 | `test:e2e` E (incluye el correo al cliente, H-F5-01), `test:http` | Pasa | `CA-08.png` |
 | RF-28 Cambiar estado | CA-12 | `test:http` (transiciones inválidas → 409) | Pasa | `CA-12.png` |
-| RF-29 Bitácora de la saga | CA-12 | `test:http` (cliente → 403) | Pasa | `CA-12.png` |
+| RF-29 Bitácora de la saga (en la API; F5d: fuera de la interfaz) | — | `test:http` B-12 (cliente → 403), `test:e2e` (pasos y compensación) | Pasa | `PRUEBAS.md` §3 |
 | RF-30 Cobro idempotente sin PAN | CA-05, CA-06 | `test:http` (cuatro desenlaces, PCI-DSS) | Pasa | `PRUEBAS.md` §3 |
 | RF-31 Transacciones propias | CA-07 | `test:http` | Pasa | `resultados.json` |
 | RF-32 Notificar sin duplicados | CA-09 | `test:e2e`, `test:unit` (bus y DLQ) | Pasa | `CA-09.png` |
@@ -92,6 +92,12 @@ Trabajo Final, Fase 5. Une cada requisito de [`01-escenario-requisitos.md`](../e
 | RF-51 Entradas con proveedor (F5c) | CA-21 | `test:unit` (`proveedores.test.ts`) | Pasa | `CA-21.png` |
 | RF-52 Campana de notificaciones (F5c) | CA-23 | `test:asistente` (no leídas y marcar), `test:seguridad` V-26 | Pasa | `CA-23-consulta.png` |
 | RF-53 Consultas al vendedor (F5c) | CA-23 | `test:asistente` (aislamiento, cierre, correo a operaciones), `asistente:metricas` (validación 13/15), `test:seguridad` V-26 | Pasa | `CA-23-consulta.png` |
+| RF-54 Recuperar la contraseña (F5d) | CA-24 | `test:seguridad` V-27 (sin enumeración, un solo uso, enlace no guardado, sesiones cerradas), `test:unit` (`secretos.test.ts`) | Pasa | `CA-24.png` |
+| RF-55 Vista completa de notificaciones (F5d) | CA-25 | `test:openapi` (`pagina`, `solo_no_leidas`) | Pasa | `CA-25.png` |
+| RF-56 Cerrar sesión y seguir como visitante (F5d) | CA-26 | axe F5d | Pasa | `CA-26.png` |
+| RF-57 Salud del sistema solo del administrador, con medidas (F5d) | CA-27 | axe F5d | Pasa | `CA-27-salud.png` |
+| RF-58 Detalle del pedido con su historial de estados (F5d) | CA-12 | `test:http` (transiciones) | Pasa | `CA-12.png` |
+| RF-59 Vista previa del catálogo y nombres en inventario (F5d) | CA-27 | `test:openapi` (`skus`) | Pasa | `CA-27-vista-previa.png` |
 
 ## Requisitos no funcionales
 

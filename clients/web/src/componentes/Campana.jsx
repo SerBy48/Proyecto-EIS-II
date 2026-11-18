@@ -4,6 +4,9 @@ import { api } from '../servicios/api';
 /** Cada cuanto se consulta si hay notificaciones nuevas (y al volver a la pestaña). */
 const INTERVALO_MS = 30_000;
 
+/** Evento de ventana con el que la vista completa pide actualizar el conteo. */
+export const EVENTO_BANDEJA = 'serbytek:bandeja-actualizada';
+
 const haceCuanto = (fecha) => {
   const minutos = Math.round((Date.now() - new Date(fecha).getTime()) / 60000);
   if (minutos < 1) return 'ahora';
@@ -16,8 +19,9 @@ const haceCuanto = (fecha) => {
 /**
  * Campana de notificaciones junto al perfil (RF-52). Muestra cuantas hay sin
  * leer y las ultimas diez; al abrir una, la marca como leida y lleva a donde
- * corresponde (pedidos, consultas, inventario). Se actualiza cada 30 s y cada
- * vez que la pestaña vuelve a estar visible: sin WebSockets.
+ * corresponde (pedidos, consultas, inventario). "Ver todas" abre la vista
+ * completa, paginada (componentes/Notificaciones.jsx). Se actualiza cada 30 s
+ * y cada vez que la pestaña vuelve a estar visible: sin WebSockets.
  */
 export default function Campana({ usuario, onAbrir }) {
   const [bandeja, setBandeja] = useState({ no_leidas: 0, notificaciones: [] });
@@ -42,9 +46,12 @@ export default function Campana({ usuario, onAbrir }) {
     }, INTERVALO_MS);
     const alVolver = () => document.visibilityState === 'visible' && cargar();
     document.addEventListener('visibilitychange', alVolver);
+    // La vista completa avisa cuando marca leidas: el conteo se pone al dia ya.
+    window.addEventListener(EVENTO_BANDEJA, cargar);
     return () => {
       clearInterval(temporizador);
       document.removeEventListener('visibilitychange', alVolver);
+      window.removeEventListener(EVENTO_BANDEJA, cargar);
     };
   }, [cargar, usuario?.email]);
 
@@ -166,6 +173,18 @@ export default function Campana({ usuario, onAbrir }) {
               <li className="px-4 py-8 text-center text-sm text-gray-500">No tienes notificaciones.</li>
             )}
           </ul>
+          {/* La campana solo trae las diez ultimas: el resto, en la vista completa. */}
+          <div className="border-t border-gray-200">
+            <button
+              onClick={() => {
+                setAbierta(false);
+                onAbrir?.('notificaciones');
+              }}
+              className="w-full px-4 py-2.5 text-sm font-semibold text-marca-700 hover:bg-gray-50 rounded-b-xl"
+            >
+              Ver todas las notificaciones
+            </button>
+          </div>
         </div>
       )}
     </div>

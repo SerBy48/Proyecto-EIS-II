@@ -185,7 +185,7 @@ export const listarPedidos = async (req: PeticionAutenticada, res: Response): Pr
   const estado = req.query.estado ? String(req.query.estado) : null;
 
   const { rows } = await pool.query(
-    `SELECT p.id, p.numero, p.cliente_id, p.estado, p.total, p.creado_en,
+    `SELECT p.id, p.numero, p.cliente_id, p.estado, p.total, p.creado_en, p.actualizado_en,
             COUNT(i.id)::INT AS cantidad_items
        FROM pedidos p LEFT JOIN pedido_items i ON i.pedido_id = p.id
       WHERE ($1::INT IS NULL OR p.cliente_id = $1)

@@ -36,6 +36,18 @@ export const tokensRenovacion = pgTable('tokens_renovacion', {
   creado_en: timestamp('creado_en', { withTimezone: true }).notNull().defaultNow()
 });
 
+export const restablecimientosContrasena = pgTable('restablecimientos_contrasena', {
+  id: serial('id').primaryKey(),
+  usuario_id: integer('usuario_id')
+    .notNull()
+    .references(() => usuarios.id, { onDelete: 'cascade' }),
+  token_hash: varchar('token_hash', { length: 64 }).notNull(),
+  expira_en: timestamp('expira_en', { withTimezone: true }).notNull(),
+  usado_en: timestamp('usado_en', { withTimezone: true }),
+  ip: varchar('ip', { length: 45 }),
+  creado_en: timestamp('creado_en', { withTimezone: true }).notNull().defaultNow()
+});
+
 export const auditoriaAccesos = pgTable('auditoria_accesos', {
   id: bigserial('id', { mode: 'number' }).primaryKey(),
   usuario_id: integer('usuario_id'),

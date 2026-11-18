@@ -379,20 +379,24 @@ const principal = async (): Promise<void> => {
     return `${sku}: ${antes} -> ${despues}`;
   });
 
-  await caso('CA-12', 'Administrador: estado y bitácora de la saga', async (p) => {
+  await caso('CA-12', 'Administrador: estado del pedido con fecha y hora de cada cambio', async (p) => {
     const pedido = await pedidoPagado(bruno, 'SKU-TEC-001');
     await iniciarSesionUI(p, 'admin@tienda.co');
     await p.getByRole('navigation', { name: 'Secciones de administración' }).waitFor();
     await p.getByRole('button', { name: 'Pedidos', exact: true }).click();
     await p.getByRole('heading', { name: 'Pedidos del sistema' }).waitFor();
-    await p.getByRole('button', { name: new RegExp(`^Marcar en preparacion el pedido ${pedido.numero}`) }).click();
-    await p.getByRole('row').filter({ hasText: pedido.numero }).getByText('en preparacion').waitFor();
-    await p.getByRole('button', { name: new RegExp(`Bitácora de la saga del pedido ${pedido.numero}`) }).click();
-    const bitacora = p.getByRole('region', { name: new RegExp(`Bitácora de la saga del pedido ${pedido.numero}`) });
-    await bitacora.getByText('validar_cliente').first().waitFor();
-    await bitacora.getByText('confirmar_reserva').first().waitFor();
-    const pasos = await bitacora.getByRole('listitem').count();
-    return `${pedido.numero} en preparación; bitácora con ${pasos} pasos`;
+    await p.getByRole('button', { name: new RegExp(`^Marcar en preparación el pedido ${pedido.numero}`) }).click();
+    await p.getByRole('row').filter({ hasText: pedido.numero }).getByText('En preparación').waitFor();
+    // F5d: en lugar de la bitacora tecnica de la saga, el detalle con la linea
+    // de tiempo de los estados (fecha y hora de cada cambio).
+    await p.getByRole('button', { name: new RegExp(`Detalle del pedido ${pedido.numero}`) }).click();
+    const detalle = p.getByRole('region', { name: `Pedido ${pedido.numero}` });
+    const cambio = detalle.getByRole('listitem').filter({ hasText: 'Pagado → En preparación' });
+    await cambio.waitFor();
+    const hora = await cambio.locator('time').getAttribute('datetime');
+    afirmar(hora && !Number.isNaN(Date.parse(hora)), 'El cambio de estado no muestra su fecha y hora');
+    const cambios = await detalle.getByRole('listitem').filter({ has: p.locator('time') }).count();
+    return `${pedido.numero} en preparación; el detalle muestra ${cambios} cambios de estado con fecha y hora (${new Date(hora!).toLocaleString('es-CO')})`;
   });
 
   /** Cuenta de cliente nueva por la API, con una direccion de envio. */
@@ -707,6 +711,138 @@ const principal = async (): Promise<void> => {
     await p.getByRole('list', { name: 'Mensajes de la consulta' }).getByText('Sí, funciona con cualquier USB-C').waitFor();
     await p.screenshot({ path: path.join(SALIDA, 'CA-23-consulta.png') });
     return `${numero}: enviada desde el chat, respondida en el panel; el cliente la abre desde la campana`;
+  });
+
+  // ---------------------------------------------------------------- F5d
+  /** Sesion del personal preparada por la API (como en CA-18 y CA-23). */
+  const sesionEnNavegador = async (p: Page, correo: string) => {
+    const s = (await api('/auth/login', { metodo: 'POST', cuerpo: { email: correo, password: CLAVE } })).datos;
+    await p.goto(WEB, { waitUntil: 'domcontentloaded' });
+    await p.evaluate((d) => {
+      localStorage.setItem('token', d.token);
+      localStorage.setItem('refresh_token', d.refresh_token);
+      localStorage.setItem('usuario', JSON.stringify(d.usuario));
+    }, s);
+    await p.reload({ waitUntil: 'domcontentloaded' });
+    await p.getByRole('button', { name: 'Salir' }).waitFor();
+  };
+
+  await caso('CA-24', 'Recuperar la contraseña con el enlace del correo', async (p) => {
+    const cliente = await clienteNuevo('ca24');
+    await p.goto(WEB, { waitUntil: 'domcontentloaded' });
+    await p.getByRole('button', { name: 'Iniciar sesión' }).click();
+    await p.getByRole('button', { name: '¿Olvidaste tu contraseña?' }).click();
+    await p.getByLabel('Correo').fill(cliente.correo);
+    await p.getByRole('button', { name: 'Enviar enlace' }).click();
+    await p.getByText('Revisa tu correo').waitFor();
+
+    // El enlace llega a Mailpit.
+    let token = '';
+    for (let i = 0; i < 30 && !token; i++) {
+      const busqueda = await fetch(`${MAILPIT}/api/v1/search?query=${encodeURIComponent(`to:"${cliente.correo}"`)}`).then((r) => r.json()).catch(() => null);
+      const id = busqueda?.messages?.[0]?.ID;
+      if (id) {
+        const mensaje = await fetch(`${MAILPIT}/api/v1/message/${id}`).then((r) => r.json());
+        token = /#restablecer=([a-f0-9]{64})/.exec(String(mensaje.Text ?? ''))?.[1] ?? '';
+      }
+      if (!token) await p.waitForTimeout(500);
+    }
+    afirmar(token, 'No llegó el correo con el enlace a Mailpit');
+
+    await p.goto(`${WEB}/#restablecer=${token}`, { waitUntil: 'domcontentloaded' });
+    await p.getByRole('heading', { name: 'Crea una contraseña nueva' }).waitFor();
+    await p.locator('#restablecer-password').fill('ClaveNueva2026');
+    await p.locator('#restablecer-confirmacion').fill('ClaveNueva2026');
+    await p.getByRole('button', { name: 'Guardar contraseña' }).click();
+    await p.getByText('Tu contraseña se actualizó. Inicia sesión con la nueva.').waitFor();
+    afirmar(!p.url().includes(token), 'El token quedó en la barra de direcciones');
+    await p.getByLabel('Correo').fill(cliente.correo);
+    await p.getByLabel('Contraseña', { exact: true }).fill('ClaveNueva2026');
+    await p.getByRole('button', { name: 'Ingresar' }).click();
+    await p.getByRole('button', { name: 'Salir' }).waitFor();
+    const reuso = await api('/auth/restablecer', { metodo: 'POST', cuerpo: { token, password: 'OtraClave2026' } });
+    afirmar(reuso.estado === 400, `El enlace sirvió dos veces (${reuso.estado})`);
+    return `${cliente.correo}: enlace recibido en Mailpit, contraseña cambiada e inicio de sesión con la nueva; el enlace no sirve dos veces`;
+  });
+
+  await caso('CA-25', 'Notificaciones: ver todas y responder una consulta desde la notificación', async (p) => {
+    const cliente = await clienteNuevo('ca25');
+    const creada = await api('/asistente/consultas', {
+      metodo: 'POST',
+      token: cliente.token,
+      cuerpo: { motivo: 'producto', mensaje: '¿El monitor de 27 pulgadas trae cable DisplayPort?' }
+    });
+    const numero = creada.datos?.consulta?.numero as string;
+    afirmar(numero, `No se creó la consulta (${creada.estado})`);
+    // La notificacion llega al buzon de operaciones por el bus: se espera a que exista.
+    let llego = false;
+    for (let i = 0; i < 30 && !llego; i++) {
+      const bandeja = await api('/notificaciones/bandeja?limite=20', { token: vendedor.token });
+      llego = (bandeja.datos?.notificaciones ?? []).some((n: { ticket: string }) => n.ticket === numero);
+      if (!llego) await p.waitForTimeout(500);
+    }
+    afirmar(llego, 'La notificación de la consulta no llegó al buzón de operaciones');
+
+    await sesionEnNavegador(p, 'vendedor@tienda.co');
+    await p.getByRole('banner').getByRole('button', { name: /^Notificaciones/ }).click();
+    await p.getByRole('button', { name: 'Ver todas las notificaciones' }).click();
+    await p.getByRole('heading', { name: /^Notificaciones/ }).waitFor();
+    const fila = p.getByRole('listitem').filter({ hasText: numero }).first();
+    await fila.getByRole('button', { name: /^Responder la consulta/ }).click();
+    const respuesta = p.getByLabel('Respuesta al cliente');
+    await respuesta.waitFor();
+    await p.waitForFunction(() => document.activeElement?.id === 'hilo-respuesta');
+    await p.getByRole('heading', { name: 'Consultas de clientes' }).waitFor();
+    await respuesta.fill('Sí, el monitor incluye un cable DisplayPort de 1,8 m.');
+    const [r] = await Promise.all([
+      p.waitForResponse((x) => x.url().includes(`/consultas/${numero}/mensajes`) && x.request().method() === 'POST'),
+      p.getByRole('button', { name: 'Responder', exact: true }).click()
+    ]);
+    afirmar(r.status() === 200, `La respuesta dio ${r.status()}`);
+    return `${numero}: desde "Ver todas" se abre la consulta con el cursor en la respuesta y se responde`;
+  });
+
+  await caso('CA-26', 'Cerrar sesión: pantalla de salida y seguir como visitante', async (p) => {
+    await iniciarSesionUI(p, 'ana@correo.co');
+    await Promise.all([p.getByText('Cerrando sesión…').waitFor(), p.getByRole('button', { name: 'Salir' }).click()]);
+    await p.getByText('Cerraste sesión.').waitFor();
+    await p.getByRole('heading', { name: 'Iniciar sesión' }).waitFor();
+    afirmar(await p.evaluate(() => localStorage.getItem('token') === null), 'El token quedó guardado tras salir');
+    await p.getByRole('button', { name: 'Seguir en la tienda como visitante' }).click();
+    await p.getByRole('heading', { name: 'Tecnología para trabajar, estudiar y jugar' }).waitFor();
+    await p.getByRole('button', { name: /^Inicie sesión para comprar/ }).first().waitFor();
+    return 'pantalla "Cerrando sesión…", inicio de sesión con el aviso y catálogo como visitante';
+  });
+
+  await caso('CA-27', 'Vendedor: sin salud del sistema, catálogo en vista previa y nombres en inventario', async (p) => {
+    await iniciarSesionUI(p, 'vendedor@tienda.co');
+    const secciones = p.getByRole('navigation', { name: 'Secciones de administración' });
+    await secciones.getByRole('button', { name: 'Productos' }).waitFor();
+    afirmar((await secciones.getByRole('button', { name: 'Salud del sistema' }).count()) === 0, 'El vendedor ve la salud del sistema');
+
+    await secciones.getByRole('button', { name: 'Inventario', exact: true }).click();
+    const nombre = (await api('/catalogo/productos/SKU-TEC-007')).datos.nombre as string;
+    await p.getByRole('cell').filter({ hasText: 'SKU-TEC-007' }).filter({ hasText: nombre }).first().waitFor();
+
+    await nav(p, /^Catálogo/).click();
+    await p.getByRole('heading', { name: 'Vista previa: así ven la tienda los clientes' }).waitFor();
+    const comprar = p.getByRole('button', { name: /^Vista de cliente \(sin compra\)/ }).first();
+    afirmar(await comprar.isDisabled(), 'El botón de compra del personal está activo');
+    afirmar((await p.getByRole('button', { name: /^Agregar al carrito/ }).count()) === 0, 'El personal ve "Agregar al carrito"');
+    await p.screenshot({ path: path.join(SALIDA, 'CA-27-vista-previa.png') });
+
+    // El administrador si tiene la salud, con que hacer si algo falla.
+    const admin2 = await p.context().browser()!.newContext({ viewport: { width: 1280, height: 860 }, locale: 'es-CO' });
+    const pa = await admin2.newPage();
+    pa.setDefaultTimeout(15_000);
+    await sesionEnNavegador(pa, 'admin@tienda.co');
+    await pa.getByRole('button', { name: 'Administración' }).click();
+    await pa.getByRole('heading', { name: 'Cómo leer esta vista' }).waitFor();
+    await pa.getByRole('button', { name: /^Qué hacer si falla/ }).first().click();
+    await pa.getByText('docker compose restart', { exact: false }).first().waitFor();
+    await pa.screenshot({ path: path.join(SALIDA, 'CA-27-salud.png'), fullPage: true });
+    await admin2.close();
+    return `sin pestaña de salud; ${nombre} junto a SKU-TEC-007 en inventario; catálogo en vista previa sin compra; el administrador ve la salud con sus pasos`;
   });
 
   for (const sku of productosDePrueba) {

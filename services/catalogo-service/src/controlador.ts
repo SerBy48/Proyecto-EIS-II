@@ -145,6 +145,16 @@ export const listarProductos = async (req: PeticionAutenticada, res: Response): 
     };
   }
   if (en_oferta === 'true') Object.assign(base, filtroEnOferta());
+  // ?skus=A,B: los productos de esos SKU (el panel pone nombre a las alertas
+  // de reposicion y al historial de entradas, que inventario guarda por SKU).
+  const skus = parametro('skus');
+  if (skus !== undefined) {
+    const lista = [...new Set(skus.split(',').map((s) => s.trim().toUpperCase()).filter(Boolean))];
+    if (!lista.length || lista.length > 100 || !lista.every((s) => /^SKU-[A-Z0-9-]{1,40}$/.test(s))) {
+      throw errorSolicitud('skus debe ser una lista de 1 a 100 SKU separados por comas.');
+    }
+    base.sku = { $in: lista };
+  }
 
   const ordenFijo: Record<string, 1 | -1> | undefined =
     orden === 'precio_asc' ? { precio: 1 }

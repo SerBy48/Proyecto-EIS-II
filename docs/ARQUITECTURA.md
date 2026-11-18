@@ -44,6 +44,7 @@ exterior antes de escribir las suyas. Sin eso, cualquiera podría enviar
 | Hash de contraseñas | bcrypt, 10 rondas |
 | Emisión, renovación y revocación de tokens | JWT de 15 min + refresh rotatorio de 7 días, almacenado como hash |
 | RBAC | Claim `rol` en el token: `cliente`, `vendedor`, `administrador` |
+| Recuperación de contraseña (F5d) | `POST /recuperar` y `POST /restablecer`: enlace de un solo uso, 30 min, guardado como hash; el correo sale por el evento `auth.recuperacion_solicitada` |
 
 Extra no exigido pero necesario en la práctica: bloqueo temporal de la cuenta
 tras cinco intentos fallidos, y tabla de auditoría de accesos de solo inserción.
@@ -130,8 +131,10 @@ Es el único servicio que escribe en la base de pedidos.
 
 Único servicio puramente asíncrono: no expone ningún endpoint para enviar
 mensajes. Reacciona a los eventos del broker (`pedido.*`, `pago.rechazado`,
-`inventario.stock_minimo`, `carrito.abandonado`), renderiza la plantilla
-correspondiente y envía.
+`inventario.stock_minimo`, `carrito.abandonado`, `asistente.*` y
+`auth.recuperacion_solicitada`), renderiza la plantilla correspondiente y envía.
+Los campos que el evento marca como `secretos` (el enlace de recuperación) van
+solo en el correo: lo que se guarda los lleva ocultos.
 
 Deduplica por `clave_dedupe` con índice único: RabbitMQ garantiza entrega *al
 menos una vez*, así que sin esto el cliente podría recibir dos correos.
@@ -336,6 +339,7 @@ venta. Comprobable con el escenario 5.1 de [`../PLAN.md`](../PLAN.md).
 | Credenciales | bcrypt con sal, 10 rondas | `auth-service` |
 | Credenciales | Bloqueo temporal tras 5 intentos fallidos | `auth-service` |
 | Tokens | Vigencia corta + refresh rotatorio revocable | `auth-service`, tabla `tokens_renovacion` |
+| Credenciales | Recuperación sin enumerar cuentas, enlace de un solo uso guardado como hash, sesiones revocadas al cambiar (F5d) | `auth-service`, tabla `restablecimientos_contrasena` |
 | Autorización | Mínimo privilegio a nivel de dato | `exigirPropiedad` en clientes, carrito, pedidos, pagos |
 | Pagos | PCI-DSS: sin datos de tarjeta en la plataforma | `pagos_db` no tiene esas columnas |
 | Interno | Autenticación mutua entre servicios | Secreto compartido + `x-llamada-interna` |

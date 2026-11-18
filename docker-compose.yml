@@ -153,9 +153,13 @@ services:
       # Eliminar la cuenta: pedidos en curso, anonimizar el perfil y vaciar el carrito.
       URL_PEDIDOS: http://pedidos-service:3006
       URL_CARRITO: http://carrito-service:3005
+      # Direccion de la web a la que apunta el enlace del correo de recuperacion (RF-54).
+      URL_WEB: ${URL_WEB:-http://localhost:8081}
     ports: ["127.0.0.1:3001:3001"]
     depends_on:
       postgres: { condition: service_healthy }
+      # El correo de recuperacion sale por el bus; BusEventos reintenta solo.
+      rabbitmq: { condition: service_started }
 
   clientes-service:
     <<: *servicio-base
@@ -324,6 +328,7 @@ services:
       LIMITE_CHECKOUT: ${LIMITE_CHECKOUT:-10}
       LIMITE_ASISTENTE: ${LIMITE_ASISTENTE:-30}
       LIMITE_IMAGENES: ${LIMITE_IMAGENES:-1500}
+      LIMITE_RECUPERACION: ${LIMITE_RECUPERACION:-5}
       PROXY_TIMEOUT_MS: ${PROXY_TIMEOUT_MS:-15000}
       EXPONER_DOCS: ${EXPONER_DOCS:-true}
     ports:

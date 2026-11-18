@@ -8,7 +8,7 @@ import {
 } from '@ecommerce/shared';
 import { coleccionMensajes, coleccionPlantillas } from './db';
 import { canalPara } from './canales';
-import { canalConHtml, renderizar } from './plantillas';
+import { canalConHtml, escaparHtml, renderizar } from './plantillas';
 
 const log = crearLogger('notificaciones-service');
 
@@ -27,6 +27,34 @@ const formatearMoneda = (valor: unknown): string => {
   const numero = Number(valor);
   if (!Number.isFinite(numero)) return String(valor ?? '');
   return `$${numero.toLocaleString('es-CO')}`;
+};
+
+/** Texto con el que se guarda un campo secreto en lugar de su valor. */
+export const TEXTO_OCULTO = '[enlace enviado solo al correo]';
+
+/** Campos que el evento marca como secretos (lista "secretos" de los datos). */
+export const camposSecretos = (datos: Record<string, unknown>): string[] =>
+  Array.isArray(datos.secretos) ? datos.secretos.filter((c): c is string => typeof c === 'string') : [];
+
+export const ocultarSecretos = (datos: Record<string, unknown>, secretos: string[]): Record<string, unknown> => {
+  if (!secretos.length) return datos;
+  const copia = { ...datos };
+  for (const campo of secretos) if (copia[campo] !== undefined) copia[campo] = TEXTO_OCULTO;
+  return copia;
+};
+
+/**
+ * HTML del correo. Si el evento trae un enlace http(s) (recuperacion de
+ * contrasena), el texto del enlace se vuelve un vinculo: el enlace lo genera
+ * auth-service, pero igual se escapa.
+ */
+export const htmlDelCorreo = (cuerpoEscapado: string, enlace: unknown): string => {
+  let html = cuerpoEscapado.replace(/\n/g, '<br>');
+  if (typeof enlace === 'string' && /^https?:\/\//.test(enlace)) {
+    const seguro = escaparHtml(enlace);
+    html = html.split(seguro).join(`<a href="${seguro}">${seguro}</a>`);
+  }
+  return `<p>${html}</p>`;
 };
 
 /**
@@ -60,13 +88,22 @@ export const procesarEvento = async (evento: EventoDominio): Promise<void> => {
     items: Array.isArray(datos.items) ? datos.items.length : datos.items
   };
 
+  // RF-54: los campos "secretos" (el enlace para restablecer la contrasena) van
+  // solo en el envio. Lo que se guarda (la campana, el registro de envios del
+  // administrador, datos_evento) los lleva ocultos: quien lea la base no puede
+  // usar el enlace de otra persona.
+  const secretos = camposSecretos(datos);
+  const guardables = ocultarSecretos(variables, secretos);
+
   // En el correo, los datos del usuario se escapan como HTML (hallazgo S-11).
   // Se guarda la version escapada; el texto plano va solo en el envio.
   const canal = String(plantilla.canal);
   const conHtml = canalConHtml(canal);
   const asunto = renderizar(String(plantilla.asunto), variables);
-  const texto = renderizar(String(plantilla.cuerpo), variables);
-  const cuerpo = renderizar(String(plantilla.cuerpo), variables, conHtml);
+  const textoEnvio = renderizar(String(plantilla.cuerpo), variables);
+  const cuerpoEnvio = renderizar(String(plantilla.cuerpo), variables, conHtml);
+  const texto = renderizar(String(plantilla.cuerpo), guardables);
+  const cuerpo = renderizar(String(plantilla.cuerpo), guardables, conHtml);
 
   // La clave de deduplicacion combina el evento con el identificador del
   // agregado afectado: el mismo evento sobre el mismo pedido se envia una vez.
@@ -74,7 +111,8 @@ export const procesarEvento = async (evento: EventoDominio): Promise<void> => {
     evento.nombre,
     // El ticket identifica cada escalamiento: sin el, todos los de visitantes
     // compartirian la clave y solo se avisaria del primero.
-    datos.pedido_id ?? datos.sku ?? datos.ticket ?? datos.cliente_id ?? '',
+    // La solicitud identifica cada correo de recuperacion de contrasena.
+    datos.pedido_id ?? datos.sku ?? datos.ticket ?? datos.solicitud ?? datos.cliente_id ?? '',
     datos.estado ?? '',
     // Cada cambio de direccion de un pedido es un aviso distinto.
     datos.cambio ?? ''
@@ -92,7 +130,7 @@ export const procesarEvento = async (evento: EventoDominio): Promise<void> => {
       estado: 'pendiente',
       clave_dedupe: claveDedupe,
       request_id: evento.request_id,
-      datos_evento: datos,
+      datos_evento: ocultarSecretos(datos, secretos),
       creado_en: new Date()
     });
   } catch (error) {
@@ -112,8 +150,8 @@ export const procesarEvento = async (evento: EventoDominio): Promise<void> => {
     const resultado = await canalPara(canal).enviar({
       destinatario,
       asunto,
-      texto,
-      html: conHtml ? `<p>${cuerpo.replace(/\n/g, '<br>')}</p>` : undefined
+      texto: textoEnvio,
+      html: conHtml ? htmlDelCorreo(cuerpoEnvio, datos.enlace) : undefined
     });
     await coleccionMensajes().updateOne(
       { clave_dedupe: claveDedupe },
@@ -148,7 +186,7 @@ export const registrarSuscripciones = async (bus: BusEventos): Promise<void> => 
   await bus.suscribir(
     {
       cola: 'notificaciones.envio',
-      patrones: ['pedido.*', 'pago.rechazado', 'inventario.stock_minimo', 'carrito.abandonado', 'asistente.*'],
+      patrones: ['pedido.*', 'pago.rechazado', 'inventario.stock_minimo', 'carrito.abandonado', 'asistente.*', 'auth.recuperacion_solicitada'],
       maxIntentos: 3
     },
     procesarEvento

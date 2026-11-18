@@ -39,7 +39,7 @@
     },
     {
       "clave": "faq_contrasena",
-      "respuesta": "Por seguridad, el restablecimiento de la contraseña lo hace un asesor después de verificar tu identidad. Escribe \"hablar con un asesor\" y te contactamos al correo de tu cuenta. Tras varios intentos fallidos seguidos, la tienda te pide esperar un momento antes de intentar de nuevo."
+      "respuesta": "Si olvidaste tu contraseña, pulsa \"Iniciar sesión\" y luego \"¿Olvidaste tu contraseña?\". Escribe el correo de tu cuenta y te enviaremos un enlace para crear una nueva: vence en 30 minutos y sirve una sola vez. Al cambiarla se cierran tus sesiones abiertas. Si el correo no te llega, revisa la carpeta de spam o escríbele al vendedor."
     },
     {
       "clave": "faq_direccion",

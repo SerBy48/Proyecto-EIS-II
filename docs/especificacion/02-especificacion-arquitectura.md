@@ -28,15 +28,15 @@ Los diagramas están en [`docs/c4/`](../c4/). Las fuentes son C4-PlantUML con la
 | Servicio | Contexto acotado | Responsabilidad | Datos propios | API (prefijo en el gateway) | Publica | Consume |
 |---|---|---|---|---|---|---|
 | api-gateway :8080 | Borde | Punto de entrada único: saneamiento, `request_id`, rate limit, JWT, proxy, salud agregada | — | `/api/*` | — | — |
-| auth-service :3001 | Identidad | Cuentas, login, refresh rotatorio, usuarios internos | `auth_db` (PG) | `/api/auth` | — | — |
+| auth-service :3001 | Identidad | Cuentas, login, refresh rotatorio, usuarios internos, recuperación de contraseña (F5d) | `auth_db` (PG) | `/api/auth` | `auth.recuperacion_solicitada` | — |
 | clientes-service :3002 | Clientes | Perfiles, direcciones, historial | `clientes_db` (PG) | `/api/clientes` | — | `pedido.confirmado`, `pedido.cancelado` |
 | catalogo-service :3003 | Catálogo | Productos, categorías, precio vigente, promociones | `catalogo_db` (Mongo) | `/api/catalogo` | — | — |
 | inventario-service :3004 | Inventario | Stock, reservas con vigencia, movimientos, alertas | `inventario_db` (PG) | `/api/inventario` | `inventario.stock_minimo`, `inventario.reserva_expirada` | — |
 | carrito-service :3005 | Carrito | Carrito con TTL, cupones, totales | Redis | `/api/carrito` | — | — |
 | pedidos-service :3006 | Pedidos | Orquestación del checkout (saga) y ciclo de vida del pedido | `pedidos_db` (PG) | `/api/pedidos` | `pedido.confirmado`, `pedido.cancelado` | — |
 | pagos-service :3007 | Pagos | Cobro idempotente; adaptador de la pasarela | `pagos_db` (PG) | `/api/pagos` | `pago.aprobado`, `pago.rechazado` | — |
-| notificaciones-service :3008 | Comunicación | Plantillas y envío por canal, sin duplicados | `notificaciones_db` (Mongo) | `/api/notificaciones` | — | `pedido.*`, `pago.rechazado`, `inventario.stock_minimo`, `carrito.abandonado` |
-| asistente-service :3009 | Atención al cliente | Motor de intenciones, FAQ, consulta de pedidos con la identidad del usuario, tickets | `asistente_db` (Mongo) | `/api/asistente` | `asistente.escalamiento` | — |
+| notificaciones-service :3008 | Comunicación | Plantillas y envío por canal, sin duplicados | `notificaciones_db` (Mongo) | `/api/notificaciones` | — | `pedido.*`, `pago.rechazado`, `inventario.stock_minimo`, `carrito.abandonado`, `asistente.*`, `auth.recuperacion_solicitada` |
+| asistente-service :3009 | Atención al cliente | Motor de intenciones, FAQ, consulta de pedidos con la identidad del usuario, tickets | `asistente_db` (Mongo) | `/api/asistente` | `asistente.escalamiento`, `asistente.consulta_*` | — |
 
 ## 2.3 Comunicación
 
@@ -62,7 +62,7 @@ La decisión general está en el [ADR-0004](../adr/0004-rabbitmq-eventos-rest-co
 |---|---|
 | Exchange de eventos | `ecommerce.eventos`, tipo `topic`, durable |
 | Exchange de fallidos | `ecommerce.eventos.dlq`, tipo `topic`, durable |
-| Cola `notificaciones.envio` | Patrones `pedido.*`, `pago.rechazado`, `inventario.stock_minimo`, `carrito.abandonado`, `asistente.escalamiento`; `maxIntentos: 3` |
+| Cola `notificaciones.envio` | Patrones `pedido.*`, `pago.rechazado`, `inventario.stock_minimo`, `carrito.abandonado`, `asistente.*`, `auth.recuperacion_solicitada`; `maxIntentos: 3` |
 | Cola `clientes.historial` | Patrones `pedido.confirmado`, `pedido.cancelado` |
 | Dead letter | Cada cola declara `deadLetterExchange: ecommerce.eventos.dlq` y una cola de fallidos ligada con su nombre como *routing key* |
 | Consumo | `prefetch(1)`: un mensaje a la vez por consumidor (hallazgo R6 de rendimiento) |

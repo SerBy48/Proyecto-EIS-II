@@ -44,6 +44,21 @@ CREATE TABLE tokens_renovacion (
 CREATE INDEX idx_tokens_usuario ON tokens_renovacion(usuario_id);
 CREATE INDEX idx_tokens_hash    ON tokens_renovacion(token_hash);
 
+-- Recuperacion de contrasena (RF-54). Como los refresh tokens, se guarda el
+-- hash del enlace, nunca el enlace: quien lea esta tabla no puede usarlo. Cada
+-- enlace sirve una sola vez (usado_en) y vence a los 30 minutos.
+CREATE TABLE restablecimientos_contrasena (
+    id            SERIAL PRIMARY KEY,
+    usuario_id    INT NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    token_hash    VARCHAR(64) UNIQUE NOT NULL,
+    expira_en     TIMESTAMPTZ NOT NULL,
+    usado_en      TIMESTAMPTZ,
+    ip            VARCHAR(45),
+    creado_en     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_restablecimientos_usuario ON restablecimientos_contrasena(usuario_id, creado_en DESC);
+
 -- Auditoria de accesos: registro inmutable, solo inserciones.
 CREATE TABLE auditoria_accesos (
     id          BIGSERIAL PRIMARY KEY,

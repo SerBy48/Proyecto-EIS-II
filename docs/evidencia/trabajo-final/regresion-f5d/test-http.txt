@@ -1,0 +1,150 @@
+
+> ecommerce-distribuido@1.0.0 test:http
+> tsx --env-file-if-exists=.env tests/contrato-http.ts
+
+Arrancando un gateway temporal en el puerto 18080 (limitador limpio)...
+Gateway listo: 200
+Restableciendo el estado de las bases de datos...
+Estado restablecido.
+
+
+============================================================================
+ SUITE A · AUTENTICACION Y EMISION DE TOKENS
+============================================================================
+  A-01    [32mPASA [0m  Login con credenciales validas (cliente)             esperado 200, obtenido 200
+  A-02    [32mPASA [0m  Login con contrasena incorrecta                      esperado 401, obtenido 401
+  A-03    [32mPASA [0m  Login con usuario inexistente                        esperado 401, obtenido 401
+  A-04    [32mPASA [0m  Login sin campos obligatorios                        esperado 400, obtenido 400
+  A-05    [32mPASA [0m  Consulta del perfil con token valido                 esperado 200, obtenido 200
+  A-06    [90mINFO[0m   Token JWT emitido: 212 caracteres
+  A-07    [32mPASA [0m  Registro con el cliente_id de otra persona           esperado 403, obtenido 403
+  A-08    [32mPASA [0m  Registro de un cliente que ya tiene cuenta           esperado 409, obtenido 409
+  A-09    [32mPASA [0m  Registro con un cliente_id inexistente               esperado 400, obtenido 400
+  A-10    [32mPASA [0m  Registro con un correo sin formato de correo         esperado 400, obtenido 400
+
+============================================================================
+ SUITE B · CONTROL DE ACCESO (RBAC Y PROPIEDAD DEL DATO)
+============================================================================
+  B-01    [32mPASA [0m  Ruta protegida sin token                             esperado 401, obtenido 401
+  B-02    [32mPASA [0m  Ruta protegida con token invalido                    esperado 401, obtenido 401
+  B-03    [32mPASA [0m  Ruta protegida con token valido                      esperado 200, obtenido 200
+  B-04    [32mPASA [0m  Cliente accediendo a ruta de personal interno        esperado 403, obtenido 403
+  B-05    [32mPASA [0m  Administrador en la misma ruta interna               esperado 200, obtenido 200
+  B-06    [32mPASA [0m  Vendedor en la misma ruta interna                    esperado 200, obtenido 200
+  B-07    [32mPASA [0m  Cliente intentando reservar stock por su cuenta      esperado 403, obtenido 403
+  B-08    [32mPASA [0m  Cliente intentando registrar entrada de mercancia    esperado 403, obtenido 403
+  B-09    [32mPASA [0m  Cliente consultando su propio perfil                 esperado 200, obtenido 200
+  B-10    [32mPASA [0m  Cliente consultando el perfil de otro cliente        esperado 403, obtenido 403
+  B-11    [32mPASA [0m  Cliente consultando el carrito de otro cliente       esperado 403, obtenido 403
+  B-12    [32mPASA [0m  Cliente consultando la bitacora de la saga           esperado 403, obtenido 403
+  B-13    [32mPASA [0m  Inyeccion de cabeceras de confianza falsas           esperado 403, obtenido 403
+  B-14    [32mPASA [0m  Ruta inexistente en el gateway                       esperado 404, obtenido 404
+  B-15    [32mPASA [0m  Cliente listando sus propias direcciones             esperado 200, obtenido 200
+  B-16    [32mPASA [0m  Cliente listando las direcciones de otro cliente     esperado 403, obtenido 403
+  B-17    [32mPASA [0m  Seis SKU inexistentes no abren el circuito del carrito esperado 200, obtenido 200
+  B-18    [32mPASA [0m  Operador NoSQL en un filtro del catalogo             esperado 400, obtenido 400
+  B-19    [32mPASA [0m  Id de pedido fuera del rango de un entero            esperado 400, obtenido 400
+  B-20    [32mPASA [0m  Peticion desde un origen no permitido por CORS       esperado 403, obtenido 403
+
+============================================================================
+ SUITE C · INVENTARIO: RESERVAS, IDEMPOTENCIA Y COMPENSACION
+============================================================================
+  C-01    [32mPASA [0m  Consulta de disponibilidad por SKU                   esperado 200, obtenido 200
+  C-02    [32mPASA [0m  Reserva SIN cabecera Idempotency-Key                 esperado 400, obtenido 400
+  C-03    [32mPASA [0m  Reserva valida de la ultima unidad                   esperado 201, obtenido 201
+  C-04    [32mPASA [0m  Reintento con la MISMA clave (idempotente)           esperado 200, obtenido 200
+  C-05    [32mPASA [0m  Segundo comprador: stock insuficiente                esperado 409, obtenido 409
+  C-06    [32mPASA [0m  Liberar la reserva (compensacion de la saga)         esperado 200, obtenido 200
+  C-07    [32mPASA [0m  Liberar de nuevo (idempotente)                       esperado 200, obtenido 200
+  C-08    [90mINFO[0m   Stock tras la compensacion: 1 unidad(es) — debe ser 1
+  C-09    [32mPASA [0m  Registrar entrada de mercancia                       esperado 200, obtenido 200
+  C-10    [32mPASA [0m  Primera entrada de un producto nuevo abre su inventario esperado 200, obtenido 200
+  C-11    [32mPASA [0m  Entrada de un SKU que no existe en el catalogo       esperado 404, obtenido 404
+  C-12    [32mPASA [0m  Entrada hacia una bodega inexistente                 esperado 400, obtenido 400
+  C-10    [32mPASA [0m  Entrada sobre un SKU inexistente                     esperado 404, obtenido 404
+
+============================================================================
+ SUITE D · PAGOS: LOS CUATRO DESENLACES DE LA PASARELA
+============================================================================
+  D-01    [32mPASA [0m  Pago aprobado (tok_ok)                               esperado 201, obtenido 201
+  D-02    [32mPASA [0m  Reintento con la MISMA clave (no cobra dos veces)    esperado 200, obtenido 200
+  D-03    [32mPASA [0m  Pago rechazado por fondos (tok_rechazo)              esperado 200, obtenido 200
+  D-04    [32mPASA [0m  Error tecnico de la pasarela (tok_error)             esperado 502, obtenido 502
+  D-05    [32mPASA [0m  Medio de pago no soportado                           esperado 400, obtenido 400
+  D-06    [32mPASA [0m  Monto invalido (cero)                                esperado 400, obtenido 400
+  D-07    [32mPASA [0m  Reembolso de una transaccion aprobada                esperado 200, obtenido 200
+  D-08    [32mPASA [0m  Reembolso repetido (idempotente)                     esperado 200, obtenido 200
+  D-09    [32mPASA [0m  Reembolso de una referencia inexistente              esperado 404, obtenido 404
+
+============================================================================
+ SUITE E · PEDIDOS: IDENTIFICADORES Y CICLO DE VIDA
+============================================================================
+  E-01    [32mPASA [0m  Pedido por numero inexistente (PED-...)              esperado 404, obtenido 404
+  E-02    [32mPASA [0m  Pedido por id numerico inexistente                   esperado 404, obtenido 404
+  E-03    [32mPASA [0m  Pedido con identificador no numerico ni PED-         esperado 404, obtenido 404
+  E-04    [32mPASA [0m  Bitacora de saga con identificador invalido          esperado 404, obtenido 404
+  E-05    [32mPASA [0m  Cancelacion con identificador invalido               esperado 404, obtenido 404
+  E-06    [32mPASA [0m  Cambio de estado con identificador invalido          esperado 404, obtenido 404
+  E-07    [32mPASA [0m  Pedido existente por NUMERO (PED-202611-001000)      esperado 200, obtenido 200
+  E-08    [32mPASA [0m  El mismo pedido por ID numerico                      esperado 200, obtenido 200
+  E-09    [32mPASA [0m  Bitacora de la saga (administrador)                  esperado 200, obtenido 200
+  E-10    [32mPASA [0m  Transicion valida: pagado -> en_preparacion          esperado 200, obtenido 200
+  E-11    [32mPASA [0m  Transicion invalida: en_preparacion -> pagado        esperado 400, obtenido 400
+  E-12    [32mPASA [0m  Estado inexistente                                   esperado 400, obtenido 400
+  E-13    [32mPASA [0m  Cancelacion de un pedido en preparacion              esperado 200, obtenido 200
+  E-14    [32mPASA [0m  Cancelacion repetida (idempotente)                   esperado 200, obtenido 200
+  E-15    [32mPASA [0m  El cliente cancela su propio pedido                  esperado 200, obtenido 200
+  E-16    [32mPASA [0m  El cliente repite la cancelacion (idempotente)       esperado 200, obtenido 200
+
+============================================================================
+ SUITE F · LIMITACION DE PETICIONES Y BLOQUEO DE CUENTA
+============================================================================
+  F-01    [90mINFO[0m   Codigos de 14 intentos de login fallidos: 401 401 401 401 401 429 429 429 429 429 429 429 429 429
+  F-02    [90mINFO[0m   Estado de la cuenta tras los intentos:
+           carla@correo.co | intentos=0 | bloqueada=true
+  F-03    [90mINFO[0m   Auditoria de accesos registrada:
+           login | exitoso=false | n=7
+           login | exitoso=true | n=4
+           login_bloqueado | exitoso=false | n=2
+
+============================================================================
+ SUITE G · CUMPLIMIENTO PCI-DSS (ESQUEMA DE PAGOS)
+============================================================================
+  G-01    [90mINFO[0m   Columnas de la tabla transacciones:
+           id, referencia, pedido_id, numero_pedido, cliente_id, monto, moneda, medio_pago, token_medio_pago, ultimos_cuatro, marca, estado, codigo_autorizacion, codigo_rechazo, mensaje_pasarela, clave_idempotencia, request_id, creado_en, resuelto_en
+  G-02    [32mPASA [0m  Columnas de tarjeta/CVV/vencimiento en el esquema    esperado 0, obtenido 0
+
+============================================================================
+ SUITE H · AISLAMIENTO DE LAS BASES DE DATOS (BASE POR SERVICIO)
+============================================================================
+  H-01    [32mPASA [0m  auth_user no debe poder entrar a pedidos_db          acceso denegado
+  H-02    [32mPASA [0m  auth_user no debe poder entrar a pagos_db            acceso denegado
+  H-03    [32mPASA [0m  clientes_user no debe poder entrar a inventario_db   acceso denegado
+  H-04    [32mPASA [0m  inventario_user no debe poder entrar a pagos_db      acceso denegado
+  H-05    [32mPASA [0m  pedidos_user no debe poder entrar a auth_db          acceso denegado
+  H-06    [32mPASA [0m  inventario_user SI debe entrar a su propia base      acceso concedido
+
+============================================================================
+ SUITE I · DEGRADACION Y SALUD DEL SISTEMA
+============================================================================
+  I-01    [90mINFO[0m   Estado de RabbitMQ en los servicios que publican eventos
+           (dependencia no critica: el servicio sigue sano aunque falte):
+           clientes-service         estado=ok        rabbitmq: conectado=true critica=false
+           inventario-service       estado=ok        rabbitmq: conectado=true critica=false
+           pedidos-service          estado=ok        rabbitmq: conectado=true critica=false
+           pagos-service            estado=ok        rabbitmq: conectado=true critica=false
+  I-02    [90mINFO[0m   Salud agregada del gateway:
+           servicios caidos: ninguno
+           auth             ok=true  estado=ok
+           clientes         ok=true  estado=ok
+           catalogo         ok=true  estado=ok
+           inventario       ok=true  estado=ok
+           carrito          ok=true  estado=ok
+           pedidos          ok=true  estado=ok
+           pagos            ok=true  estado=ok
+           notificaciones   ok=true  estado=ok
+           asistente        ok=true  estado=ok
+
+============================================================================
+ RESULTADO: 73 casos PASA, 0 casos FALLA
+============================================================================
