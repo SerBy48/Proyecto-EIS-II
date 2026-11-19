@@ -144,6 +144,9 @@ La columna **Rol** usa: *pública* (sin sesión), *sesión* (cualquier usuario a
 | RF-57 F5d | La salud del sistema es solo del administrador y explica cada servicio: qué hace, el impacto en la tienda si cae y los pasos de recuperación (registros, reinicio, dependencias), además de una guía para leer la vista | panel > Salud del sistema (`GET /api/health`) | administrador |
 | RF-58 F5d | Detalle del pedido en el panel con la línea de tiempo de sus estados (fecha y hora de cada cambio), los productos y la dirección, y filtro por estado; reemplaza en la interfaz la bitácora técnica de la saga (RF-29 sigue en la API) | `GET /api/pedidos/:id` (historial) | administrador, vendedor |
 | RF-59 F5d | El personal ve el catálogo como una vista previa de lo que ve el cliente, con un aviso y los botones de compra desactivados; las alertas de reposición y el historial de entradas muestran el nombre del producto junto al SKU | `GET /api/catalogo/productos?skus=` | administrador, vendedor |
+| RF-60 F5e | Un visitante que pide escribirle al vendedor recibe la invitación a iniciar sesión, sin ticket ni aviso al personal; al volver con la sesión, el chat se abre solo con el formulario de la consulta (RF-53) | `POST /api/asistente/mensajes` (opción `retomar`) | pública |
+| RF-61 F5e | Lo elegido con una cuenta no pasa a la siguiente: al entrar o salir, el catálogo vuelve sin filtros y la campana sin destino abierto | web | pública |
+| RF-62 F5e | Los formularios validan junto a cada campo, con un ejemplo en el placeholder y las mismas reglas que el servicio dueño del dato: proveedor (razón social, NIT, teléfono y correo), datos personales (teléfono y documento), registro y cuentas internas (correo). El teléfono no admite letras al escribir. En el asistente, el personal ve una franja de «Modo demostración» | web; `POST/PATCH /api/inventario/proveedores`, `PATCH /api/clientes/:id` | sesión |
 
 ### Asistente virtual (`asistente-service`, Fase 3) 🆕
 
@@ -155,10 +158,10 @@ La columna **Rol** usa: *pública* (sin sesión), *sesión* (cualquier usuario a
 | RF-ASIS-04 | Informar el precio vigente y la disponibilidad de un SKU o producto | pública |
 | RF-ASIS-05 | Informar el estado de **mis** pedidos o de uno concreto, con la identidad del usuario: un pedido ajeno responde "no encontrado" | sesión |
 | RF-ASIS-06 | Guiar la cancelación de un pedido según su estado | sesión |
-| RF-ASIS-07 | Escalar a un humano: registrar un ticket y avisar a operaciones (evento `asistente.escalamiento`) | pública |
+| RF-ASIS-07 | Escalar a un humano: el cliente con sesión envía una consulta al vendedor (RF-53); al visitante se le pide iniciar sesión y el chat retoma la consulta al volver (F5e: antes se registraba un ticket sin dueño que el personal no podía responder) | pública |
 | RF-ASIS-08 | Mantener el contexto de varios turnos (p. ej., pedir el número de pedido y usarlo en la respuesta siguiente) | pública |
 | RF-ASIS-09 | Ante una frase no entendida: con la IA activa, usarla como respaldo para preguntas generales; F5b: si no, buscar en el catálogo con las palabras del mensaje, luego sugerir las intenciones más cercanas y solo al final mostrar el menú | pública |
-| RF-ASIS-10 | Consultar los tickets de escalamiento | administrador, vendedor |
+| RF-ASIS-10 | Consultar los tickets de las consultas al vendedor | administrador, vendedor |
 | RF-ASIS-11 F5b | Mostrar las ofertas vigentes, de una sección o de todo el catálogo, con el mayor descuento primero | pública |
 | RF-ASIS-12 F5b | Responder preguntas de la tienda y de la cuenta: secciones del catálogo, cupones, crear cuenta, contraseña, dirección, eliminar cuenta, seguridad de los pagos, factura y quiénes somos | pública |
 | RF-53 F5c | Contactar al vendedor: con sesión, el asistente muestra un formulario (motivo, pedido o SKU y pregunta); la consulta queda como hilo que el personal responde en la pestaña Consultas y el cliente sigue en Mi perfil > Mis consultas; cada mensaje llega a la campana y al correo del otro lado. Un visitante recibe el ticket de F3 y la invitación a iniciar sesión | sesión (cliente); administrador y vendedor responden |

@@ -1,6 +1,6 @@
 # Criterios de aceptación
 
-Trabajo Final, Fase 5 (CA-01 a CA-12) ajustes de SerByTek, F5b (CA-13 a CA-18), gestión de la tienda, F5c (CA-19 a CA-23), y ajustes de la revisión manual, F5d (CA-24 a CA-27). Un criterio por historia principal, en formato **Dado / Cuando / Entonces**, derivado de los requisitos de [`01-escenario-requisitos.md`](../especificacion/01-escenario-requisitos.md).
+Trabajo Final, Fase 5 (CA-01 a CA-12) ajustes de SerByTek, F5b (CA-13 a CA-18), gestión de la tienda, F5c (CA-19 a CA-23), ajustes de la revisión manual, F5d (CA-24 a CA-27), y segunda revisión, F5e (CA-28 y CA-29). Un criterio por historia principal, en formato **Dado / Cuando / Entonces**, derivado de los requisitos de [`01-escenario-requisitos.md`](../especificacion/01-escenario-requisitos.md).
 
 Cada criterio se verifica en dos capas que se complementan:
 - **E2E de interfaz**: `npm run test:e2e:ui`, que usa Playwright contra la web en contenedor.
@@ -37,6 +37,8 @@ La [matriz de trazabilidad](TRAZABILIDAD.md) une cada requisito con su criterio,
 | **CA-25** | Notificaciones completas (F5d) | un vendedor con una consulta nueva en el buzón de operaciones | abre la campana, pulsa «Ver todas las notificaciones» y «Responder la consulta» | llega a la consulta con el cursor en «Respuesta al cliente» y la responde |
 | **CA-26** | Cerrar sesión (F5d) | un cliente con sesión | pulsa «Salir» | ve «Cerrando sesión…», llega al inicio de sesión con «Cerraste sesión.» y puede seguir en la tienda como visitante |
 | **CA-27** | Vista del vendedor (F5d) | un vendedor con sesión | entra al panel, a Inventario y al Catálogo | no tiene la pestaña de salud (solo el administrador, que la ve con «Qué hacer si falla»); el inventario muestra el nombre del producto junto al SKU; el catálogo dice que es una vista previa y no deja comprar |
+| **CA-28** | Visitante que pide un asesor (F5e) | un visitante sin sesión | pulsa «Hablar con un asesor» en el asistente y luego «Iniciar sesión» | no recibe un número de ticket; tras iniciar sesión, el chat se abre solo con el formulario «Consulta al vendedor» |
+| **CA-29** | Filtros por cuenta (F5e) | un cliente que abrió el catálogo en oferta desde el asistente | sale y entra como vendedor, y abre el Catálogo | el catálogo se muestra sin el filtro de ofertas del cliente |
 
 ## Notas
 

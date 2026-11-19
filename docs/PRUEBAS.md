@@ -1103,6 +1103,48 @@ Son los requisitos RF-54 a RF-59, los criterios CA-24 a CA-27 y el CA-12 actuali
 
 **App móvil.** No cambia en F5d. La recuperación de contraseña se hace desde la web; el enlace del correo abre la web.
 
+### 4.43 Segunda revisión manual (F5e)
+
+La revisión manual después de fusionar F5d encontró tres defectos y una mejora:
+
+- **Visitante que pide un asesor (defecto).**
+  - **Síntoma:** el asistente creaba un ticket `TCK-…` sin dueño y publicaba `asistente.escalamiento`. El vendedor recibía en su bandeja un aviso sin cliente a quien responder, y al iniciar sesión el chat empezaba de cero, sin rastro del ticket.
+  - **Corrección:** el visitante recibe la invitación a iniciar sesión, sin ticket ni aviso. La opción lleva `retomar` y la web la reenvía al volver con la sesión, así que el chat se abre con el formulario de la consulta (RF-60). Se retiraron el evento, su constante y su plantilla; `infra/mongo/asistente.js` la borra de los volúmenes anteriores.
+  - **Pruebas:** `test:asistente` (sin ticket, opción `retomar`) y CA-28.
+- **Filtros entre cuentas (defecto).**
+  - **Síntoma:** el filtro de ofertas que el asistente aplicó a un cliente seguía en el catálogo al entrar como administrador o vendedor.
+  - **Causa:** no estaba en el navegador sino en la memoria de la página. `App.jsx` guardaba `filtrosCatalogo` y nunca lo limpiaba, y cada vez que se volvía al catálogo este se montaba de nuevo con esos filtros.
+  - **Corrección:** al cambiar de identidad se limpian los filtros y el destino de la campana (RF-61).
+  - **Prueba:** CA-29.
+- **Formularios sin validación visible (defecto de usabilidad).**
+  - **Síntoma:** en **Proveedor nuevo** se podían escribir letras en el teléfono y un correo sin `@`. El servidor sí los rechazaba (los tres proveedores de la base eran válidos), pero el error solo aparecía arriba y después de enviar. `type="email"` no actuaba porque el formulario se envía con un botón.
+  - **Corrección:** validación junto al campo (al salir de él y al guardar) con `aria-invalid` y `aria-describedby`, un ejemplo en cada placeholder y el teléfono filtrado al escribir. Aplica en proveedor, Mi perfil (teléfono y documento), registro y cuentas internas (correo) (RF-62).
+  - **Paridad con el servidor:** las reglas viven en `clients/web/src/servicios/reglas.js`, y `clients/web/test/reglas.test.ts` comprueba con los mismos valores que la web acepta exactamente lo que acepta `validarProveedor()`.
+- **Asistente para el personal (mejora).** Muestra la franja «Modo demostración» y, en cada producto, «Solo clientes». El aviso del catálogo de F5d ya estaba; el usuario lo confirmó al recargar la página.
+
+**Corrida.** Desde volúmenes vacíos (`docker compose down -v`), con las imágenes reconstruidas: 16/16 contenedores sanos en 132 s.
+
+| Suite | Resultado | Evidencia (`regresion-f5e/`) |
+|---|---|---|
+| `typecheck` | sin errores | `typecheck.txt` |
+| `test:unit` | 184/184 (24 nuevas: paridad de reglas web y servidor; 1 aserción nueva en `proveedores.test.ts`) | `test-unit.txt` |
+| `test:openapi` | 517/517 | `test-openapi.txt` |
+| Lint de OpenAPI (Redocly) | válido | — |
+| `build:web` y `build:web:pruebas` | compilan | — |
+| `auditar:dependencias` | 0 avisos altos o críticos sin aceptar | `auditar-dependencias.txt` |
+| `test:salud` | 10/10 servicios | `test-salud.txt` |
+| `test:http` | 73/73 | `test-http.txt` |
+| `test:concurrencia` | 33/33 | `test-concurrencia.txt` |
+| `test:e2e` | 53/53 | `test-e2e.txt` |
+| `test:asistente` | 57/57 con `ASISTENTE_PROBAR_DEGRADACION=1` (el visitante sin ticket reemplaza la comprobación anterior y se agrega la de tickets sin dueño) | `test-asistente.txt` |
+| `test:seguridad` | 26 seguras y 1 hallazgo aceptado (V-13 / S-09) | `test-seguridad.txt` |
+| **`test:e2e:ui`** | **29/29 criterios** (CA-28 y CA-29 nuevos) | `test-e2e-ui.txt`, `trabajo-final/e2e-ui/` |
+| axe F5c, F5d y F5e, temas claro y oscuro | 20 + 18 + 10 pantallas, 0 reglas WCAG incumplidas | `axe-f5c.txt`, `axe-f5d.txt`, `axe-f5e.txt`, `axe-f5e.json` |
+
+**V-12 necesita la web en 4173.** En la primera corrida de `test:seguridad`, V-12 (cabeceras de la web) salió como informativa porque `vite preview` no estaba en marcha. Se repitió con la vista previa en 4173 y quedó segura; la tabla muestra esa segunda corrida.
+
+**Lo que no se repitió.** No se volvió a correr `asistente:metricas`, porque el clasificador (`motor.ts`) y las intenciones no cambiaron: el visitante sigue cayendo en la intención `humano` y solo cambió la respuesta.
+
 ---
 
 ## 5. Lo que queda por probar

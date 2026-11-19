@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { api, moneda } from '../servicios/api';
+import { ErrorCampo, atributosError, reglas } from '../servicios/validaciones.jsx';
 import Consultas from '../componentes/Consultas.jsx';
 import Notificaciones from '../componentes/Notificaciones.jsx';
 import { describirDireccion } from '../componentes/FormularioDireccion.jsx';
@@ -72,6 +73,8 @@ function Usuarios({ yo }) {
   const [usuarios, setUsuarios] = useState(null);
   const [filtro, setFiltro] = useState('internos');
   const [nuevo, setNuevo] = useState({ email: '', password: '', rol: 'vendedor' });
+  const [correoTocado, setCorreoTocado] = useState(false);
+  const errorCorreo = correoTocado ? reglas.correo(nuevo.email) : null;
   const [mensaje, setMensaje] = useState(null);
   const [creando, setCreando] = useState(false);
 
@@ -88,12 +91,18 @@ function Usuarios({ yo }) {
 
   const crear = async (e) => {
     e.preventDefault();
+    if (reglas.correo(nuevo.email)) {
+      setCorreoTocado(true);
+      document.getElementById('usuario-correo')?.focus();
+      return;
+    }
     setCreando(true);
     setMensaje(null);
     try {
       await api('/auth/usuarios', { metodo: 'POST', cuerpo: nuevo });
       setMensaje({ tipo: 'ok', texto: `Se creó la cuenta ${nuevo.email} con el rol ${NOMBRE_ROL[nuevo.rol].toLowerCase()}.` });
       setNuevo({ email: '', password: '', rol: 'vendedor' });
+      setCorreoTocado(false);
       await cargar();
     } catch (err) {
       setMensaje({ tipo: 'error', texto: err.message });
@@ -134,7 +143,18 @@ function Usuarios({ yo }) {
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
           <div className="sm:col-span-2">
             <label htmlFor="usuario-correo" className="block text-sm font-semibold text-gray-700 mb-1">Correo</label>
-            <input id="usuario-correo" type="email" required maxLength={150} value={nuevo.email} onChange={(e) => setNuevo((n) => ({ ...n, email: e.target.value }))} className="w-full bg-superficie border border-gray-300 rounded-lg px-3 py-2" />
+            <input
+              id="usuario-correo"
+              type="email"
+              required
+              maxLength={150}
+              placeholder="nombre@tienda.co"
+              value={nuevo.email}
+              onChange={(e) => setNuevo((n) => ({ ...n, email: e.target.value }))}
+              onBlur={() => setCorreoTocado(true)}
+              {...atributosError('usuario-correo', errorCorreo)}
+              className={`w-full bg-superficie border rounded-lg px-3 py-2 ${errorCorreo ? 'border-red-600' : 'border-gray-300'}`}
+            />
           </div>
           <div>
             <label htmlFor="usuario-rol" className="block text-sm font-semibold text-gray-700 mb-1">Rol</label>
@@ -148,6 +168,7 @@ function Usuarios({ yo }) {
             <input id="usuario-password" type="text" required minLength={8} autoComplete="new-password" value={nuevo.password} onChange={(e) => setNuevo((n) => ({ ...n, password: e.target.value }))} className="w-full bg-superficie border border-gray-300 rounded-lg px-3 py-2" />
           </div>
         </div>
+        <ErrorCampo id="usuario-correo" error={errorCorreo} />
         <button type="submit" disabled={creando} className="mt-4 btn-primario px-5 py-2 text-sm">
           {creando ? 'Creando…' : 'Crear cuenta'}
         </button>

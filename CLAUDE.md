@@ -55,7 +55,7 @@ npm run typecheck           # tipos de todos los paquetes
 npm run test:salud          # todos los servicios responden
 npm run test:concurrencia   # no hay sobreventa
 npm run test:e2e            # flujo de compra completo (incluye el correo en Mailpit)
-npm run test:e2e:ui         # 27 criterios de aceptacion en la web (Playwright, 8081, modo pruebas; GRABAR_VIDEO=1)
+npm run test:e2e:ui         # 29 criterios de aceptacion en la web (Playwright, 8081, modo pruebas; GRABAR_VIDEO=1)
 npm run prod:up             # perfil de produccion: solo la web publica puerto (prod:down, prod:logs)
 npm run tunel               # Cloudflare Quick Tunnel hacia la web (solo durante la defensa)
 npm run test:unit           # pruebas unitarias con Vitest (sin Docker); :cobertura para el reporte
@@ -240,6 +240,7 @@ petición queda colgada. Para los errores se usan los constructores de
 | Web en contenedor y perfil prod | `clients/web/{Dockerfile,nginx.conf}`, `docker-compose.prod.yml` |
 | Criterios de aceptación, trazabilidad y E2E de interfaz | `docs/aceptacion/`, `tests/e2e-ui/aceptacion.ts` |
 | Manuales y guion de la defensa | `docs/manuales/`, `docs/defensa/GUION.md` |
+| Validación de formularios en la web (mismas reglas que el backend) | `clients/web/src/servicios/reglas.js`, `validaciones.jsx`; paridad en `clients/web/test/reglas.test.ts` |
 
 ---
 
@@ -271,10 +272,10 @@ Tokens de la pasarela simulada (resultado determinista):
 ## Estado y pendientes conocidos
 
 **Verificado y funcionando** (ver `docs/PRUEBAS.md` para el detalle y la
-evidencia; última ejecución el 2026-11-18, ajustes de la revisión manual (F5d), desde
-volúmenes vacíos): 215 casos de integración y 160 unitarios, todos pasan, y los 27
+evidencia; última ejecución el 2026-11-18, segunda revisión manual (F5e), desde
+volúmenes vacíos): 216 casos de integración y 184 unitarios, todos pasan, y los 29
 criterios de aceptación de `test:e2e:ui`; `test:openapi` pasa sus 517 comprobaciones y
-`test:asistente` sus 56. El asistente acierta 50/50 frases de SerByTek,
+`test:asistente` sus 57. El asistente acierta 50/50 frases de SerByTek,
 27/27 de marcas y 13/15 de la validación de contactar al vendedor (`asistente:metricas`), y axe no encuentra reglas WCAG incumplidas en los temas claro
 y oscuro. `npm audit` reporta un aviso de `picomatch` sin corrección que no aplica al gateway: riesgo aceptado S-13 hasta el 2027-01-31 (`docs/calidad/SEGURIDAD.md` 11.2). Los diez servicios compilan y arrancan sanos; la prueba
 de concurrencia pasa sus 33 comprobaciones (20 compradores simultáneos por 5

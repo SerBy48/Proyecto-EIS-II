@@ -33,6 +33,7 @@ describe('proveedores', () => {
     expect(() => validarProveedor({ nombre: 'AB', nit: '900123456' }, false)).toThrow(/nombre/);
     expect(() => validarProveedor({ nombre: 'Proveedor', nit: '12' }, false)).toThrow(/NIT/);
     expect(() => validarProveedor({ email: 'no-es-correo' }, true)).toThrow(/correo/);
+    expect(() => validarProveedor({ telefono: '601-ABC-0101' }, true)).toThrow(/telefono/);
   });
 
   it('una edicion parcial solo trae lo que cambia', () => {

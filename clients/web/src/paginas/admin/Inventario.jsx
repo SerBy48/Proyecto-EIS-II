@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { api, moneda } from '../../servicios/api';
+import { ErrorCampo, atributosError, reglas, soloTelefono, validar } from '../../servicios/validaciones.jsx';
 
 /**
  * Pestaña Inventario del panel: alertas de reposicion, entrada de mercancia
@@ -416,22 +417,42 @@ function RegistrarEntrada({ proveedores, alProveedorNuevo, alRegistrar }) {
 
 const PROVEEDOR_VACIO = { nombre: '', nit: '', contacto: '', telefono: '', email: '' };
 
+// Las mismas reglas que inventario-service (proveedores.ts): el error se ve
+// junto al campo al salir de el y antes de enviar.
+const ESQUEMA_PROVEEDOR = {
+  nombre: [reglas.obligatorio('la razón social'), reglas.minimo(3, 'La razón social')],
+  nit: [reglas.nit],
+  telefono: [reglas.telefonoProveedor],
+  email: [reglas.correo]
+};
+
 function FormularioProveedor({ prefijo, inicial, alGuardar, alCancelar }) {
   const [datos, setDatos] = useState(inicial ?? PROVEEDOR_VACIO);
   const [error, setError] = useState(null);
   const [guardando, setGuardando] = useState(false);
-  const cambiar = (campo, valor) => setDatos((d) => ({ ...d, [campo]: valor }));
+  // Errores por campo; solo se muestran los de campos ya visitados o tras intentar guardar.
+  const [tocados, setTocados] = useState({});
+  const errores = validar(datos, ESQUEMA_PROVEEDOR);
+  const cambiar = (campo, valor) => setDatos((d) => ({ ...d, [campo]: campo === 'telefono' ? soloTelefono(valor) : valor }));
 
   // Un formulario dentro de otro no es valido en HTML: se envia con el boton.
   const guardar = async () => {
     setError(null);
+    if (Object.keys(errores).length) {
+      setTocados({ nombre: true, nit: true, telefono: true, email: true });
+      document.getElementById(`${prefijo}-${Object.keys(errores)[0]}`)?.focus();
+      return;
+    }
     setGuardando(true);
     try {
       const cuerpo = { nombre: datos.nombre, nit: datos.nit, contacto: datos.contacto, telefono: datos.telefono, email: datos.email };
       const guardado = inicial
         ? await api(`/inventario/proveedores/${inicial.id}`, { metodo: 'PATCH', cuerpo })
         : await api('/inventario/proveedores', { metodo: 'POST', cuerpo });
-      if (!inicial) setDatos(PROVEEDOR_VACIO);
+      if (!inicial) {
+        setDatos(PROVEEDOR_VACIO);
+        setTocados({});
+      }
       await alGuardar(guardado);
     } catch (err) {
       setError(err.message);
@@ -440,23 +461,36 @@ function FormularioProveedor({ prefijo, inicial, alGuardar, alCancelar }) {
     }
   };
 
-  const campo = (id, texto, props = {}) => (
-    <div>
-      <label htmlFor={`${prefijo}-${id}`} className={etiqueta}>
-        {texto}
-      </label>
-      <input id={`${prefijo}-${id}`} value={datos[id] ?? ''} onChange={(e) => cambiar(id, e.target.value)} className={claseCampo} {...props} />
-    </div>
-  );
+  const campo = (id, texto, props = {}) => {
+    const idCampo = `${prefijo}-${id}`;
+    const visible = tocados[id] ? errores[id] : null;
+    return (
+      <div>
+        <label htmlFor={idCampo} className={etiqueta}>
+          {texto}
+        </label>
+        <input
+          id={idCampo}
+          value={datos[id] ?? ''}
+          onChange={(e) => cambiar(id, e.target.value)}
+          onBlur={() => setTocados((t) => ({ ...t, [id]: true }))}
+          className={`${claseCampo} ${visible ? '!border-red-600' : ''}`}
+          {...atributosError(idCampo, visible)}
+          {...props}
+        />
+        <ErrorCampo id={idCampo} error={visible} />
+      </div>
+    );
+  };
 
   return (
     <div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {campo('nombre', 'Razón social', { maxLength: 120 })}
+        {campo('nombre', 'Razón social', { maxLength: 120, placeholder: 'Distribuidora Andina S.A.S.' })}
         {campo('nit', 'NIT', { maxLength: 20, placeholder: '900123456-1' })}
-        {campo('contacto', 'Persona de contacto', { maxLength: 120 })}
-        {campo('telefono', 'Teléfono', { maxLength: 20, inputMode: 'tel' })}
-        <div className="sm:col-span-2">{campo('email', 'Correo', { maxLength: 160, type: 'email' })}</div>
+        {campo('contacto', 'Persona de contacto (opcional)', { maxLength: 120, placeholder: 'Laura Gómez' })}
+        {campo('telefono', 'Teléfono (opcional)', { maxLength: 20, inputMode: 'tel', type: 'tel', placeholder: '601 555 0101' })}
+        <div className="sm:col-span-2">{campo('email', 'Correo (opcional)', { maxLength: 160, type: 'email', placeholder: 'compras@proveedor.com' })}</div>
       </div>
       {error && (
         <p role="alert" className="text-red-700 text-sm mt-2">

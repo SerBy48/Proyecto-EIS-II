@@ -4,7 +4,8 @@
  *
  * Cubre: una frase por intencion, sinonimos y tildes, entidades, contexto de
  * varios turnos, AISLAMIENTO (un cliente no ve por el chat los pedidos de
- * otro), conversaciones ajenas, escalamiento con ticket y correo, edicion de la
+ * otro), conversaciones ajenas, consultas al vendedor con ticket y correo (el visitante
+ * inicia sesion primero), edicion de la
  * FAQ por el administrador, validaciones, token invalido y rate limit.
  *
  * Con ASISTENTE_PROBAR_DEGRADACION=1 ademas detiene pedidos-service (docker
@@ -203,8 +204,18 @@ const principal = async (): Promise<void> => {
   afirmar(marcar.estado === 200 && (await pedir('/api/notificaciones/bandeja', { token: ana })).datos.no_leidas === 0, 'Marcar todas como leidas deja el contador en 0');
   const cerrada = await pedir(`/api/asistente/consultas/${ticket}`, { metodo: 'PATCH', token: vendedor, cuerpo: { estado: 'cerrada' } });
   afirmar(cerrada.datos?.estado === 'cerrada' && (await pedir(`/api/asistente/consultas/${ticket}/mensajes`, { metodo: 'POST', token: ana, cuerpo: { texto: 'una cosa mas por favor' } })).estado === 409, 'Cerrada, ya no admite mensajes (409)');
+  // F5e: el visitante ya no recibe un ticket sin dueno (llegaba al personal sin
+  // nadie a quien responder); se le pide iniciar sesion y la web retoma la
+  // consulta al volver.
   const visitante = await decir('quiero hablar con un asesor');
-  afirmar(/TCK-[A-Z0-9]+/.test(textos(visitante)), 'Un visitante sigue recibiendo un ticket y la invitacion a iniciar sesion', visitante.datos);
+  const opcionSesion = visitante.datos?.respuestas?.find((r: any) => r.tipo === 'opciones')?.opciones?.find((o: any) => o.accion === 'iniciar_sesion');
+  afirmar(
+    /iniciar sesi[oó]n/i.test(textos(visitante)) && !/TCK-/.test(textos(visitante)) && /vendedor/i.test(opcionSesion?.retomar ?? ''),
+    'Un visitante que pide un asesor recibe la invitacion a iniciar sesion (con la consulta para retomar), no un ticket',
+    visitante.datos
+  );
+  const sinDueno = (await pedir('/api/asistente/tickets', { token: admin })).datos.filter((t: any) => t.conversacion_id === visitante.datos?.conversacion_id);
+  afirmar(sinDueno.length === 0, 'Y no se registra ningun ticket sin dueno', sinDueno);
   const ticketsAdmin = await pedir('/api/asistente/tickets', { token: admin });
   afirmar(ticketsAdmin.datos.some((t: any) => t.numero === ticket && t.email === 'ana@correo.co'), 'El administrador ve el ticket con el contacto');
   afirmar((await pedir('/api/asistente/tickets', { token: vendedor })).estado === 200, 'El vendedor tambien');

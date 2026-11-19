@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { EVENTO_SESION_EXPIRADA, api, cerrarSesion, iniciarSesion, sesion } from './servicios/api';
 import { guardarTema, temaInicial } from './servicios/tema';
+import { ErrorCampo, atributosError, reglas } from './servicios/validaciones.jsx';
 import Catalogo from './paginas/Catalogo.jsx';
 import CarritoPagina from './paginas/Carrito.jsx';
 import MisPedidos from './paginas/MisPedidos.jsx';
@@ -132,6 +133,19 @@ export default function App() {
     window.addEventListener('hashchange', alCambiarFragmento);
     return () => window.removeEventListener('hashchange', alCambiarFragmento);
   }, []);
+
+  // Lo que se eligio con una cuenta no pasa a la siguiente (ni a la del
+  // visitante): los filtros con los que el asistente abrio el catalogo y la
+  // pestaña o el pedido que abrio la campana. Antes, el filtro de ofertas de un
+  // cliente seguia aplicado al entrar como administrador o vendedor.
+  const identidad = usuario?.id ?? null;
+  const identidadPrevia = useRef(identidad);
+  useEffect(() => {
+    if (identidadPrevia.current === identidad) return;
+    identidadPrevia.current = identidad;
+    setFiltrosCatalogo((f) => ({ clave: f.clave + 1, filtros: undefined }));
+    setDestinoInterno((d) => ({ clave: d.clave + 1, pestana: undefined }));
+  }, [identidad]);
 
   const recargarCarrito = useCallback(async () => {
     if (!esCliente || !usuario?.cliente_id) return setCarrito(null);
@@ -814,6 +828,9 @@ function Registro({ onIngreso, onVolver }) {
   const [direccion, setDireccion] = useState({ ...DIRECCION_VACIA, etiqueta: 'Principal' });
   const [error, setError] = useState(null);
   const [cargando, setCargando] = useState(false);
+  // El navegador acepta "ana@correo" como correo; el servidor no. Se avisa junto al campo.
+  const [correoTocado, setCorreoTocado] = useState(false);
+  const errorCorreo = correoTocado ? reglas.correo(datos.email) : null;
   const campo = (nombre) => ({
     id: `registro-${nombre}`,
     value: datos[nombre],
@@ -823,6 +840,11 @@ function Registro({ onIngreso, onVolver }) {
 
   const enviar = async (e) => {
     e.preventDefault();
+    if (reglas.correo(datos.email)) {
+      setCorreoTocado(true);
+      document.getElementById('registro-email')?.focus();
+      return;
+    }
     setCargando(true);
     setError(null);
     try {
@@ -874,7 +896,22 @@ function Registro({ onIngreso, onVolver }) {
           </div>
         </div>
         {etiqueta('email', 'Correo')}
-        <input {...campo('email')} type="email" required autoComplete="email" maxLength={150} />
+        <input
+          {...campo('email')}
+          type="email"
+          required
+          autoComplete="email"
+          maxLength={150}
+          placeholder="nombre@correo.com"
+          onBlur={() => setCorreoTocado(true)}
+          {...atributosError('registro-email', errorCorreo)}
+          className={`w-full bg-superficie border rounded-lg px-3 py-2 ${errorCorreo ? 'border-red-600' : 'border-gray-300 mb-4'}`}
+        />
+        {errorCorreo && (
+          <div className="mb-4">
+            <ErrorCampo id="registro-email" error={errorCorreo} />
+          </div>
+        )}
         {etiqueta('password', 'Contraseña (mínimo 8 caracteres)')}
         <div className="mb-5">
           <CampoContrasena

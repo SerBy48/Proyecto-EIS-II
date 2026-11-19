@@ -845,6 +845,46 @@ const principal = async (): Promise<void> => {
     return `sin pestaña de salud; ${nombre} junto a SKU-TEC-007 en inventario; catálogo en vista previa sin compra; el administrador ve la salud con sus pasos`;
   });
 
+  await caso('CA-28', 'Visitante que pide un asesor: inicia sesión y el chat retoma la consulta', async (p) => {
+    const cliente = await clienteNuevo('ca28');
+    await p.goto(WEB, { waitUntil: 'domcontentloaded' });
+    await p.getByRole('button', { name: '¿Necesitas ayuda?' }).click();
+    const panel = p.getByRole('dialog', { name: 'Asistente virtual' });
+    await panel.getByRole('button', { name: 'Hablar con un asesor' }).click();
+    await panel.getByText(/necesitas iniciar sesión/).waitFor();
+    afirmar((await panel.getByText(/TCK-/).count()) === 0, 'Al visitante se le dio un número de ticket');
+    await panel.getByRole('button', { name: 'Iniciar sesión' }).click();
+    await p.getByLabel('Correo').fill(cliente.correo);
+    await p.getByLabel('Contraseña', { exact: true }).fill(CLAVE);
+    await p.getByRole('button', { name: 'Ingresar' }).click();
+    // Con la sesion iniciada el chat se abre solo con el formulario listo.
+    const formulario = p.getByRole('dialog', { name: 'Asistente virtual' }).getByRole('form', { name: 'Consulta al vendedor' });
+    await formulario.getByLabel('Tu pregunta').waitFor();
+    await p.screenshot({ path: path.join(SALIDA, 'CA-28-formulario.png') });
+    return 'sin ticket para el visitante; tras iniciar sesión el chat muestra el formulario de la consulta';
+  });
+
+  await caso('CA-29', 'Los filtros del catálogo no pasan de una cuenta a otra', async (p) => {
+    const cliente = await clienteNuevo('ca29');
+    await iniciarSesionUI(p, cliente.correo);
+    await p.getByRole('button', { name: '¿Necesitas ayuda?' }).click();
+    const panel = p.getByRole('dialog', { name: 'Asistente virtual' });
+    await panel.getByRole('button', { name: 'Ofertas' }).click();
+    await panel.getByRole('button', { name: /^Ver los \d+ en el catálogo/ }).click();
+    await p.getByText(/productos\s+en oferta/).waitFor();
+    await p.getByRole('button', { name: 'Salir' }).click();
+    await p.getByText('Cerraste sesión.').waitFor();
+    await p.getByLabel('Correo').fill('vendedor@tienda.co');
+    await p.getByLabel('Contraseña', { exact: true }).fill(CLAVE);
+    await p.getByRole('button', { name: 'Ingresar' }).click();
+    await p.getByRole('button', { name: 'Salir' }).waitFor();
+    await nav(p, /^Catálogo/).click();
+    await p.getByText(/^Mostrando/).waitFor();
+    const resumen = (await p.getByText(/^Mostrando/).textContent()) ?? '';
+    afirmar(!/en oferta/.test(resumen), `El vendedor heredó el filtro del cliente: "${resumen}"`);
+    return `cliente: catálogo en oferta desde el asistente; vendedor después: "${resumen.trim()}"`;
+  });
+
   for (const sku of productosDePrueba) {
     await api(`/catalogo/productos/${sku}`, { metodo: 'PATCH', token: vendedor.token, cuerpo: { activo: false } });
   }

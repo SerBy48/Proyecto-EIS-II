@@ -1,7 +1,6 @@
-import { randomBytes, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { NextFunction, Response } from 'express';
 import {
-  BusEventos,
   ClaimsToken,
   ErrorApp,
   PeticionAutenticada,
@@ -127,9 +126,7 @@ const cargarConversacion = async (id: unknown, usuario?: ClaimsToken): Promise<C
   return conversacion;
 };
 
-const nuevoNumeroTicket = () => `TCK-${Date.now().toString(36).toUpperCase()}${randomBytes(2).toString('hex').toUpperCase()}`;
-
-export const crearControlador = (bus: BusEventos) => {
+export const crearControlador = () => {
   /**
    * POST /mensajes  { conversacion_id?, texto }
    * -> { conversacion_id, intencion, respuestas: [...] }
@@ -158,21 +155,6 @@ export const crearControlador = (bus: BusEventos) => {
       faq,
       intenciones,
       vocabulario: vocabularioActual,
-      bus,
-      registrarTicket: async ({ texto: textoTicket, usuario: autor }) => {
-        const numero = nuevoNumeroTicket();
-        await coleccionTickets().insertOne({
-          numero,
-          conversacion_id: conversacionId,
-          usuario_id: autor?.sub ?? null,
-          cliente_id: autor?.cliente_id ?? null,
-          email: autor?.email ?? null,
-          texto: enmascarar(textoTicket),
-          estado: 'abierto',
-          creado_en: new Date()
-        });
-        return numero;
-      }
     };
 
     const salida = await responder(resultado, contexto);

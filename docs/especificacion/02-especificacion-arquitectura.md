@@ -36,7 +36,7 @@ Los diagramas están en [`docs/c4/`](../c4/). Las fuentes son C4-PlantUML con la
 | pedidos-service :3006 | Pedidos | Orquestación del checkout (saga) y ciclo de vida del pedido | `pedidos_db` (PG) | `/api/pedidos` | `pedido.confirmado`, `pedido.cancelado` | — |
 | pagos-service :3007 | Pagos | Cobro idempotente; adaptador de la pasarela | `pagos_db` (PG) | `/api/pagos` | `pago.aprobado`, `pago.rechazado` | — |
 | notificaciones-service :3008 | Comunicación | Plantillas y envío por canal, sin duplicados | `notificaciones_db` (Mongo) | `/api/notificaciones` | — | `pedido.*`, `pago.rechazado`, `inventario.stock_minimo`, `carrito.abandonado`, `asistente.*`, `auth.recuperacion_solicitada` |
-| asistente-service :3009 | Atención al cliente | Motor de intenciones, FAQ, consulta de pedidos con la identidad del usuario, tickets | `asistente_db` (Mongo) | `/api/asistente` | `asistente.escalamiento`, `asistente.consulta_*` | — |
+| asistente-service :3009 | Atención al cliente | Motor de intenciones, FAQ, consulta de pedidos con la identidad del usuario, tickets | `asistente_db` (Mongo) | `/api/asistente` | `asistente.consulta_*` | — |
 
 ## 2.3 Comunicación
 
@@ -52,7 +52,7 @@ Los diagramas están en [`docs/c4/`](../c4/). Las fuentes son C4-PlantUML con la
 | pedidos → notificaciones, clientes | AMQP | El cliente ya tiene su pedido; el correo y el historial pueden llegar después |
 | pagos, inventario → notificaciones | AMQP | Avisos que no bloquean la operación |
 | asistente → catálogo, pedidos | REST + circuit breaker | Respuesta en la conversación; si pedidos cae, el asistente lo dice en lugar de fallar. Pedidos se consulta con el token del usuario |
-| asistente → notificaciones | AMQP | El escalamiento se avisa sin esperar al correo |
+| asistente → notificaciones | AMQP | Las consultas al vendedor se avisan sin esperar al correo |
 
 La decisión general está en el [ADR-0004](../adr/0004-rabbitmq-eventos-rest-consultas.md); timeouts y reintentos en [`COMUNICACION.md`](../COMUNICACION.md).
 
@@ -158,7 +158,7 @@ Verificado el 2026-11-15 contra `docker-compose.yml`, `DESTINOS` y `RUTAS_PUBLIC
 | Pasarela de pagos como sistema externo | ⚠️ Simulada **en proceso** dentro de pagos-service, no como sistema separado. Se dibuja externa porque así es en producción (adaptador) | `pagos-service/src/pasarela.ts` |
 | Mailpit (SMTP :1025, UI :8025) y notificaciones → Mailpit | ✅ (Fase 2) | `docker-compose.yml` (`mailpit`), `notificaciones-service/src/canales.ts` |
 | Swagger UI en `/api/docs` | ✅ (Fase 2) | `api-gateway/src/documentacion.ts`; `test:openapi` |
-| asistente-service :3009, `asistente_db`, evento `asistente.escalamiento` | ✅ (Fase 3) | `services/asistente-service`, `infra/mongo/asistente.js`, `DESTINOS` |
+| asistente-service :3009, `asistente_db`, eventos `asistente.consulta_*` | ✅ (Fase 3; el escalamiento del visitante se retiró en F5e) | `services/asistente-service`, `infra/mongo/asistente.js`, `DESTINOS` |
 | Proveedor de IA | ✅ Opcional, apagado por defecto (borde punteado) | `asistente-service/src/ia.ts` |
 | web en nginx, túnel | 🔜 Planificados (borde discontinuo): Fase 5 | — |
 
