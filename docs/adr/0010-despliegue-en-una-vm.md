@@ -55,3 +55,12 @@
 | Proxies de confianza | `services/api-gateway/src/proxies.ts` (y su prueba unitaria) |
 | Comandos | `npm run nube:up`, `nube:down`, `nube:logs` (en la VM, el `docker compose` equivalente) |
 | Guía paso a paso | [`docs/manuales/DESPLIEGUE.md`](../manuales/DESPLIEGUE.md) |
+
+## Resultado (2026-11-19)
+
+No fue posible abrir la cuenta en Azure (no aceptó el correo institucional) ni en Oracle Cloud (rechazó la verificación de la tarjeta). La tienda se publicó en un VPS con **Dokploy**, facilitado por un tercero, en <https://149-130-169-209.sslip.io>. La decisión se mantiene con dos ajustes:
+- **Dokploy reemplaza a Caddy:** trae Traefik, que pone el HTTPS. `docker-compose.dokploy.yml` no publica puertos y conecta la web a la red de Traefik.
+- **El archivo se genera** (`npm run dokploy:compose`) desde `infra/dokploy/compose-fuente.yml`, porque la versión de Docker Compose del VPS (anterior a la 2.24) no entiende `!reset`.
+
+Las cuentas y el correo por entorno y `PROXIES_CONFIANZA=2` funcionan igual.
+

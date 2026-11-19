@@ -131,13 +131,14 @@ La evaluación OWASP Top 10 2025 y sus correcciones están en [`docs/calidad/SEG
 
 ![Despliegue](../c4/png/05-despliegue.png)
 
-El sistema se despliega con Docker Compose en tres perfiles, todos desde los mismos archivos:
+El sistema se despliega con Docker Compose, siempre desde las mismas definiciones de servicios:
 
 | Perfil | Archivos | Qué publica | Uso |
 |---|---|---|---|
 | Laboratorio | `docker-compose.yml` | La web (8081), el gateway (8080) y los servicios y motores solo en `127.0.0.1` | Desarrollo, pruebas automáticas y CI |
 | Producción | `+ docker-compose.prod.yml` | Solo la web (8081); límites de recursos; cuentas de producción del `.env` | Demostración local, con túnel para la defensa ([ADR-0009](../adr/0009-entorno-de-despliegue.md)) |
 | Nube | `+ docker-compose.nube.yml` | Solo Caddy (80 y 443) con HTTPS automático | Una VM de Azure u Oracle Cloud ([ADR-0010](../adr/0010-despliegue-en-una-vm.md)) |
+| Dokploy (en uso) | `docker-compose.dokploy.yml`, generado | Nada: Traefik de Dokploy publica 80 y 443 con HTTPS | El VPS donde está publicada la tienda, <https://149-130-169-209.sslip.io> |
 
 ![Despliegue en la nube](../c4/png/06-despliegue-nube.png)
 

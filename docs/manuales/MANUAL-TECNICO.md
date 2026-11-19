@@ -161,7 +161,9 @@ Alternativa con ngrok: `ngrok http 8081`, con su cuenta y su token.
 
 ### 4.5 Nube
 
-Una máquina virtual de Azure u Oracle Cloud con el perfil de producción y Caddy delante (HTTPS automático). Está en el capítulo 16.
+Dos formas, con el mismo perfil de producción:
+- **Dokploy** en un VPS (la que está en uso, <https://149-130-169-209.sslip.io>): `docker-compose.dokploy.yml`, generado con `npm run dokploy:compose`. Guía: `docs/manuales/DESPLIEGUE-DOKPLOY.md`.
+- **Una máquina virtual propia** de Azure u Oracle Cloud, con Caddy delante (HTTPS automático): capítulo 16.
 
 ---
 

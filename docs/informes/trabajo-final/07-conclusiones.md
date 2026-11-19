@@ -16,7 +16,7 @@
    Están escritas como invariantes y cada una tiene su prueba.
 3. **La calidad se midió y se corrigió con la misma prueba que encontró cada problema.** No queda ningún hallazgo crítico abierto. Los que quedan son de capacidad (auth y el checkout desde 100 usuarios, que cumplen en el límite) y de acabado de la interfaz.
 4. **El asistente virtual agrega valor sin agregar riesgo.** Es el endpoint más barato del sistema (p95 de 36 ms). Acierta el 91,7 % de las intenciones en el conjunto de evaluación y el 100 % en las frases de la tienda. Nunca muestra datos ajenos, porque consulta con la identidad del usuario.
-5. **El sistema es reproducible.** Se levanta con un comando, el CI lo verifica completo en cada cambio y los 29 criterios de aceptación pasan en la interfaz real. El despliegue en la nube queda listo para una máquina virtual, a falta solo de la cuenta del proveedor.
+5. **El sistema es reproducible y está publicado.** Se levanta con un comando, el CI lo verifica completo en cada cambio, los 29 criterios de aceptación pasan en la interfaz real, y la tienda está en línea en <https://149-130-169-209.sslip.io>, con HTTPS y desplegada desde el mismo repositorio.
 
 ## 7.2 Lecciones aprendidas
 
@@ -37,7 +37,8 @@ Tabla: Trabajo futuro, en orden de valor
 
 | Mejora | Motivo |
 |---|---|
-| Crear la máquina virtual y publicar la tienda con su dominio | Todo está preparado (capítulo 6.3 y manual técnico, capítulo 16) |
+| Configurar el correo real (Gmail o Brevo) en la tienda publicada | Solo faltan las variables `SMTP_*_PROD` y volver a desplegar |
+| Un dominio propio y un servidor dedicado | Hoy usa sslip.io en un VPS compartido; la guía de la máquina virtual propia está lista |
 | Escalar horizontalmente auth y pedidos | El login y el checkout desde 100 usuarios están en el límite de su meta |
 | Refresh token en cookie `HttpOnly` con protección CSRF | Cierra el riesgo aceptado S-09 |
 | Aplicar el SUS y la prueba con evaluadores | Falta la voz de los usuarios reales |

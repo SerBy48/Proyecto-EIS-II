@@ -8,7 +8,7 @@
 - **Los eventos** de dominio viajan por RabbitMQ, con cola de mensajes fallidos.
 - **El asistente virtual** responde preguntas, busca productos, consulta los pedidos del usuario con su propia identidad y le permite escribirle al vendedor.
 - **Los clientes** son una web en React, servida por nginx, y una app móvil en Flutter.
-- **El despliegue** es con Docker Compose en tres perfiles (laboratorio, producción y nube), con integración continua en GitHub Actions.
+- **El despliegue** es con Docker Compose (perfiles de laboratorio y producción), con integración continua en GitHub Actions. La tienda está publicada en <https://149-130-169-209.sslip.io>.
 
 Tabla: Resultados clave de la versión final
 
@@ -26,4 +26,4 @@ Tabla: Resultados clave de la versión final
 **Lo que queda abierto.**
 - **Capacidad:** el login y el checkout desde 100 usuarios cumplen su meta, pero en el límite. El siguiente paso es escalar horizontalmente auth y pedidos.
 - **Medición con usuarios reales:** el cuestionario SUS y la prueba con evaluadores están preparados, pero no se aplicaron.
-- **Publicación en la nube:** está preparada y verificada en local, con HTTPS, cuentas de producción, correo real y límites por persona. Falta crear la máquina virtual: no fue posible abrir la cuenta en Azure ni en Oracle Cloud a tiempo. Hoy la tienda se publica con un túnel durante la demostración.
+- **Correo real:** la tienda publicada aún no envía correos fuera del sistema; falta configurar el proveedor SMTP (Gmail o Brevo).
