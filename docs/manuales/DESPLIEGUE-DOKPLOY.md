@@ -10,7 +10,7 @@ Internet ──443──▶ Traefik (de Dokploy, HTTPS) ──▶ web (nginx :80
 
 | Qué | Cómo |
 |---|---|
-| Servicios y bases | Las mismas definiciones de `docker-compose.yml` (con `extends`), configuradas como en el perfil de producción |
+| Servicios y bases | Las mismas definiciones de `docker-compose.yml`, configuradas como en el perfil de producción. El archivo es **generado** (`npm run dokploy:compose`) a partir de `infra/dokploy/compose-fuente.yml`: no usa `extends` ni `!reset`, para funcionar con versiones de Docker Compose anteriores a la 2.24 |
 | Puertos | **Ninguno publicado** en el VPS. Traefik llega a la web por la red `dokploy-network` |
 | Nombres | Sin `container_name`: Dokploy los desaconseja, y en un VPS compartido podrían chocar |
 | Proxies | `PROXIES_CONFIANZA=2` (Traefik y nginx): el límite de peticiones cuenta a cada persona |
@@ -120,6 +120,9 @@ Las cuentas se crean solo al crear el volumen de PostgreSQL. Cambiar una contras
 | Síntoma | Causa y solución |
 |---|---|
 | El despliegue falla con `Defina CORREO_ADMIN…` (u otra variable) | Falta esa línea en **Environment** |
+| `dockerfile parse error … unknown instruction: x-produccion` | El servicio se creó como **Application**. Debe ser **Compose** (tipo *Docker Compose*) |
+| `container name "null" is already in use` | Dokploy está usando una versión vieja del archivo, con `!reset`. Despliegue desde `main` actualizado (el archivo actual es el generado) |
+| `dependency mongo failed to start` (o postgres) en el primer despliegue | La base tardó más que su ventana de arranque mientras se compilaban las imágenes. Vuelva a pulsar **Deploy**: con las imágenes ya construidas arranca en un minuto |
 | `network dokploy-network declared as external, but could not be found` | El servidor no es un nodo de Dokploy, o la red tiene otro nombre: revise con `docker network ls` |
 | `Bad Gateway` o `404` en el dominio | El dominio apunta a otro servicio o puerto: debe ser `web` y `8080`. Vuelva a desplegar después de agregarlo |
 | El certificado no es válido | Traefik no pudo pedirlo: el dominio debe resolver a la IP del VPS y el puerto 80 debe llegar a Traefik |

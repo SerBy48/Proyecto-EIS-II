@@ -57,6 +57,7 @@ npm run test:concurrencia   # no hay sobreventa
 npm run test:e2e            # flujo de compra completo (incluye el correo en Mailpit)
 npm run test:e2e:ui         # 29 criterios de aceptacion en la web (Playwright, 8081, modo pruebas; GRABAR_VIDEO=1)
 npm run prod:up             # perfil de produccion: solo la web publica puerto (prod:down, prod:logs)
+npm run dokploy:compose     # regenera docker-compose.dokploy.yml desde infra/dokploy/compose-fuente.yml (tras cambiar docker-compose.yml)
 npm run nube:up             # prod + Caddy (HTTPS) para la VM de la nube (nube:down, nube:logs; docs/manuales/DESPLIEGUE.md)
 npm run tunel               # Cloudflare Quick Tunnel hacia la web (plan B de la defensa)
 npm run test:unit           # pruebas unitarias con Vitest (sin Docker); :cobertura para el reporte
