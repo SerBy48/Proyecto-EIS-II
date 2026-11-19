@@ -15,7 +15,7 @@
  *     capitulo) y docs/manuales/MANUAL-USUARIO.md.
  * Despues, actualizar-indice.ps1 hace que Word calcule los indices.
  */
-import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { Packer, Paragraph, Table, TableOfContents } from 'docx';
 import { RAIZ, convertirArchivo, documento, indices, portada } from './markdown-docx';
@@ -34,28 +34,6 @@ interface Documento {
   contenido: () => Hijo[];
 }
 
-/**
- * Anexo C: la tabla de rutas sale de la especificacion OpenAPI que sirve el
- * gateway (la misma que test:openapi compara con el codigo), no se escribe a mano.
- */
-const generarTablaDeRutas = () => {
-  const especificacion = JSON.parse(readFileSync(path.join(RAIZ, 'services', 'api-gateway', 'especificacion', 'openapi.json'), 'utf8'));
-  const filas: string[] = [];
-  for (const [ruta, operaciones] of Object.entries<Record<string, { summary?: string; 'x-roles'?: string[] }>>(especificacion.paths)) {
-    for (const [metodo, op] of Object.entries(operaciones)) {
-      if (!['get', 'post', 'put', 'patch', 'delete'].includes(metodo)) continue;
-      const roles = (op['x-roles'] ?? []).join(', ').replace('publica', 'pública');
-      filas.push(`| ${metodo.toUpperCase()} | \`${ruta}\` | ${roles || '—'} | ${(op.summary ?? '').replace(/\|/g, '\\|')} |`);
-    }
-  }
-  const destino = path.join(RAIZ, 'docs', 'informes', 'trabajo-final', 'generado', 'rutas-api.md');
-  mkdirSync(path.dirname(destino), { recursive: true });
-  writeFileSync(
-    destino,
-    ['# Rutas de la API', '', '<!-- Generado por scripts/informes/generar-trabajo-final.ts: no editar a mano. -->', '', `Tabla: Rutas públicas del gateway (${filas.length} operaciones)`, '', '| Método | Ruta | Roles | Descripción |', '|---|---|---|---|', ...filas, ''].join('\n')
-  );
-};
-
 const capitulosDelInforme = () =>
   readdirSync(path.join(RAIZ, 'docs', 'informes', 'trabajo-final'))
     .filter((f) => /^\d\d-.*\.md$/.test(f))
@@ -69,7 +47,7 @@ const DOCUMENTOS: Documento[] = [
     titulo: 'SerByTek: tienda en línea de tecnología con arquitectura de microservicios',
     subtitulo: 'Informe del Trabajo Final: análisis y diseño, construcción, asistente virtual, aseguramiento de calidad, despliegue y validación',
     descripcion: 'Informe del Trabajo Final de EIS II',
-    // Dos niveles: con tres, los subtitulos de los anexos (cada ADR) alargaban el indice a cuatro paginas.
+    // Dos niveles: un indice de una sola pagina.
     indices: { figuras: true, tablas: true, niveles: '1-2' },
     contenido: () => capitulosDelInforme().flatMap((ruta) => convertirArchivo(ruta))
   },
@@ -99,7 +77,6 @@ const DOCUMENTOS: Documento[] = [
 const principal = async () => {
   const pedidos = process.argv.slice(2);
   mkdirSync(SALIDA, { recursive: true });
-  generarTablaDeRutas();
   for (const d of DOCUMENTOS.filter((x) => !pedidos.length || pedidos.includes(x.clave))) {
     const hijos: Hijo[] = [...portada({ titulo: d.titulo, subtitulo: d.subtitulo, fecha: FECHA }), ...indices(d.indices), ...d.contenido()];
     const destino = path.join(SALIDA, d.archivo);

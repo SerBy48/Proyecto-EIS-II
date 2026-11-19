@@ -120,10 +120,23 @@ export const enLinea = (texto: string, archivo: string, base: Base = {}): (TextR
     } else if (parte.length > 2 && parte.startsWith('*') && parte.endsWith('*')) {
       salida.push(...enLinea(parte.slice(1, -1), archivo, { ...base, italics: true }));
     } else {
-      // Arial no tiene emojis (🆕, ✅, ⚠️…): van con la fuente de emojis de Windows.
-      for (const trozo of parte.split(/(\p{Extended_Pictographic}️?)/u).filter(Boolean)) {
-        const emoji = /\p{Extended_Pictographic}/u.test(trozo);
-        salida.push(new TextRun({ text: trozo, font: emoji ? 'Segoe UI Emoji' : FUENTE, bold: base.bold, italics: base.italics, size: base.size, color: base.color }));
+      // Sin emojis de color: los de estado pasan a simbolos monocromaticos (con
+      // la fuente de simbolos de Windows; Arial no los tiene) y las marcas como
+      // la de "nuevo" se quitan.
+      const sobrio = parte
+        .replace(/\s*\u{1F195}\s*/gu, ' ')
+        .replace(/✅/g, '✓')
+        .replace(/❌/g, '✗')
+        .replace(/⚠️?/g, '⚠')
+        .replace(/\u{1F536}/gu, '◆')
+        .replace(/\u{1F51C}/gu, '(próximo)')
+        .replace(/⏳/g, '(pendiente)')
+        .replace(/ℹ️?/g, '(i)')
+        .replace(/️/g, '')
+        .replace(/ {2,}/g, ' ');
+      for (const trozo of sobrio.split(/([✓✗⚠◆☰↔→←]|\p{Extended_Pictographic})/u).filter(Boolean)) {
+        const simbolo = /^([✓✗⚠◆☰↔→←]|\p{Extended_Pictographic})$/u.test(trozo);
+        salida.push(new TextRun({ text: trozo, font: simbolo ? 'Segoe UI Symbol' : FUENTE, bold: base.bold, italics: base.italics, size: base.size, color: base.color }));
       }
     }
   }
@@ -373,13 +386,24 @@ export const convertirLineas = (entradaOriginal: string[], archivo: string, opci
     const recortada = linea.trim();
 
     // Inclusion de una seccion de otro documento.
-    const inclusion = recortada.match(/^<!--\s*incluir:\s*(.+?)\s*::\s*(.+?)\s*-->$/);
+    // "<!-- incluir: ruta :: Titulo :: sin-figuras -->" omite las imagenes de la
+    // seccion (el informe usa diagramas simplificados en su lugar).
+    const inclusion = recortada.match(/^<!--\s*incluir:\s*(.+?)\s*::\s*(.+?)\s*(?:::\s*(sin-figuras)\s*)?-->$/);
     if (inclusion) {
       cerrarParrafo();
       const ruta = path.resolve(RAIZ, inclusion[1]);
-      const { lineas, nivel } = seccionDe(ruta, inclusion[2]);
+      const seccion = seccionDe(ruta, inclusion[2]);
+      let lineas = inclusion[3] ? seccion.lineas.filter((l) => !/^\s*!\[[^\]]*\]\([^)]+\)\s*$/.test(l)) : seccion.lineas;
+      if (inclusion[3]) {
+        // Un subtitulo que solo tenia figuras queda vacio: se quita.
+        lineas = lineas.filter((l, k) => {
+          if (!/^#{1,6}\s/.test(l)) return true;
+          const siguiente = lineas.slice(k + 1).find((x) => x.trim());
+          return siguiente !== undefined && !/^#{1,6}\s/.test(siguiente);
+        });
+      }
       // Los subtitulos de la seccion quedan un nivel por debajo del titulo actual.
-      const nuevoDesplazamiento = desplazamiento + (nivel - nivelTituloActual);
+      const nuevoDesplazamiento = desplazamiento + (seccion.nivel - nivelTituloActual);
       bloques.push(...convertirLineas(lineas, ruta, { desplazamiento: nuevoDesplazamiento, saltoEnCapitulo: salto, quitarNumeracion: true }));
       continue;
     }

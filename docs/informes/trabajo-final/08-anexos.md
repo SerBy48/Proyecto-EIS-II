@@ -1,4 +1,4 @@
-# Anexo A. Repositorio y historial de entregas
+# Anexo. Repositorio y documentación de referencia
 
 **Repositorio:** <https://github.com/SerBy48/Proyecto-EIS-II>. La rama `main` tiene la versión estable; `develop` integra cada fase.
 
@@ -42,62 +42,15 @@ Tabla: Dónde está cada entregable
 | Manuales y guía de despliegue | `docs/manuales/` |
 | Este informe y los manuales en .docx | `docs/informes/` (`npm run informe:trabajo-final`) |
 
-# Anexo B. Decisiones de arquitectura (ADR)
+Tabla: Documentos de referencia que no se reproducen en este informe
 
-## ADR-0001: Microservicios con API Gateway frente al monolito modular
-
-<!-- incluir: docs/adr/0001-microservicios-con-api-gateway.md :: * -->
-
-## ADR-0002: Base de datos por servicio y motor por necesidad
-
-<!-- incluir: docs/adr/0002-base-de-datos-por-servicio.md :: * -->
-
-## ADR-0003: Saga orquestada para el checkout
-
-<!-- incluir: docs/adr/0003-saga-orquestada.md :: * -->
-
-## ADR-0004: RabbitMQ para eventos; REST para consultas que exigen consistencia
-
-<!-- incluir: docs/adr/0004-rabbitmq-eventos-rest-consultas.md :: * -->
-
-## ADR-0005: JWT de vida corta y refresh token rotatorio
-
-<!-- incluir: docs/adr/0005-jwt-corto-refresh-rotatorio.md :: * -->
-
-## ADR-0006: ORM parcial con Drizzle; SQL nativo donde hay concurrencia
-
-<!-- incluir: docs/adr/0006-estrategia-orm.md :: * -->
-
-## ADR-0007: Asistente virtual con motor de reglas e IA opcional
-
-<!-- incluir: docs/adr/0007-asistente-reglas-ia-opcional.md :: * -->
-
-## ADR-0008: Documentación OpenAPI centralizada en el gateway
-
-<!-- incluir: docs/adr/0008-openapi-centralizada-gateway.md :: * -->
-
-## ADR-0009: Despliegue con Compose, CI y túnel para la defensa
-
-<!-- incluir: docs/adr/0009-entorno-de-despliegue.md :: * -->
-
-## ADR-0010: Despliegue en una máquina virtual de la nube
-
-<!-- incluir: docs/adr/0010-despliegue-en-una-vm.md :: * -->
-
-# Anexo C. Rutas de la API
-
-Generado de la especificación OpenAPI que sirve el gateway (`services/api-gateway/especificacion/openapi.json`). Las rutas internas de la saga, que solo usan los servicios entre sí, están en `docs/openapi/openapi-interna.yaml`.
-
-<!-- incluir: docs/informes/trabajo-final/generado/rutas-api.md :: * -->
-
-# Anexo D. Matriz de trazabilidad
-
-<!-- incluir: docs/aceptacion/TRAZABILIDAD.md :: * -->
-
-# Anexo E. Requisitos funcionales
-
-<!-- incluir: docs/especificacion/01-escenario-requisitos.md :: 1.3 Requisitos funcionales -->
-
-# Anexo F. Guion de la defensa
-
-<!-- incluir: docs/defensa/GUION.md :: * -->
+| Documento | Contenido | Ubicación |
+|---|---|---|
+| Decisiones de arquitectura | Los 10 ADR completos, con contexto, consecuencias y alternativas descartadas | `docs/adr/` |
+| Requisitos funcionales | Los 74 requisitos con su endpoint y su rol | `docs/especificacion/01-escenario-requisitos.md` |
+| Matriz de trazabilidad | Cada requisito con su criterio, sus casos de prueba, su resultado y su evidencia | `docs/aceptacion/TRAZABILIDAD.md` |
+| Rutas de la API | Las 75 operaciones públicas y las internas de la saga | `/api/docs` (Swagger UI) y `docs/openapi/` |
+| Diagramas C4 completos | Contexto, contenedores, componentes, dinámicos y despliegue | `docs/c4/` |
+| Evaluación de calidad completa | Rendimiento, seguridad, usabilidad, controles OWASP y plan de corrección | `docs/calidad/` |
+| Defectos corregidos | 44 entradas con síntoma, causa, corrección y prueba | `docs/PRUEBAS.md` |
+| Guion de la defensa | Preparación, demostración, plan B y preguntas probables | `docs/defensa/GUION.md` |

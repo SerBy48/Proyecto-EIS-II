@@ -1,0 +1,43 @@
+@startuml informe-saga
+' Secuencia simplificada del checkout para el informe (detalle en
+' 04-dinamico-checkout.puml y services/pedidos-service/src/saga-checkout.ts).
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam sequenceMessageAlign center
+skinparam ParticipantBackgroundColor #E8F5E9
+skinparam ParticipantBorderColor #2E7D32
+skinparam SequenceLifeLineBorderColor #81C784
+skinparam ArrowColor #1B5E20
+skinparam NoteBackgroundColor #FFF8E1
+title Compra (checkout): saga orquestada por pedidos-service
+
+actor Cliente
+participant "API Gateway" as gw
+participant "pedidos" as ped
+participant "carrito" as car
+participant "catálogo" as cat
+participant "inventario" as inv
+participant "pagos" as pag
+queue "RabbitMQ" as mq
+participant "notificaciones" as notif
+
+Cliente -> gw : POST /pedidos/checkout\n(Idempotency-Key)
+gw -> ped : JWT verificado (cliente_id del token)
+ped -> car : leer el carrito
+ped -> cat : releer los precios vigentes
+ped -> ped : límite por cliente\ny crear el pedido
+loop por cada producto
+  ped -> inv : reservar stock (idempotente)
+  note right of ped : compensación registrada\nde inmediato: liberar
+end
+ped -> pag : cobrar (sin reintento)
+alt pago aprobado
+  ped -> inv : confirmar reservas
+  ped -> mq : pedido.confirmado
+  ped --> Cliente : 201 pedido pagado
+else pago rechazado o error
+  ped -> inv : liberar reservas (compensación)
+  ped --> Cliente : 402 sin cobro; el stock vuelve
+end
+mq -> notif : evento: envía el correo
+@enduml

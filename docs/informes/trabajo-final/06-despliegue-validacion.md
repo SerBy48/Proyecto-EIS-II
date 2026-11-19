@@ -7,7 +7,7 @@ Todo el sistema corre en contenedores: 16 en total.
 - **La web** se compila con Vite y la sirve `nginx-unprivileged`, que además hace de proxy de `/api` hacia el gateway. Así la web y la API comparten el mismo origen, sin CORS.
 - **Los motores de datos** usan sus imágenes oficiales, con etiqueta fija.
 
-<!-- incluir: docs/especificacion/02-especificacion-arquitectura.md :: 2.7 Despliegue -->
+<!-- incluir: docs/especificacion/02-especificacion-arquitectura.md :: 2.7 Despliegue :: sin-figuras -->
 
 **Arranque robusto (RNF-11).** Desde volúmenes vacíos, el perfil de producción levanta los 16 contenedores sanos en 276 s, compilando las imágenes y sin intervención. Los servicios toleran que RabbitMQ tarde, por tres mecanismos:
 - el bus de eventos reintenta la conexión con espera exponencial;
@@ -48,9 +48,27 @@ Falta crear la máquina virtual. No fue posible abrir la cuenta del proveedor a 
 
 ## 6.4 Criterios de aceptación
 
-Cada historia principal tiene un criterio en formato **Dado / Cuando / Entonces**, verificado en la interfaz real con Playwright (`npm run test:e2e:ui`). Cada ejecución guarda una captura por criterio en `docs/evidencia/trabajo-final/e2e-ui/`.
+Cada historia principal tiene un criterio en formato **Dado / Cuando / Entonces** (`docs/aceptacion/CRITERIOS.md`). `npm run test:e2e:ui` los verifica en la interfaz real con Playwright y guarda una captura por criterio en `docs/evidencia/trabajo-final/e2e-ui/`. En la última ejecución (19 de noviembre de 2026), **los 29 pasan**.
 
-<!-- incluir: docs/aceptacion/CRITERIOS.md :: * -->
+Tabla: Criterios de aceptación verificados en la interfaz
+
+| Criterio | Historia | | Criterio | Historia |
+|---|---|---|---|---|
+| CA-01 | Registro de un cliente nuevo | | CA-16 | Modo oscuro y contraseña visible |
+| CA-02 | Inicio de sesión (error y éxito) | | CA-17 | Administrador: crear y desactivar un vendedor |
+| CA-03 | Búsqueda y filtro | | CA-18 | Sesión vencida: la web vuelve a modo visitante |
+| CA-04 | Carrito y cupón | | CA-19 | Productos: precio y oferta con fecha de fin |
+| CA-05 | Compra aprobada | | CA-20 | Productos: subir una foto desde el PC |
+| CA-06 | Compra rechazada con compensación | | CA-21 | Inventario: entrada con proveedor, costo y factura |
+| CA-07 | Última unidad | | CA-22 | Límite por cliente en el carrito |
+| CA-08 | Cancelación | | CA-23 | Consulta al vendedor y respuesta en la campana |
+| CA-09 | Correo de confirmación | | CA-24 | Recuperar la contraseña con el enlace del correo |
+| CA-10 | Asistente virtual | | CA-25 | Ver todas las notificaciones y responder una consulta |
+| CA-11 | Vendedor: entrada de stock | | CA-26 | Cerrar sesión y seguir como visitante |
+| CA-12 | Administrador: estados del pedido con fecha y hora | | CA-27 | Vendedor: vista previa del catálogo |
+| CA-13 | Perfil: datos y direcciones | | CA-28 | El visitante inicia sesión para escribirle al vendedor |
+| CA-14 | Dirección al pagar y dos cambios después | | CA-29 | Los filtros no pasan de una cuenta a otra |
+| CA-15 | Eliminar la cuenta (bloqueada con pedidos en curso) | | | |
 
 ## 6.5 Resultados de las pruebas
 
@@ -71,7 +89,7 @@ Tabla: Suites de pruebas y resultado de la última regresión (2026-11-19, desde
 
 ## 6.6 Trazabilidad
 
-La matriz de trazabilidad (anexo D) une cada uno de los 74 requisitos funcionales y los 23 no funcionales con su criterio de aceptación, los casos de prueba que lo verifican, el resultado de la última regresión y su evidencia.
+La matriz de trazabilidad (`docs/aceptacion/TRAZABILIDAD.md`) une cada uno de los 74 requisitos funcionales y los 23 no funcionales con su criterio de aceptación, los casos de prueba que lo verifican, el resultado de la última regresión y su evidencia.
 
 ## 6.7 Revisiones de la tienda por el equipo
 

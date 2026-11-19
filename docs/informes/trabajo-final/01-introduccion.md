@@ -34,6 +34,6 @@ Tabla: Fases del Trabajo Final y sus entregables
 
 - **Repositorio.** Monorepo con npm workspaces en GitHub (<https://github.com/SerBy48/Proyecto-EIS-II>).
 - **Ramas.** Cada fase o ajuste se desarrolló en una rama `feature/…` que sale de `develop`, con un pull request revisado por el equipo; `main` recibe las versiones estables.
-- **Regresión.** Antes de cada pull request se corrió la regresión completa desde volúmenes vacíos, con su evidencia en `docs/evidencia/`. El anexo A lista los 21 pull requests.
+- **Regresión.** Antes de cada pull request se corrió la regresión completa desde volúmenes vacíos, con su evidencia en `docs/evidencia/`. El anexo lista los 21 pull requests.
 - **Decisiones.** Las de arquitectura se registraron como ADR. Las de alcance las tomó el equipo antes de implementar.
 - **Fuente única.** Los documentos del repositorio (especificación, calidad, aceptación y manuales) son la fuente de este informe: se generó a partir de ellos (`npm run informe:trabajo-final`).
