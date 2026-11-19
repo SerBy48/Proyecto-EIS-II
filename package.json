@@ -64,7 +64,8 @@
     "nube:down": "docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.nube.yml down",
     "nube:logs": "docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.nube.yml logs -f --tail=100",
     "test:e2e:ui": "tsx --env-file-if-exists=.env tests/e2e-ui/aceptacion.ts",
-    "tunel": "bash scripts/tunel.sh"
+    "tunel": "bash scripts/tunel.sh",
+    "dokploy:compose": "tsx scripts/generar-compose-dokploy.ts"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.10.0",

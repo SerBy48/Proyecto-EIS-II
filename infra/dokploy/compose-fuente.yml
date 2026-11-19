@@ -1,0 +1,179 @@
+# ============================================================================
+# Despliegue con DOKPLOY (docs/manuales/DESPLIEGUE-DOKPLOY.md).
+#
+# Dokploy despliega un solo archivo de Compose y ya trae Traefik en 80/443, que
+# saca el certificado HTTPS del dominio. Por eso este archivo:
+#   - reutiliza cada servicio de docker-compose.yml con `extends` (una sola
+#     fuente: lo que cambie alli cambia aqui);
+#   - aplica lo mismo que docker-compose.prod.yml: produccion, limites de
+#     recursos, cuentas de produccion (07-cuentas-produccion.sh), Swagger
+#     apagado, la web compilada sin los controles de la pasarela simulada y el
+#     correo real opcional (SMTP_*_PROD);
+#   - no publica NINGUN puerto en el VPS (Dokploy recomienda `expose`, y el VPS
+#     es compartido): Traefik llega a la web por la red dokploy-network;
+#   - quita `container_name` (Dokploy lo desaconseja: rompe sus registros y
+#     metricas, y en un VPS compartido los nombres ecom_* podrian chocar);
+#   - PROXIES_CONFIANZA=2: delante del gateway estan Traefik y nginx.
+#
+# Este archivo es la FUENTE: Dokploy despliega docker-compose.dokploy.yml, que
+# se genera de aqui con `npm run dokploy:compose` (su version de Compose no
+# entendia `!reset`).
+#
+# En el panel de Dokploy: Compose Path = ./docker-compose.dokploy.yml; dominio
+# en la pestana Domains con el servicio `web` y el puerto 8080.
+# ============================================================================
+
+x-produccion: &produccion
+  NODE_ENV: production
+  LOG_LEVEL: info
+  LOG_FORMATO: json
+
+x-limites-servicio: &limites-servicio
+  deploy:
+    resources:
+      limits: { cpus: "1.0", memory: 384M }
+
+services:
+  postgres:
+    extends: { file: ../../docker-compose.yml, service: postgres }
+    # Primer despliegue: compila las imagenes y arranca todo junto; mas margen
+    # para quedar sano (un fallo aqui deja sin arrancar a sus dependientes).
+    healthcheck: { start_period: 60s, retries: 20 }
+    container_name: !reset null
+    ports: !reset []
+    environment:
+      CUENTAS_PRODUCCION: "true"
+      CORREO_ADMIN: ${CORREO_ADMIN:?Defina CORREO_ADMIN (cuentas de produccion)}
+      CLAVE_ADMIN: ${CLAVE_ADMIN:?Defina CLAVE_ADMIN (12 caracteres o mas)}
+      CORREO_VENDEDOR: ${CORREO_VENDEDOR:?Defina CORREO_VENDEDOR}
+      CLAVE_VENDEDOR: ${CLAVE_VENDEDOR:?Defina CLAVE_VENDEDOR (12 caracteres o mas)}
+      CORREO_CLIENTE: ${CORREO_CLIENTE:?Defina CORREO_CLIENTE}
+      CLAVE_CLIENTE: ${CLAVE_CLIENTE:?Defina CLAVE_CLIENTE (12 caracteres o mas)}
+      NOMBRE_CLIENTE: ${NOMBRE_CLIENTE:?Defina NOMBRE_CLIENTE}
+      APELLIDO_CLIENTE: ${APELLIDO_CLIENTE:?Defina APELLIDO_CLIENTE}
+    deploy: { resources: { limits: { cpus: "2.0", memory: 1G } } }
+  mongo:
+    extends: { file: ../../docker-compose.yml, service: mongo }
+    # Primer despliegue: compila las imagenes y arranca todo junto; mas margen
+    # para quedar sano (un fallo aqui deja sin arrancar a sus dependientes).
+    healthcheck: { start_period: 60s, retries: 20 }
+    container_name: !reset null
+    ports: !reset []
+    deploy: { resources: { limits: { cpus: "1.0", memory: 1G } } }
+  redis:
+    extends: { file: ../../docker-compose.yml, service: redis }
+    container_name: !reset null
+    ports: !reset []
+    deploy: { resources: { limits: { cpus: "0.5", memory: 256M } } }
+  rabbitmq:
+    extends: { file: ../../docker-compose.yml, service: rabbitmq }
+    # Primer despliegue: compila las imagenes y arranca todo junto; mas margen
+    # para quedar sano (un fallo aqui deja sin arrancar a sus dependientes).
+    healthcheck: { start_period: 60s, retries: 20 }
+    container_name: !reset null
+    ports: !reset []
+    deploy: { resources: { limits: { cpus: "1.0", memory: 512M } } }
+  # Sin puertos: si no se configura Gmail, los correos quedan aqui y se ven con
+  # `docker exec` o publicando temporalmente 127.0.0.1:8025.
+  mailpit:
+    extends: { file: ../../docker-compose.yml, service: mailpit }
+    container_name: !reset null
+    ports: !reset []
+
+  # bcrypt corre en un pool de hilos: auth es el que mas CPU usa.
+  auth-service:
+    extends: { file: ../../docker-compose.yml, service: auth-service }
+    container_name: !reset null
+    ports: !reset []
+    environment: *produccion
+    deploy: { resources: { limits: { cpus: "2.0", memory: 512M } } }
+  clientes-service:
+    extends: { file: ../../docker-compose.yml, service: clientes-service }
+    container_name: !reset null
+    ports: !reset []
+    environment: *produccion
+    <<: *limites-servicio
+  catalogo-service:
+    extends: { file: ../../docker-compose.yml, service: catalogo-service }
+    container_name: !reset null
+    ports: !reset []
+    environment: *produccion
+    <<: *limites-servicio
+  inventario-service:
+    extends: { file: ../../docker-compose.yml, service: inventario-service }
+    container_name: !reset null
+    ports: !reset []
+    environment: *produccion
+    <<: *limites-servicio
+  carrito-service:
+    extends: { file: ../../docker-compose.yml, service: carrito-service }
+    container_name: !reset null
+    ports: !reset []
+    environment: *produccion
+    <<: *limites-servicio
+  pedidos-service:
+    extends: { file: ../../docker-compose.yml, service: pedidos-service }
+    container_name: !reset null
+    ports: !reset []
+    environment: *produccion
+    <<: *limites-servicio
+  pagos-service:
+    extends: { file: ../../docker-compose.yml, service: pagos-service }
+    container_name: !reset null
+    ports: !reset []
+    environment: *produccion
+    <<: *limites-servicio
+  notificaciones-service:
+    extends: { file: ../../docker-compose.yml, service: notificaciones-service }
+    container_name: !reset null
+    ports: !reset []
+    environment:
+      <<: *produccion
+      SMTP_HOST: ${SMTP_HOST_PROD:-mailpit}
+      SMTP_PUERTO: ${SMTP_PUERTO_PROD:-1025}
+      SMTP_SEGURO: ${SMTP_SEGURO_PROD:-false}
+      SMTP_USUARIO: ${SMTP_USUARIO_PROD:-}
+      SMTP_CLAVE: ${SMTP_CLAVE_PROD:-}
+      CORREO_REMITENTE: ${CORREO_REMITENTE_PROD:-Tienda en linea <no-responder@tienda.co>}
+      CORREO_OPERACIONES: ${CORREO_OPERACIONES_PROD:-operaciones@tienda.co}
+    <<: *limites-servicio
+  asistente-service:
+    extends: { file: ../../docker-compose.yml, service: asistente-service }
+    container_name: !reset null
+    ports: !reset []
+    environment: *produccion
+    <<: *limites-servicio
+
+  api-gateway:
+    extends: { file: ../../docker-compose.yml, service: api-gateway }
+    container_name: !reset null
+    ports: !reset []
+    environment:
+      <<: *produccion
+      EXPONER_DOCS: "false"
+      CORS_ORIGENES: https://${DOMINIO:?Defina DOMINIO (por ejemplo 203-0-113-7.sslip.io)}
+      PROXIES_CONFIANZA: "2"
+    <<: *limites-servicio
+
+  # Traefik (de Dokploy) llega a la web por dokploy-network, al puerto 8080.
+  web:
+    extends: { file: ../../docker-compose.yml, service: web }
+    container_name: !reset null
+    ports: !reset []
+    expose: ["8080"]
+    build:
+      args:
+        MODO_VITE: ${MODO_VITE:-production}
+    networks: [interna, dokploy-network]
+    deploy: { resources: { limits: { cpus: "0.5", memory: 128M } } }
+
+networks:
+  interna:
+  dokploy-network:
+    external: true
+
+volumes:
+  pg_datos:
+  mongo_datos:
+  redis_datos:
+  rabbit_datos:
