@@ -1,166 +1,559 @@
 # ============================================================================
-# Despliegue con DOKPLOY (docs/manuales/DESPLIEGUE-DOKPLOY.md).
+# GENERADO por scripts/generar-compose-dokploy.ts (npm run dokploy:compose)
+# a partir de infra/dokploy/compose-fuente.yml. NO editar a mano: cambie la
+# fuente o docker-compose.yml y vuelva a generarlo.
 #
-# Dokploy despliega un solo archivo de Compose y ya trae Traefik en 80/443, que
-# saca el certificado HTTPS del dominio. Por eso este archivo:
-#   - reutiliza cada servicio de docker-compose.yml con `extends` (una sola
-#     fuente: lo que cambie alli cambia aqui);
-#   - aplica lo mismo que docker-compose.prod.yml: produccion, limites de
-#     recursos, cuentas de produccion (07-cuentas-produccion.sh), Swagger
-#     apagado, la web compilada sin los controles de la pasarela simulada y el
-#     correo real opcional (SMTP_*_PROD);
-#   - no publica NINGUN puerto en el VPS (Dokploy recomienda `expose`, y el VPS
-#     es compartido): Traefik llega a la web por la red dokploy-network;
-#   - quita `container_name` (Dokploy lo desaconseja: rompe sus registros y
-#     metricas, y en un VPS compartido los nombres ecom_* podrian chocar);
-#   - PROXIES_CONFIANZA=2: delante del gateway estan Traefik y nginx.
-#
-# En el panel de Dokploy: Compose Path = ./docker-compose.dokploy.yml; dominio
-# en la pestana Domains con el servicio `web` y el puerto 8080.
+# Es el archivo que despliega Dokploy (docs/manuales/DESPLIEGUE-DOKPLOY.md):
+# autonomo (sin extends ni !reset), sin puertos publicados ni container_name,
+# la web en dokploy-network y PROXIES_CONFIANZA=2.
 # ============================================================================
-
-x-produccion: &produccion
-  NODE_ENV: production
-  LOG_LEVEL: info
-  LOG_FORMATO: json
-
-x-limites-servicio: &limites-servicio
-  deploy:
-    resources:
-      limits: { cpus: "1.0", memory: 384M }
-
-services:
-  postgres:
-    extends: { file: docker-compose.yml, service: postgres }
-    container_name: !reset null
-    ports: !reset []
-    environment:
-      CUENTAS_PRODUCCION: "true"
-      CORREO_ADMIN: ${CORREO_ADMIN:?Defina CORREO_ADMIN (cuentas de produccion)}
-      CLAVE_ADMIN: ${CLAVE_ADMIN:?Defina CLAVE_ADMIN (12 caracteres o mas)}
-      CORREO_VENDEDOR: ${CORREO_VENDEDOR:?Defina CORREO_VENDEDOR}
-      CLAVE_VENDEDOR: ${CLAVE_VENDEDOR:?Defina CLAVE_VENDEDOR (12 caracteres o mas)}
-      CORREO_CLIENTE: ${CORREO_CLIENTE:?Defina CORREO_CLIENTE}
-      CLAVE_CLIENTE: ${CLAVE_CLIENTE:?Defina CLAVE_CLIENTE (12 caracteres o mas)}
-      NOMBRE_CLIENTE: ${NOMBRE_CLIENTE:?Defina NOMBRE_CLIENTE}
-      APELLIDO_CLIENTE: ${APELLIDO_CLIENTE:?Defina APELLIDO_CLIENTE}
-    deploy: { resources: { limits: { cpus: "2.0", memory: 1G } } }
-  mongo:
-    extends: { file: docker-compose.yml, service: mongo }
-    container_name: !reset null
-    ports: !reset []
-    deploy: { resources: { limits: { cpus: "1.0", memory: 1G } } }
-  redis:
-    extends: { file: docker-compose.yml, service: redis }
-    container_name: !reset null
-    ports: !reset []
-    deploy: { resources: { limits: { cpus: "0.5", memory: 256M } } }
-  rabbitmq:
-    extends: { file: docker-compose.yml, service: rabbitmq }
-    container_name: !reset null
-    ports: !reset []
-    deploy: { resources: { limits: { cpus: "1.0", memory: 512M } } }
-  # Sin puertos: si no se configura Gmail, los correos quedan aqui y se ven con
-  # `docker exec` o publicando temporalmente 127.0.0.1:8025.
-  mailpit:
-    extends: { file: docker-compose.yml, service: mailpit }
-    container_name: !reset null
-    ports: !reset []
-
-  # bcrypt corre en un pool de hilos: auth es el que mas CPU usa.
-  auth-service:
-    extends: { file: docker-compose.yml, service: auth-service }
-    container_name: !reset null
-    ports: !reset []
-    environment: *produccion
-    deploy: { resources: { limits: { cpus: "2.0", memory: 512M } } }
-  clientes-service:
-    extends: { file: docker-compose.yml, service: clientes-service }
-    container_name: !reset null
-    ports: !reset []
-    environment: *produccion
-    <<: *limites-servicio
-  catalogo-service:
-    extends: { file: docker-compose.yml, service: catalogo-service }
-    container_name: !reset null
-    ports: !reset []
-    environment: *produccion
-    <<: *limites-servicio
-  inventario-service:
-    extends: { file: docker-compose.yml, service: inventario-service }
-    container_name: !reset null
-    ports: !reset []
-    environment: *produccion
-    <<: *limites-servicio
-  carrito-service:
-    extends: { file: docker-compose.yml, service: carrito-service }
-    container_name: !reset null
-    ports: !reset []
-    environment: *produccion
-    <<: *limites-servicio
-  pedidos-service:
-    extends: { file: docker-compose.yml, service: pedidos-service }
-    container_name: !reset null
-    ports: !reset []
-    environment: *produccion
-    <<: *limites-servicio
-  pagos-service:
-    extends: { file: docker-compose.yml, service: pagos-service }
-    container_name: !reset null
-    ports: !reset []
-    environment: *produccion
-    <<: *limites-servicio
-  notificaciones-service:
-    extends: { file: docker-compose.yml, service: notificaciones-service }
-    container_name: !reset null
-    ports: !reset []
-    environment:
-      <<: *produccion
-      SMTP_HOST: ${SMTP_HOST_PROD:-mailpit}
-      SMTP_PUERTO: ${SMTP_PUERTO_PROD:-1025}
-      SMTP_SEGURO: ${SMTP_SEGURO_PROD:-false}
-      SMTP_USUARIO: ${SMTP_USUARIO_PROD:-}
-      SMTP_CLAVE: ${SMTP_CLAVE_PROD:-}
-      CORREO_REMITENTE: ${CORREO_REMITENTE_PROD:-Tienda en linea <no-responder@tienda.co>}
-      CORREO_OPERACIONES: ${CORREO_OPERACIONES_PROD:-operaciones@tienda.co}
-    <<: *limites-servicio
-  asistente-service:
-    extends: { file: docker-compose.yml, service: asistente-service }
-    container_name: !reset null
-    ports: !reset []
-    environment: *produccion
-    <<: *limites-servicio
-
-  api-gateway:
-    extends: { file: docker-compose.yml, service: api-gateway }
-    container_name: !reset null
-    ports: !reset []
-    environment:
-      <<: *produccion
-      EXPONER_DOCS: "false"
-      CORS_ORIGENES: https://${DOMINIO:?Defina DOMINIO (por ejemplo 203-0-113-7.sslip.io)}
-      PROXIES_CONFIANZA: "2"
-    <<: *limites-servicio
-
-  # Traefik (de Dokploy) llega a la web por dokploy-network, al puerto 8080.
-  web:
-    extends: { file: docker-compose.yml, service: web }
-    container_name: !reset null
-    ports: !reset []
-    expose: ["8080"]
-    build:
-      args:
-        MODO_VITE: ${MODO_VITE:-production}
-    networks: [interna, dokploy-network]
-    deploy: { resources: { limits: { cpus: "0.5", memory: 128M } } }
-
 networks:
-  interna:
   dokploy-network:
     external: true
-
+    name: dokploy-network
+  interna:
+services:
+  api-gateway:
+    build:
+      args:
+        SERVICIO: api-gateway
+      context: .
+      dockerfile: infra/Dockerfile.servicio
+    depends_on:
+      asistente-service:
+        condition: service_started
+      auth-service:
+        condition: service_started
+      carrito-service:
+        condition: service_started
+      catalogo-service:
+        condition: service_started
+      clientes-service:
+        condition: service_started
+      inventario-service:
+        condition: service_started
+      notificaciones-service:
+        condition: service_started
+      pagos-service:
+        condition: service_started
+      pedidos-service:
+        condition: service_started
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 384M
+    environment:
+      - CORS_ORIGENES=https://${DOMINIO:?Defina DOMINIO (por ejemplo 203-0-113-7.sslip.io)}
+      - EXPONER_DOCS=false
+      - INTERNAL_TOKEN=${INTERNAL_TOKEN:?Defina INTERNAL_TOKEN en .env (openssl rand -hex 32)}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:?Defina JWT_REFRESH_SECRET en .env (openssl rand -hex 32)}
+      - JWT_SECRET=${JWT_SECRET:?Defina JWT_SECRET en .env (openssl rand -hex 32)}
+      - LIMITE_ASISTENTE=${LIMITE_ASISTENTE:-30}
+      - LIMITE_CHECKOUT=${LIMITE_CHECKOUT:-10}
+      - LIMITE_GENERAL=${LIMITE_GENERAL:-300}
+      - LIMITE_IMAGENES=${LIMITE_IMAGENES:-1500}
+      - LIMITE_LOGIN=${LIMITE_LOGIN:-10}
+      - LIMITE_RECUPERACION=${LIMITE_RECUPERACION:-5}
+      - LOG_LEVEL=info
+      - NODE_ENV=production
+      - PORT=8080
+      - PROXY_TIMEOUT_MS=${PROXY_TIMEOUT_MS:-15000}
+      - RABBITMQ_URL=amqp://ecommerce:ecommerce@rabbitmq:5672
+      - STOCK_RESERVA_CLIENTE=${STOCK_RESERVA_CLIENTE:-5}
+      - URL_ASISTENTE=http://asistente-service:3009
+      - URL_AUTH=http://auth-service:3001
+      - URL_CARRITO=http://carrito-service:3005
+      - URL_CATALOGO=http://catalogo-service:3003
+      - URL_CLIENTES=http://clientes-service:3002
+      - URL_INVENTARIO=http://inventario-service:3004
+      - URL_NOTIFICACIONES=http://notificaciones-service:3008
+      - URL_PAGOS=http://pagos-service:3007
+      - URL_PEDIDOS=http://pedidos-service:3006
+      - LOG_FORMATO=json
+      - PROXIES_CONFIANZA=2
+    networks:
+      interna: null
+    restart: unless-stopped
+  asistente-service:
+    build:
+      args:
+        SERVICIO: asistente-service
+      context: .
+      dockerfile: infra/Dockerfile.servicio
+    depends_on:
+      mongo:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 384M
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - ASISTENTE_IA=${ASISTENTE_IA:-desactivada}
+      - ASISTENTE_IA_MODELO=${ASISTENTE_IA_MODELO:-claude-opus-5-5}
+      - COSTO_ENVIO_BASE=${COSTO_ENVIO_BASE:-15000}
+      - DIAS_ENTREGA=${DIAS_ENTREGA:-2 a 5}
+      - DIAS_RETRACTO=${DIAS_RETRACTO:-5}
+      - HORARIO_ATENCION=${HORARIO_ATENCION:-de lunes a viernes de 8:00 a. m. a 6:00 p. m.}
+      - INTERNAL_TOKEN=${INTERNAL_TOKEN:?Defina INTERNAL_TOKEN en .env (openssl rand -hex 32)}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:?Defina JWT_REFRESH_SECRET en .env (openssl rand -hex 32)}
+      - JWT_SECRET=${JWT_SECRET:?Defina JWT_SECRET en .env (openssl rand -hex 32)}
+      - LOG_LEVEL=info
+      - MONGO_URL=mongodb://asistente_user:asistente_pass@mongo:27017/asistente_db?authSource=asistente_db
+      - NODE_ENV=production
+      - PORCENTAJE_IVA=${PORCENTAJE_IVA:-19}
+      - PORT=3009
+      - RABBITMQ_URL=amqp://ecommerce:ecommerce@rabbitmq:5672
+      - STOCK_RESERVA_CLIENTE=${STOCK_RESERVA_CLIENTE:-5}
+      - UMBRAL_ENVIO_GRATIS=${UMBRAL_ENVIO_GRATIS:-500000}
+      - URL_CATALOGO=http://catalogo-service:3003
+      - URL_PEDIDOS=http://pedidos-service:3006
+      - LOG_FORMATO=json
+    networks:
+      interna: null
+    restart: unless-stopped
+  auth-service:
+    build:
+      args:
+        SERVICIO: auth-service
+      context: .
+      dockerfile: infra/Dockerfile.servicio
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 512M
+    environment:
+      - DATABASE_URL=postgresql://auth_user:auth_pass@postgres:5432/auth_db
+      - INTERNAL_TOKEN=${INTERNAL_TOKEN:?Defina INTERNAL_TOKEN en .env (openssl rand -hex 32)}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:?Defina JWT_REFRESH_SECRET en .env (openssl rand -hex 32)}
+      - JWT_SECRET=${JWT_SECRET:?Defina JWT_SECRET en .env (openssl rand -hex 32)}
+      - LOG_LEVEL=info
+      - NODE_ENV=production
+      - PORT=3001
+      - RABBITMQ_URL=amqp://ecommerce:ecommerce@rabbitmq:5672
+      - STOCK_RESERVA_CLIENTE=${STOCK_RESERVA_CLIENTE:-5}
+      - URL_CARRITO=http://carrito-service:3005
+      - URL_CLIENTES=http://clientes-service:3002
+      - URL_PEDIDOS=http://pedidos-service:3006
+      - URL_WEB=${URL_WEB:-http://localhost:8081}
+      - LOG_FORMATO=json
+    networks:
+      interna: null
+    restart: unless-stopped
+  carrito-service:
+    build:
+      args:
+        SERVICIO: carrito-service
+      context: .
+      dockerfile: infra/Dockerfile.servicio
+    depends_on:
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 384M
+    environment:
+      - INTERNAL_TOKEN=${INTERNAL_TOKEN:?Defina INTERNAL_TOKEN en .env (openssl rand -hex 32)}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:?Defina JWT_REFRESH_SECRET en .env (openssl rand -hex 32)}
+      - JWT_SECRET=${JWT_SECRET:?Defina JWT_SECRET en .env (openssl rand -hex 32)}
+      - LOG_LEVEL=info
+      - NODE_ENV=production
+      - PORT=3005
+      - RABBITMQ_URL=amqp://ecommerce:ecommerce@rabbitmq:5672
+      - REDIS_URL=redis://redis:6379
+      - STOCK_RESERVA_CLIENTE=${STOCK_RESERVA_CLIENTE:-5}
+      - TTL_CARRITO_SEGUNDOS=${TTL_CARRITO_SEGUNDOS:-604800}
+      - URL_CATALOGO=http://catalogo-service:3003
+      - LOG_FORMATO=json
+    networks:
+      interna: null
+    restart: unless-stopped
+  catalogo-service:
+    build:
+      args:
+        SERVICIO: catalogo-service
+      context: .
+      dockerfile: infra/Dockerfile.servicio
+    depends_on:
+      mongo:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 384M
+    environment:
+      - INTERNAL_TOKEN=${INTERNAL_TOKEN:?Defina INTERNAL_TOKEN en .env (openssl rand -hex 32)}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:?Defina JWT_REFRESH_SECRET en .env (openssl rand -hex 32)}
+      - JWT_SECRET=${JWT_SECRET:?Defina JWT_SECRET en .env (openssl rand -hex 32)}
+      - LOG_LEVEL=info
+      - MONGO_URL=mongodb://catalogo_user:catalogo_pass@mongo:27017/catalogo_db?authSource=catalogo_db
+      - NODE_ENV=production
+      - PORT=3003
+      - RABBITMQ_URL=amqp://ecommerce:ecommerce@rabbitmq:5672
+      - STOCK_RESERVA_CLIENTE=${STOCK_RESERVA_CLIENTE:-5}
+      - URL_INVENTARIO=http://inventario-service:3004
+      - LOG_FORMATO=json
+    networks:
+      interna: null
+    restart: unless-stopped
+  clientes-service:
+    build:
+      args:
+        SERVICIO: clientes-service
+      context: .
+      dockerfile: infra/Dockerfile.servicio
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 384M
+    environment:
+      - DATABASE_URL=postgresql://clientes_user:clientes_pass@postgres:5432/clientes_db
+      - INTERNAL_TOKEN=${INTERNAL_TOKEN:?Defina INTERNAL_TOKEN en .env (openssl rand -hex 32)}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:?Defina JWT_REFRESH_SECRET en .env (openssl rand -hex 32)}
+      - JWT_SECRET=${JWT_SECRET:?Defina JWT_SECRET en .env (openssl rand -hex 32)}
+      - LOG_LEVEL=info
+      - NODE_ENV=production
+      - PORT=3002
+      - RABBITMQ_URL=amqp://ecommerce:ecommerce@rabbitmq:5672
+      - STOCK_RESERVA_CLIENTE=${STOCK_RESERVA_CLIENTE:-5}
+      - LOG_FORMATO=json
+    networks:
+      interna: null
+    restart: unless-stopped
+  inventario-service:
+    build:
+      args:
+        SERVICIO: inventario-service
+      context: .
+      dockerfile: infra/Dockerfile.servicio
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 384M
+    environment:
+      - DATABASE_URL=postgresql://inventario_user:inventario_pass@postgres:5432/inventario_db
+      - INTERNAL_TOKEN=${INTERNAL_TOKEN:?Defina INTERNAL_TOKEN en .env (openssl rand -hex 32)}
+      - INTERVALO_BARRIDO_MS=${INTERVALO_BARRIDO_MS:-60000}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:?Defina JWT_REFRESH_SECRET en .env (openssl rand -hex 32)}
+      - JWT_SECRET=${JWT_SECRET:?Defina JWT_SECRET en .env (openssl rand -hex 32)}
+      - LOG_LEVEL=info
+      - MINUTOS_RESERVA=${MINUTOS_RESERVA:-15}
+      - NODE_ENV=production
+      - PORT=3004
+      - RABBITMQ_URL=amqp://ecommerce:ecommerce@rabbitmq:5672
+      - STOCK_RESERVA_CLIENTE=${STOCK_RESERVA_CLIENTE:-5}
+      - URL_CATALOGO=http://catalogo-service:3003
+      - LOG_FORMATO=json
+    networks:
+      interna: null
+    restart: unless-stopped
+  mailpit:
+    environment:
+      MP_MAX_MESSAGES: 5000
+    healthcheck:
+      interval: 10s
+      retries: 5
+      test:
+        - CMD
+        - /mailpit
+        - readyz
+      timeout: 5s
+    image: axllent/mailpit:v1.27
+    networks:
+      interna: null
+    restart: unless-stopped
+  mongo:
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+    environment:
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-root}
+      MONGO_INITDB_ROOT_USERNAME: root
+    healthcheck:
+      interval: 10s
+      retries: 20
+      start_period: 60s
+      test:
+        - CMD
+        - mongosh
+        - --quiet
+        - --eval
+        - db.adminCommand('ping')
+      timeout: 5s
+    image: mongo:7
+    networks:
+      interna: null
+    restart: unless-stopped
+    volumes:
+      - source: mongo_datos
+        target: /data/db
+        type: volume
+        volume: {}
+      - read_only: true
+        source: ./infra/mongo/init-mongo.js
+        target: /docker-entrypoint-initdb.d/init-mongo.js
+        type: bind
+      - read_only: true
+        source: ./infra/mongo/asistente.js
+        target: /docker-entrypoint-initdb.d/z-asistente.js
+        type: bind
+  notificaciones-service:
+    build:
+      args:
+        SERVICIO: notificaciones-service
+      context: .
+      dockerfile: infra/Dockerfile.servicio
+    depends_on:
+      mailpit:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 384M
+    environment:
+      - CANAL_CORREO=${CANAL_CORREO:-smtp}
+      - CORREO_REMITENTE=${CORREO_REMITENTE_PROD:-Tienda en linea <no-responder@tienda.co>}
+      - INTERNAL_TOKEN=${INTERNAL_TOKEN:?Defina INTERNAL_TOKEN en .env (openssl rand -hex 32)}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:?Defina JWT_REFRESH_SECRET en .env (openssl rand -hex 32)}
+      - JWT_SECRET=${JWT_SECRET:?Defina JWT_SECRET en .env (openssl rand -hex 32)}
+      - LOG_LEVEL=info
+      - MONGO_URL=mongodb://notificaciones_user:notificaciones_pass@mongo:27017/notificaciones_db?authSource=notificaciones_db
+      - NODE_ENV=production
+      - PORT=3008
+      - RABBITMQ_URL=amqp://ecommerce:ecommerce@rabbitmq:5672
+      - SMTP_HOST=${SMTP_HOST_PROD:-mailpit}
+      - SMTP_PUERTO=${SMTP_PUERTO_PROD:-1025}
+      - STOCK_RESERVA_CLIENTE=${STOCK_RESERVA_CLIENTE:-5}
+      - CORREO_OPERACIONES=${CORREO_OPERACIONES_PROD:-operaciones@tienda.co}
+      - LOG_FORMATO=json
+      - SMTP_CLAVE=${SMTP_CLAVE_PROD:-}
+      - SMTP_SEGURO=${SMTP_SEGURO_PROD:-false}
+      - SMTP_USUARIO=${SMTP_USUARIO_PROD:-}
+    networks:
+      interna: null
+    restart: unless-stopped
+  pagos-service:
+    build:
+      args:
+        SERVICIO: pagos-service
+      context: .
+      dockerfile: infra/Dockerfile.servicio
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 384M
+    environment:
+      - DATABASE_URL=postgresql://pagos_user:pagos_pass@postgres:5432/pagos_db
+      - INTERNAL_TOKEN=${INTERNAL_TOKEN:?Defina INTERNAL_TOKEN en .env (openssl rand -hex 32)}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:?Defina JWT_REFRESH_SECRET en .env (openssl rand -hex 32)}
+      - JWT_SECRET=${JWT_SECRET:?Defina JWT_SECRET en .env (openssl rand -hex 32)}
+      - LOG_LEVEL=info
+      - NODE_ENV=production
+      - PASARELA_LATENCIA_MS=${PASARELA_LATENCIA_MS:-150}
+      - PORT=3007
+      - RABBITMQ_URL=amqp://ecommerce:ecommerce@rabbitmq:5672
+      - STOCK_RESERVA_CLIENTE=${STOCK_RESERVA_CLIENTE:-5}
+      - LOG_FORMATO=json
+    networks:
+      interna: null
+    restart: unless-stopped
+  pedidos-service:
+    build:
+      args:
+        SERVICIO: pedidos-service
+      context: .
+      dockerfile: infra/Dockerfile.servicio
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 384M
+    environment:
+      - DATABASE_URL=postgresql://pedidos_user:pedidos_pass@postgres:5432/pedidos_db
+      - INTERNAL_TOKEN=${INTERNAL_TOKEN:?Defina INTERNAL_TOKEN en .env (openssl rand -hex 32)}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:?Defina JWT_REFRESH_SECRET en .env (openssl rand -hex 32)}
+      - JWT_SECRET=${JWT_SECRET:?Defina JWT_SECRET en .env (openssl rand -hex 32)}
+      - LOG_LEVEL=info
+      - NODE_ENV=production
+      - PORT=3006
+      - RABBITMQ_URL=amqp://ecommerce:ecommerce@rabbitmq:5672
+      - STOCK_RESERVA_CLIENTE=${STOCK_RESERVA_CLIENTE:-5}
+      - URL_CARRITO=http://carrito-service:3005
+      - URL_CATALOGO=http://catalogo-service:3003
+      - URL_CLIENTES=http://clientes-service:3002
+      - URL_INVENTARIO=http://inventario-service:3004
+      - URL_PAGOS=http://pagos-service:3007
+      - LOG_FORMATO=json
+    networks:
+      interna: null
+    restart: unless-stopped
+  postgres:
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1G
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_USER=postgres
+      - APELLIDO_CLIENTE=${APELLIDO_CLIENTE:?Defina APELLIDO_CLIENTE}
+      - CLAVE_ADMIN=${CLAVE_ADMIN:?Defina CLAVE_ADMIN (12 caracteres o mas)}
+      - CLAVE_CLIENTE=${CLAVE_CLIENTE:?Defina CLAVE_CLIENTE (12 caracteres o mas)}
+      - CLAVE_VENDEDOR=${CLAVE_VENDEDOR:?Defina CLAVE_VENDEDOR (12 caracteres o mas)}
+      - CORREO_ADMIN=${CORREO_ADMIN:?Defina CORREO_ADMIN (cuentas de produccion)}
+      - CORREO_CLIENTE=${CORREO_CLIENTE:?Defina CORREO_CLIENTE}
+      - CORREO_VENDEDOR=${CORREO_VENDEDOR:?Defina CORREO_VENDEDOR}
+      - CUENTAS_PRODUCCION=true
+      - NOMBRE_CLIENTE=${NOMBRE_CLIENTE:?Defina NOMBRE_CLIENTE}
+    healthcheck:
+      interval: 5s
+      retries: 20
+      start_period: 60s
+      test:
+        - CMD-SHELL
+        - pg_isready -U postgres
+      timeout: 5s
+    image: postgres:16-alpine
+    networks:
+      interna: null
+    restart: unless-stopped
+    volumes:
+      - source: pg_datos
+        target: /var/lib/postgresql/data
+        type: volume
+        volume: {}
+      - read_only: true
+        source: ./infra/postgres
+        target: /docker-entrypoint-initdb.d
+        type: bind
+  rabbitmq:
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+    environment:
+      RABBITMQ_DEFAULT_PASS: ecommerce
+      RABBITMQ_DEFAULT_USER: ecommerce
+    healthcheck:
+      interval: 10s
+      retries: 20
+      start_period: 60s
+      test:
+        - CMD
+        - rabbitmq-diagnostics
+        - -q
+        - check_port_connectivity
+      timeout: 15s
+    image: rabbitmq:3.13-management-alpine
+    networks:
+      interna: null
+    restart: unless-stopped
+    volumes:
+      - source: rabbit_datos
+        target: /var/lib/rabbitmq
+        type: volume
+        volume: {}
+  redis:
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+    healthcheck:
+      interval: 5s
+      retries: 10
+      test:
+        - CMD
+        - redis-cli
+        - ping
+      timeout: 3s
+    image: redis:7-alpine
+    networks:
+      interna: null
+    restart: unless-stopped
+    volumes:
+      - source: redis_datos
+        target: /data
+        type: volume
+        volume: {}
+  web:
+    build:
+      args:
+        - MODO_VITE=${MODO_VITE:-production}
+      context: .
+      dockerfile: clients/web/Dockerfile
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 128M
+    expose:
+      - "8080"
+    networks:
+      dokploy-network: null
+      interna: null
+    restart: unless-stopped
 volumes:
-  pg_datos:
   mongo_datos:
-  redis_datos:
+  pg_datos:
   rabbit_datos:
+  redis_datos:
+x-limites-servicio:
+  deploy:
+    resources:
+      limits:
+        cpus: "1.0"
+        memory: 384M
+x-produccion:
+  LOG_FORMATO: json
+  LOG_LEVEL: info
+  NODE_ENV: production
