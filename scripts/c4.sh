@@ -6,5 +6,5 @@ set -euo pipefail
 cd "$(dirname "$0")/../docs/c4"
 DIR="$(pwd -W 2>/dev/null || pwd)"
 MSYS_NO_PATHCONV=1 docker run --rm -v "$DIR:/data" -w /data plantuml/plantuml:1.2024.7 \
-  -tpng -o png 0*.puml
+  -tpng -o png 0*.puml informe-*.puml
 ls png

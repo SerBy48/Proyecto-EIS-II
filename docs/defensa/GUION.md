@@ -11,12 +11,12 @@ Duración sugerida: 20 minutos de presentación y demo, más las preguntas.
 **El día anterior:**
 - [ ] `git pull` en el equipo anfitrión, con la rama `main` ya fusionada.
 - [ ] Ensayo completo con el túnel: `npm run prod:up`, luego `npm run tunel`, y abrir la URL desde un celular con datos móviles. **El túnel no se ha probado aún de punta a punta** (ADR-0009).
-- [ ] Videos del plan B: `GRABAR_VIDEO=1 npm run test:e2e:ui`. Quedan en `docs/evidencia/trabajo-final/e2e-ui/video/`; copiarlos a una memoria USB.
+- [ ] Con el laboratorio (`docker compose up -d --build --wait`), `npm run test:e2e:ui`: los 29 criterios deben pasar. Con `GRABAR_VIDEO=1` quedan los videos del plan B en `docs/evidencia/trabajo-final/e2e-ui/video/`; copiarlos a una memoria USB.
+- [ ] Volver a la semilla: `npm run infra:reset` (las suites dejan cuentas y pedidos de prueba).
 
 **30 minutos antes:**
-- [ ] Docker Desktop abierto y `.env` con los tres secretos.
+- [ ] Docker Desktop abierto y `.env` con los tres secretos **y las cuentas de producción** (`CORREO_*`, `CLAVE_*`, `NOMBRE_CLIENTE`, `APELLIDO_CLIENTE`; manual técnico, capítulo 5). Con `PROXIES_CONFIANZA=2` y la URL del túnel en `URL_WEB`, el límite de peticiones y el correo de recuperación funcionan por el túnel.
 - [ ] Levantar el sistema en modo pruebas, para poder mostrar el rechazo de la pasarela: `MODO_VITE=pruebas npm run prod:up`. Toma unos 5 minutos en frío y uno con las imágenes ya construidas.
-- [ ] `npm run test:e2e:ui`, para que los 12 criterios pasen y queden datos recientes.
 - [ ] `npm run tunel`, y anotar la URL para el jurado (por ejemplo, en un código QR).
 - [ ] Pestañas abiertas:
   1. la tienda;
@@ -34,36 +34,36 @@ Duración sugerida: 20 minutos de presentación y demo, más las preguntas.
 |---|---|---|---|
 | 1 | Portada | Universidad, electiva, docente, integrantes, fecha | — |
 | 2 | Problema | Tienda que vende más de lo que tiene, cobra dos veces y se cae completa si falla un componente | `especificacion/01-escenario-requisitos.md` |
-| 3 | Requisitos y atributos de calidad | 37 RF, 10 del asistente y 23 RNF como escenarios medibles | ídem, §1.4 |
+| 3 | Requisitos y atributos de calidad | 62 RF, 12 del asistente y 23 RNF como escenarios medibles | ídem, §1.4 |
 | 4 | Contexto y contenedores (C4) | 10 servicios, gateway y mensajería | `c4/png/01`, `02` |
 | 5 | Una base de datos por servicio | PostgreSQL, MongoDB y Redis según el dato; saga en lugar de transacción distribuida | ADR-0002, ADR-0003 |
 | 6 | La compra como saga | Pasos, compensaciones e idempotencia | `c4/png/04-dinamico-checkout.png` |
 | 7 | Resiliencia | Circuit breaker, timeouts, reintentos solo en 5xx, DLQ y bus que reconecta | `calidad/RENDIMIENTO.md` §9 |
 | 8 | Seguridad | JWT corto con refresh rotatorio, RBAC, cabeceras de confianza, PCI-DSS por ausencia del dato, OWASP 2025 | `calidad/SEGURIDAD.md` §10 |
 | 9 | Asistente virtual | Reglas e IA opcional; consulta los pedidos con el token del usuario (invariante 15) | ADR-0007, `c4/png/03-componentes-asistente.png` |
-| 10 | Despliegue y CI | Perfil prod (solo la web publica un puerto), túnel, GitHub Actions | `c4/png/05-despliegue.png`, ADR-0009 |
-| 11 | Validación | 12 criterios de aceptación en la interfaz, matriz de trazabilidad y cifras de calidad | `aceptacion/`, `calidad/MATRIZ-CALIDAD.md` |
+| 10 | Despliegue y CI | Perfiles lab, prod y nube (Caddy con HTTPS, cuentas y correo por entorno), túnel, GitHub Actions | `c4/png/05-despliegue.png`, `06-despliegue-nube.png`, ADR-0009 y ADR-0010 |
+| 11 | Validación | 29 criterios de aceptación en la interfaz, matriz de trazabilidad y cifras de calidad | `aceptacion/`, `calidad/MATRIZ-CALIDAD.md` |
 | 12 | Cierre | Lo aprendido, riesgos aceptados (S-09) y trabajo futuro | `CLAUDE.md`, «Pendientes» |
 
 ---
 
 ## 3. Demo en vivo (8 minutos)
 
-Cuentas: contraseña `Password123` en todas.
+Cuentas: las de producción del `.env` (administrador, vendedor y el cliente); la del paso 3 se crea en vivo. Las cuentas de prueba con `Password123` solo existen en el laboratorio.
 
 | Paso | Quién | Acción | Qué señalar |
 |---|---|---|---|
 | 1 | Visitante | Abrir la URL del túnel desde el celular de un jurado | Solo se publica la web; la API va por el mismo origen |
 | 2 | Visitante | Asistente: «¿cuánto cuesta el envío?», «¿hay audífonos disponibles?» y «portátiles de menos de 3 millones» | La cifra sale de la misma configuración que el carrito; el motor de reglas entiende frases compuestas y precios, y lee las secciones del catálogo en vivo |
 | 3 | Visitante | **Crear cuenta** con un correo nuevo | Sesión iniciada y dirección guardada: ya puede comprar |
-| 4 | `ana@correo.co` | Buscar «portátil», agregarlo, aplicar `BIENVENIDA10` y pagar | Descuento antes del IVA; el botón se bloquea contra el doble clic |
+| 4 | Cliente | Buscar «portátil», agregarlo, aplicar `BIENVENIDA10` y pagar | Descuento antes del IVA; el botón se bloquea contra el doble clic |
 | 5 | — | Mailpit: el correo de confirmación | Llegó por un evento asíncrono (RabbitMQ) |
-| 6 | `ana@correo.co` | Agregar otro producto, elegir «Pago rechazado» y pagar | «No se realizó ningún cobro» y el stock vuelve (saga compensada) |
-| 7 | `ana@correo.co` | Asistente: «estado del pedido PED-…» con el número de Bruno | «No encontré el pedido»: el chat respeta el aislamiento |
-| 8 | `ana@correo.co` | **Mis pedidos → Cancelar pedido** | Reembolso y correo de cancelación al cliente (H-F5-01) |
-| 8b *(opcional)* | `ana@correo.co` | **Mi perfil**: «Eliminar mi cuenta» con un pedido pagado; luego el botón de la luna | Bloqueado y con el número del pedido (se anonimiza, no se borra); el tema oscuro se recuerda |
-| 9 | `vendedor@tienda.co` | Inventario: entrada de 5 unidades de `SKU-TEC-007` | Alerta de reposición; el vendedor no ve la bitácora |
-| 10 | `admin@tienda.co` | Salud del sistema → Pedidos → **Bitácora** de la compra del paso 4 | Pasos de la saga con su hora |
+| 6 | Cliente | Agregar otro producto, elegir «Pago rechazado» y pagar | «No se realizó ningún cobro» y el stock vuelve (saga compensada) |
+| 7 | Cuenta del paso 3 | Asistente: «estado del pedido PED-…» con el número del pedido del cliente (paso 4) | «No encontré el pedido»: el chat respeta el aislamiento |
+| 8 | Cliente | **Mis pedidos → Cancelar pedido** | Reembolso y correo de cancelación al cliente (H-F5-01) |
+| 8b *(opcional)* | Cliente | **Mi perfil**: «Eliminar mi cuenta» con un pedido pagado; luego el botón de la luna | Bloqueado y con el número del pedido (se anonimiza, no se borra); el tema oscuro se recuerda |
+| 9 | Vendedor | Inventario: entrada de 5 unidades de `SKU-TEC-007`, con su proveedor | Alerta de reposición con el nombre del producto; el vendedor no ve la salud del sistema |
+| 10 | Administrador | Salud del sistema → Pedidos → **Detalle** de la compra del paso 4 | Historial de estados con fecha y hora; la bitácora de la saga sigue en la API (`GET /api/pedidos/:id/saga`) |
 | 11 *(opcional)* | Terminal | `docker stop ecom_notificaciones` y comprar otra vez | La compra se confirma; el correo espera en la cola y llega al hacer `docker start` |
 
 ---
@@ -88,7 +88,7 @@ Cuentas: contraseña `Password123` en todas.
 
 **¿Por qué una saga orquestada y no coreografiada?**
 - La compra tiene un orden estricto y compensaciones específicas.
-- Un orquestador, `saga-checkout.ts`, deja todo el flujo en un archivo y una bitácora (`saga_pasos`) que el administrador consulta (ADR-0003).
+- Un orquestador, `saga-checkout.ts`, deja todo el flujo en un archivo y una bitácora (`saga_pasos`) que se consulta por la API (ADR-0003).
 
 **¿Qué pasa si se cae RabbitMQ?**
 - Las compras siguen: publicar un evento nunca tumba la operación (invariante 12).
@@ -132,10 +132,10 @@ Cuentas: contraseña `Password123` en todas.
 - Un marketplace exigiría stock y catálogo por comerciante, pagos divididos y comisiones: otra arquitectura.
 
 **¿Por qué un túnel y no la nube?**
-- No había credenciales de nube para la entrega.
-- El perfil prod es el mismo que correría en una VM; desplegarlo allí es trabajo futuro (ADR-0009).
+- El despliegue en una VM está preparado y verificado en local: Caddy con HTTPS, cuentas y correo por entorno y límite de peticiones por persona (ADR-0010, `docs/manuales/DESPLIEGUE.md`).
+- No se pudo abrir la cuenta del proveedor a tiempo (Azure no aceptó el correo institucional y Oracle rechazó la verificación de la tarjeta). Es el mismo perfil: falta solo la máquina.
 
 **¿Cómo saben que funciona?**
 - Matriz de trazabilidad: cada requisito tiene su prueba.
-- El CI corre en cada PR: tipos, 115 pruebas unitarias, suites de integración y los 12 criterios de aceptación en la interfaz.
-- Ver la sección 4.32 de `PRUEBAS.md`.
+- El CI corre en cada PR: tipos, 187 pruebas unitarias, suites de integración y los 29 criterios de aceptación en la interfaz.
+- Ver la sección 4.44 de `PRUEBAS.md`.

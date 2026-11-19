@@ -60,7 +60,7 @@ const principal = async (): Promise<void> => {
   // Cliente con sesion: estado de sus pedidos.
   await pagina.getByRole('button', { name: 'Iniciar sesión' }).first().click();
   await pagina.getByLabel('Correo').fill('ana@correo.co');
-  await pagina.getByLabel('Contraseña').fill('Password123');
+  await pagina.getByLabel('Contraseña', { exact: true }).fill('Password123');
   await pagina.getByRole('button', { name: 'Ingresar' }).click();
   await pagina.waitForSelector('text=ana@correo.co');
   await pagina.getByRole('button', { name: '¿Necesitas ayuda?' }).click();

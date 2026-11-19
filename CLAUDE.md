@@ -71,6 +71,7 @@ npm run auditar:dependencias # npm audit de produccion con los avisos aceptados 
 npm run usabilidad:recorrido # 9 tareas en Chromium: KLM, capturas y axe (vite preview en 4173 de build:web:pruebas)
 npm run build:web:pruebas   # build con los controles de la pasarela simulada (U-08); build:web los oculta
 npm run usabilidad:sus      # puntaje SUS; falla si no hay respuestas reales
+npm run informe:trabajo-final # informe, manual tecnico y manual de usuario en .docx (Markdown del repo -> docx; Word calcula los indices)
 npm run informe:estrategias # informe .docx (libreria docx) y su indice actualizado con Word
 npm run docs:c4             # renderiza docs/c4/*.puml a PNG (Docker plantuml/plantuml)
 ```
@@ -249,6 +250,7 @@ petición queda colgada. Para los errores se usan los constructores de
 | Web en contenedor y perfil prod | `clients/web/{Dockerfile,nginx.conf}`, `docker-compose.prod.yml` |
 | Criterios de aceptación, trazabilidad y E2E de interfaz | `docs/aceptacion/`, `tests/e2e-ui/aceptacion.ts` |
 | Manuales y guion de la defensa | `docs/manuales/`, `docs/defensa/GUION.md` |
+| Informe y manuales .docx (F6): capítulos, conversor y generador | `docs/informes/trabajo-final/*.md`, `scripts/informes/{markdown-docx,generar-trabajo-final}.ts`; salida en `docs/informes/` |
 | Despliegue en la nube (VM, Caddy, cuentas y correo de producción) | `docs/manuales/DESPLIEGUE.md`, `docker-compose.nube.yml`, `infra/caddy/Caddyfile`, `infra/postgres/07-cuentas-produccion.sh`, ADR-0010 |
 | Validación de formularios en la web (mismas reglas que el backend) | `clients/web/src/servicios/reglas.js`, `validaciones.jsx`; paridad en `clients/web/test/reglas.test.ts` |
 
