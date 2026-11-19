@@ -1,5 +1,7 @@
 # Despliegue en la nube
 
+> **Alternativa, no es el despliegue en uso.** La tienda publicada (<https://149-130-169-209.sslip.io>) corre con **Dokploy** en un VPS: su guía es [`DESPLIEGUE-DOKPLOY.md`](DESPLIEGUE-DOKPLOY.md). Esta guía, con `docker-compose.nube.yml` y Caddy, es el plan B para una máquina virtual propia si ese VPS deja de estar disponible.
+
 Guía para publicar SerByTek en una máquina virtual de **Azure** o de **Oracle Cloud**, con HTTPS y correo real. La decisión y sus razones están en [ADR-0010](../adr/0010-despliegue-en-una-vm.md).
 
 **Cómo queda.** Una sola máquina con Docker corre el mismo perfil de producción del laboratorio (`docker-compose.prod.yml`), más `docker-compose.nube.yml`:
