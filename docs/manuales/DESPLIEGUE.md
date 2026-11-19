@@ -391,4 +391,4 @@ ssh -i .\clave.pem -L 8025:127.0.0.1:8025 azureuser@<IP>
 | `429 Demasiadas peticiones` para todos a la vez | El gateway no ve la IP de cada persona: `PROXIES_CONFIANZA` debe ser 2, que fija `docker-compose.nube.yml`. Levante siempre con los tres `-f`. |
 | No llegan los correos | Revise `docker logs ecom_notificaciones`. `Invalid login` indica una contraseña de aplicación incorrecta o sin la verificación en dos pasos. Si dice que no hay SMTP, falta `SMTP_HOST_PROD`. Si llegan a spam, márquelos como "no es spam". |
 | La compilación se detiene sin memoria | Falta el intercambio de la sección 3, o la máquina tiene menos de 4 GB. |
-| `Out of capacity` en Oracle | Ver el paso 1-B.3. |
+| `Out of capacity` en Oracle | Ver B.4 en la sección 1. |

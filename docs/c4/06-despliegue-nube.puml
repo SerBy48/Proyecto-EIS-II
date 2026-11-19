@@ -1,0 +1,31 @@
+@startuml 06-despliegue-nube
+!include lib/C4_Deployment.puml
+!include estilo.puml
+title Despliegue en la nube (ADR-0010): una VM con el perfil prod y Caddy (npm run nube:up)
+
+Person(usuario, "Usuarios", "Navegador")
+System_Ext(gmail, "Gmail (SMTP 465)", "Correos reales: confirmaciones y recuperacion de contrasena")
+System_Ext(le, "Let's Encrypt / ZeroSSL", "Certificado del DOMINIO")
+
+Deployment_Node(nube, "Azure for Students u Oracle Cloud Always Free", "VM Ubuntu 24.04 (x64 o ARM), Docker Engine") {
+  Deployment_Node(fw, "Firewall de la nube", "solo 22, 80 y 443") {
+    Deployment_Node(red, "Red Docker 'interna'", "bridge") {
+      Container(caddy, "ecom_caddy", "caddy:2.8-alpine", "80/443 publicos: HTTPS automatico para DOMINIO, HTTP -> HTTPS")
+      Container(web, "web", "nginx-unprivileged:1.27", "Solo 127.0.0.1:8081. Proxy /api -> gateway; cabeceras de seguridad")
+      Container(gw, "api-gateway", "node:22-alpine", "PROXIES_CONFIANZA=2; CORS https://DOMINIO")
+      Container(ms, "9 microservicios", "node:22-alpine", "Sin puertos; limites de CPU y memoria")
+      ContainerDb(datos, "PostgreSQL, MongoDB, Redis, RabbitMQ", "imagenes oficiales", "Sin puertos; volumenes persistentes. Cuentas de produccion del .env (07-cuentas-produccion.sh)")
+      Container(mail, "Mailpit", "", "Solo 127.0.0.1:8025 (tunel SSH)")
+    }
+  }
+}
+
+Rel(usuario, caddy, "HTTPS 443")
+Rel(caddy, le, "ACME (certificado)")
+Rel(caddy, web, "HTTP 8080")
+Rel(web, gw, "/api")
+Rel(gw, ms, "REST")
+Rel(ms, datos, "TCP / AMQP")
+Rel(ms, gmail, "SMTP con contrasena de aplicacion (SMTP_*_PROD)")
+SHOW_LEGEND()
+@enduml

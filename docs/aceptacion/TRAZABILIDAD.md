@@ -5,7 +5,7 @@ Trabajo Final, Fase 5. Une cada requisito de [`01-escenario-requisitos.md`](../e
 - los casos de prueba que lo verifican;
 - el resultado de la última regresión y su evidencia.
 
-**Resultado de la regresión del 2026-11-18, ajustes de la revisión manual (F5d)** (sección 4.42 de [`PRUEBAS.md`](../PRUEBAS.md)), desde volúmenes vacíos con la web compilada en modo pruebas:
+**Resultado de la última regresión, del 2026-11-19 (despliegue en la nube)** (sección 4.44 de [`PRUEBAS.md`](../PRUEBAS.md)), desde volúmenes vacíos con la web compilada en modo pruebas:
 
 | Suite | Resultado |
 |---|---|
@@ -13,11 +13,11 @@ Trabajo Final, Fase 5. Une cada requisito de [`01-escenario-requisitos.md`](../e
 | `test:e2e` | 53 comprobaciones |
 | `test:http` | 73 casos |
 | `test:concurrencia` | 33 comprobaciones |
-| `test:asistente` | 56 comprobaciones (con la degradación) |
+| `test:asistente` | 57 comprobaciones (con la degradación) |
 | `test:seguridad` | 27 verificaciones (26 seguras + S-09 aceptado) |
 | `test:openapi` | 517 comprobaciones |
-| `test:unit` | 160 pruebas |
-| axe (temas claro y oscuro) | vistas F5c (20) y F5d (18), 0 reglas WCAG incumplidas |
+| `test:unit` | 187 pruebas |
+| axe (temas claro y oscuro) | vistas F5c (20), F5d (18) y F5e (10), 0 reglas WCAG incumplidas |
 
 **Convenciones de la tabla:**
 - **Interfaz:** el número `CA-nn` es el criterio que lo verifica en la web; un guion indica que el requisito no tiene pantalla propia.
