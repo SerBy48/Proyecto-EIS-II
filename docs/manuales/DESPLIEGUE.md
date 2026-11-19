@@ -17,76 +17,187 @@ Los únicos pasos distintos entre Azure y Oracle son el 1 y el 2.
 
 ## 1. Crear la máquina virtual
 
+Elija **una** de las dos opciones. Lleva de 20 a 45 minutos.
+
+| | Azure for Students | Oracle Cloud Always Free |
+|---|---|---|
+| Qué pide | Correo institucional reconocido por Microsoft (o verificación por GitHub Education) | Una tarjeta de crédito o débito, solo para verificar la identidad |
+| Costo | 100 USD de crédito por 12 meses; la VM consume unos 30 USD al mes encendida | Gratis de forma permanente dentro del límite |
+| Máquina | 2 vCPU y 4 GB (x64) | 2 OCPU y 12 GB (ARM; hasta 4 y 24 gratis) |
+| Dominio | `serbytek.<region>.cloudapp.azure.com`, gratis | `<ip-con-guiones>.sslip.io` |
+| Usuario SSH | `azureuser` | `ubuntu` |
+
+Todas las imágenes del proyecto tienen versión ARM (postgres, mongo 7, redis, rabbitmq, mailpit, node, nginx y caddy), y el código no tiene dependencias nativas, así que funciona igual en las dos.
+
 ### Opción A: Azure for Students
 
-1. Active la suscripción en <https://azure.microsoft.com/es-es/free/students> con el correo institucional. No pide tarjeta.
-2. En el portal, vaya a **Máquinas virtuales → Crear → Máquina virtual de Azure** y llene:
+**A.1 Activar la suscripción**
 
-   | Campo | Valor |
-   |---|---|
-   | Grupo de recursos | nuevo, `rg-serbytek` |
-   | Nombre | `vm-serbytek` |
-   | Región | East US 2, o la que tenga disponible el tamaño |
-   | Imagen | **Ubuntu Server 24.04 LTS – x64 Gen2** |
-   | Tamaño | **Standard_B2s** (2 vCPU, 4 GB); si no aparece, B2as_v2 o B2ls_v2 |
-   | Autenticación | clave pública SSH; usuario `azureuser`; *Generar nuevo par de claves* |
-   | Puertos de entrada | **SSH (22), HTTP (80), HTTPS (443)** |
-   | Disco del sistema operativo (pestaña Discos) | 64 GB, SSD estándar |
+1. Entre a <https://azure.microsoft.com/es-es/free/students> → **Comenzar gratis**, con el correo institucional. No pide tarjeta.
+2. Llene el formulario (país, nombre, teléfono para el código de verificación) y acepte.
+3. Compruebe el crédito en <https://www.microsoftazuresponsors.com/balance>.
 
-3. **Revisar y crear.** Descargue el archivo `.pem` de la clave y guárdelo: no se puede volver a descargar.
-4. Abra la VM → **Dirección IP pública** → **Configuración**:
-   - **Asignación: Estática**, para que la IP no cambie al apagarla.
-   - **Etiqueta de nombre DNS:** `serbytek`, o la que esté libre.
+Si Microsoft no reconoce el correo institucional, la alternativa sin tarjeta es verificarse en **GitHub Education** (<https://education.github.com/pack>), que también da acceso a Azure for Students.
 
-   Ese es su dominio: **`serbytek.<region>.cloudapp.azure.com`**.
-5. Para no gastar el crédito:
-   - programe en **Operaciones → Apagado automático** una hora de apagado por la noche;
-   - cuando no la use, deténgala con **Detener** (desasigna la máquina y no se cobra el cómputo).
+**A.2 Crear la VM.** En <https://portal.azure.com> busque **Máquinas virtuales** → **+ Crear** → **Máquina virtual de Azure**. Llene pestaña por pestaña:
+
+*Datos básicos*
+
+| Campo | Valor |
+|---|---|
+| Suscripción | Azure for Students |
+| Grupo de recursos | Crear nuevo: `rg-serbytek` |
+| Nombre de la máquina virtual | `vm-serbytek` |
+| Región | (US) East US 2. Si dice "región no permitida", ver A.6 |
+| Opciones de disponibilidad | No se requiere redundancia de la infraestructura |
+| Tipo de seguridad | Máquinas virtuales de inicio seguro (predeterminado) |
+| Imagen | **Ubuntu Server 24.04 LTS - x64 Gen2** |
+| Azure Spot | **Sin marcar** (una VM Spot se apaga sola) |
+| Tamaño | **Standard_B2s** (2 vCPU, 4 GiB). Si no está: **B2als_v2** |
+| Tipo de autenticación | Clave pública SSH |
+| Nombre de usuario | `azureuser` |
+| Origen de la clave pública SSH | Generar nuevo par de claves (RSA), nombre `vm-serbytek_key` |
+| Puertos de entrada públicos | Permitir los puertos seleccionados: **HTTP (80), HTTPS (443) y SSH (22)** |
+
+*Discos:* tamaño del disco del sistema operativo **64 GiB**, tipo **SSD estándar**, "Eliminar con la VM" marcado. Sin discos de datos.
+
+*Redes:* deje la red virtual, la subred y la IP pública nuevas que propone Azure. Grupo de seguridad **Básico**, con los mismos tres puertos. Marque "Eliminar la IP pública y la NIC cuando se elimine la VM". Equilibrio de carga: ninguno.
+
+*Administración:* Microsoft Defender **no**. **Habilitar el apagado automático**: 11:00 p. m., zona **(UTC-05:00) Bogotá, Lima, Quito**; la notificación por correo es opcional. Copia de seguridad **no**.
+
+*Supervisión:* diagnóstico de arranque con la cuenta de almacenamiento administrada (predeterminado). *Opciones avanzadas* y *Etiquetas*: sin cambios.
+
+*Revisar y crear:* espere **"Validación superada"** → **Crear** → **Descargar clave privada y crear recurso**. El archivo `vm-serbytek_key.pem` **solo se puede descargar esa vez**. Guárdelo:
+
+```powershell
+mkdir $HOME\.ssh -Force
+Move-Item "$HOME\Downloads\vm-serbytek_key.pem" "$HOME\.ssh\vm-serbytek_key.pem"
+```
+
+**A.3 IP fija y dominio.** En la VM, haga clic en la **Dirección IP pública** → **Configuración**:
+- **Asignación:** Estática.
+- **Etiqueta de nombre DNS:** `serbytek` (o `serbytek-tienda` si está ocupada).
+- Guarde.
+
+El dominio es **`serbytek.<region>.cloudapp.azure.com`**. Compruébelo con `nslookup <dominio>`, que debe devolver la IP.
+
+**A.4 Puertos.** En la VM → **Redes** → **Configuración de red** deben aparecer permitidos 22, 80 y 443, y nada más. Si falta uno: **Crear regla de puerto** → regla de entrada, puerto `80` o `443`, protocolo TCP, acción Permitir.
+
+**A.5 Alerta de gasto.** **Administración de costos** → **Presupuestos** → **+ Agregar**: mensual, 25 USD, alerta al 80 % por correo.
+
+**A.6 Errores al crearla**
+
+| Error | Qué hacer |
+|---|---|
+| *RequestDisallowedByPolicy* o región no permitida | Azure for Students limita las regiones: pruebe East US, Central US, West US 2, West US 3 o Brazil South |
+| El tamaño no está disponible | Use B2als_v2 o cambie de región |
+| Se superó la cuota de vCPU | Revise que no haya otra VM creada, o cambie de región |
+| La etiqueta DNS está ocupada | Use otra |
+
+**Uso diario.** Para encenderla, **Iniciar**; el apagado automático no la vuelve a encender. Para apagarla, **Detener**, que desasigna la VM y deja de cobrar el cómputo. Apagarla desde Linux (`sudo shutdown`) no la desasigna y sigue cobrando.
 
 ### Opción B: Oracle Cloud Always Free
 
-1. Cree la cuenta en <https://www.oracle.com/cloud/free/>.
-   - Pide una tarjeta para verificar la identidad; dentro del nivel gratuito no cobra.
-   - La región de inicio (São Paulo, Bogotá…) no se puede cambiar después.
-2. Vaya a **Compute → Instances → Create instance** y llene:
+**B.1 Crear la cuenta**
 
-   | Campo | Valor |
-   |---|---|
-   | Image | **Canonical Ubuntu 24.04**, versión **aarch64** |
-   | Shape | **Ampere VM.Standard.A1.Flex**, 2 OCPU y 12 GB (el nivel gratuito permite hasta 4 OCPU y 24 GB) |
-   | Networking | VCN nueva con subred pública; *Assign a public IPv4 address* |
-   | SSH keys | *Generate a key pair*; descargue la clave privada |
-   | Boot volume | 100 GB |
+1. Entre a <https://www.oracle.com/cloud/free/> → **Start for free**.
+2. **Account information:** país Colombia, nombre y correo (cualquier correo sirve) → **Verify my email** y abra el enlace, que vence en 30 minutos.
+3. **Contraseña** y **Cloud Account Name**, por ejemplo `serbytek`. Es el nombre del *tenancy*: se escribe cada vez que se entra.
+4. **Home Region:** **no se puede cambiar después**, y los recursos gratuitos solo existen en ella.
+   - **Brazil East (Sao Paulo):** buena latencia desde Colombia.
+   - **Colombia Central (Bogota):** la más cercana, pero más pequeña, así que puede tener menos capacidad ARM.
+5. **Address information:** dirección y teléfono.
+6. **Payment verification:** tarjeta de crédito o débito. Oracle hace una retención temporal de prueba (alrededor de 1 USD) que se libera sola, y no cobra mientras no se actualice la cuenta. Si la verificación falla, ver B.9.
+7. Acepte el acuerdo → **Start my free trial**, y espere el correo **"Your Oracle Cloud account is fully provisioned"** (de minutos a un par de horas).
 
-3. Si aparece **"Out of capacity"**:
-   - pruebe otro *Availability Domain* o vuelva a intentarlo más tarde;
-   - o pase la cuenta a *Pay As You Go*: lo que está dentro del nivel gratuito sigue sin cobrarse.
-4. Abra los puertos en la nube: **la instancia → Subnet → Security List → Add Ingress Rules**:
-   - origen `0.0.0.0/0`;
-   - protocolo TCP;
-   - puertos **80** y **443**.
-5. **El dominio** es `<ip-con-guiones>.sslip.io`. Por ejemplo, con la IP `129.80.1.2` es `129-80-1-2.sslip.io`. sslip.io responde con la IP que va en el nombre, así que no hay nada que registrar.
+Los 300 USD de prueba por 30 días no hacen falta: la máquina que se crea es *Always Free* y sigue gratis después.
 
-Todas las imágenes del proyecto tienen versión ARM (postgres, mongo 7, redis, rabbitmq, mailpit, node, nginx y caddy).
+**B.2 Primer inicio de sesión.** En <https://cloud.oracle.com> escriba el Cloud Account Name → correo y contraseña. La primera vez exige **verificación en dos pasos**: instale **Oracle Mobile Authenticator** en el celular y escanee el código QR. Arriba a la derecha, compruebe la región.
+
+**B.3 Crear la instancia.** Menú **☰** → **Compute** → **Instances** → **Create instance**:
+
+| Sección | Valor |
+|---|---|
+| Name | `vm-serbytek` |
+| Compartment | la raíz (la que aparece) |
+| Placement | **AD-1** (si sale *Out of capacity*, pruebe otro; ver B.4) |
+| Shape (**Change shape**) | Virtual machine → **Ampere** → **VM.Standard.A1.Flex** (*Always Free-eligible*), **2 OCPU y 12 GB** → Select shape |
+| Image (**Change image**) | **Ubuntu** → **Canonical Ubuntu 24.04** (no la *Minimal*), build **aarch64** → Select image |
+| Primary network | **Create new virtual cloud network** `vcn-serbytek` |
+| Subnet | **Create new public subnet** `subnet-serbytek` |
+| Public IPv4 address | **Automatically assign public IPv4 address** (marcado) |
+| SSH keys | **Generate a key pair for me** → **Download private key** (y la pública como respaldo). **Solo se puede descargar esa vez** |
+| Boot volume | **Specify a custom boot volume size**: 100 GB; rendimiento *Balanced* (predeterminado) |
+
+Pulse **Create**. El estado pasa de *Provisioning* a **Running** en 1 a 3 minutos. Anote la **Public IP address**; el usuario es `ubuntu`. La IP se conserva aunque detenga e inicie la máquina, y solo se pierde si la elimina (*Terminate*).
+
+**B.4 "Out of capacity for shape VM.Standard.A1.Flex"** es el error más común. Pruebe en este orden:
+1. Otro Availability Domain, si la región tiene varios.
+2. Menos recursos: 1 OCPU y 6 GB. Alcanza para la tienda; la compilación inicial es más lenta, y luego se puede ampliar.
+3. Reintentar más tarde; en la madrugada suele haber más capacidad.
+4. **Pasar la cuenta a Pay As You Go** (☰ → **Billing & Cost Management** → **Upgrade and Manage Payment**). Lo Always Free sigue siendo gratis y casi siempre aparece capacidad. Cree entonces la alerta de B.8.
+
+**B.5 Abrir 80 y 443 en la red de Oracle.** En la instancia → pestaña **Networking** → la **Subnet** → **Security** (o *Security Lists*) → **Default Security List** → **Add Ingress Rules**. Agregue dos reglas, la segunda con **+ Another Ingress Rule**:
+
+| Campo | Regla 1 | Regla 2 |
+|---|---|---|
+| Stateless | no | no |
+| Source CIDR | `0.0.0.0/0` | `0.0.0.0/0` |
+| IP Protocol | TCP | TCP |
+| Destination Port Range | `80` | `443` |
+
+El 22 ya viene abierto. No abra ningún otro.
+
+**B.6 Guardar la clave.**
+
+```powershell
+mkdir $HOME\.ssh -Force
+Move-Item "$HOME\Downloads\ssh-key-AAAA-MM-DD.key" "$HOME\.ssh\oracle-serbytek.key"
+```
+
+**B.7 El dominio.** Oracle no da nombre: se usa **sslip.io**, con la IP escrita con guiones. Con la IP `129.80.1.2`, el dominio es **`129-80-1-2.sslip.io`**; compruébelo con `nslookup 129-80-1-2.sslip.io`. sslip.io responde con la IP que va en el nombre, así que no hay nada que registrar.
+
+**B.8 Alerta de gasto** (si pasó a Pay As You Go). ☰ → **Billing & Cost Management** → **Budgets** → **Create Budget**: mensual, 5 USD, alerta por gasto real al 1 %, por correo. Avisa con el primer centavo.
+
+**B.9 Si la verificación de la tarjeta falla** ("no fue posible crear la cuenta" después de los datos de pago):
+- **Habilite en la app del banco las compras internacionales y por internet.** Muchas tarjetas colombianas las traen bloqueadas, y Oracle cobra la retención desde el exterior.
+- La **dirección y el nombre** deben coincidir con los de la tarjeta.
+- **Desactive la VPN**, use una ventana de incógnito sin autocompletar, o pruebe otro navegador.
+- Las tarjetas **prepagadas o virtuales** suelen ser rechazadas: pruebe una de crédito, o una débito Visa o Mastercard física.
+- Tras varios intentos fallidos, Oracle puede bloquear el registro por unas horas: espere antes de reintentar. Si persiste, el chat de soporte de la página de registro puede revisar el caso.
 
 ---
 
 ## 2. Entrar por SSH
 
-Desde PowerShell, en el equipo donde está la clave:
+En PowerShell, en el equipo donde está la clave (el usuario es `azureuser` en Azure y `ubuntu` en Oracle):
 
 ```powershell
 # Solo la primera vez: OpenSSH exige que el archivo de la clave sea privado
-icacls .\clave.pem /inheritance:r /grant:r "$($env:USERNAME):(R)"
-ssh -i .\clave.pem azureuser@<IP>      # en Oracle el usuario es ubuntu
+icacls "$HOME\.ssh\<clave>" /inheritance:r /grant:r "$($env:USERNAME):(R)"
+ssh -i "$HOME\.ssh\<clave>" <usuario>@<IP o dominio>
 ```
 
-**Solo en Oracle.** La imagen trae un firewall propio (iptables) que bloquea todo menos el 22. Ábralo para la web:
+- La primera vez responda **`yes`** a la pregunta de la huella.
+- Está dentro cuando ve `<usuario>@vm-serbytek:~$`.
+
+Atajo opcional, para entrar luego con `ssh serbytek`:
+
+```powershell
+Add-Content "$HOME\.ssh\config" "`nHost serbytek`n  HostName <IP o dominio>`n  User <usuario>`n  IdentityFile ~/.ssh/<clave>"
+```
+
+| Error de SSH | Qué hacer |
+|---|---|
+| *Permissions for … are too open* | Repita el `icacls` |
+| *Connection timed out* | La VM está detenida (en Azure, el apagado automático), o falta la regla del puerto 22 |
+
+**Solo en Oracle:** la imagen de Ubuntu trae un firewall propio (iptables) que bloquea todo menos el 22, **además** de la regla de B.5. Ábralo dentro de la máquina:
 
 ```bash
-sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport 80 -j ACCEPT
-sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport 443 -j ACCEPT
-sudo netfilter-persistent save
+sudo iptables -I INPUT 1 -p tcp -m state --state NEW -m multiport --dports 80,443 -j ACCEPT
+sudo netfilter-persistent save                       # sobrevive a los reinicios
+sudo iptables -L INPUT -n --line-numbers | head -5   # la regla de 80,443 debe estar arriba
 ```
 
 ---
@@ -102,7 +213,7 @@ exit                                   # salga y vuelva a entrar por SSH
 
 Al volver a entrar, compruebe la versión con `docker compose version`. Debe ser la 2.24 o mayor, porque el perfil prod usa `!reset` y `!override`.
 
-**Con 4 GB de memoria** (Azure B2s), agregue 4 GB de intercambio para que la compilación de las imágenes no se quede sin memoria:
+**Con 4 GB de memoria** (Azure B2s; en Oracle, con 12 GB, no hace falta), agregue 4 GB de intercambio para que la compilación de las imágenes no se quede sin memoria:
 
 ```bash
 sudo fallocate -l 4G /swapfile && sudo chmod 600 /swapfile
