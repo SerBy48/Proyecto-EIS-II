@@ -8,6 +8,7 @@ import rateLimit from 'express-rate-limit';
 import { createProxyMiddleware, Options } from 'http-proxy-middleware';
 import { crearLogger, ErrorApp, leerSecreto, PeticionAutenticada, verificarAcceso, verificarSecretos } from '@ecommerce/shared';
 import { docsExpuestas, montarDocumentacion, PATRON_DOCS } from './documentacion';
+import { proxiesDeConfianza } from './proxies';
 
 /**
  * API GATEWAY - punto unico de entrada del sistema (seccion 5.2 del documento).
@@ -89,7 +90,8 @@ const esPublica = (metodo: string, ruta: string): boolean =>
 // --------------------------------------------------------------------------
 // Seguridad de transporte y cabeceras
 // --------------------------------------------------------------------------
-app.set('trust proxy', 1);
+// Cuantos proxies hay delante (nginx; mas Caddy o el tunel en la nube): proxies.ts.
+app.set('trust proxy', proxiesDeConfianza());
 app.disable('x-powered-by');
 
 app.use(

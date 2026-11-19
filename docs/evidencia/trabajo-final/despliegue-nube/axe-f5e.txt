@@ -1,0 +1,13 @@
+axe de las vistas F5e contra http://localhost:8081
+  ok  [claro] Asistente: el visitante que pide un asesor
+  ok  [claro] Registro con el correo incompleto
+  ok  [claro] Proveedor nuevo con errores junto a cada campo
+  ok  [claro] Asistente en modo demostración (administrador)
+  ok  [claro] Mi perfil con errores junto al campo
+  ok  [oscuro] Asistente: el visitante que pide un asesor
+  ok  [oscuro] Registro con el correo incompleto
+  ok  [oscuro] Proveedor nuevo con errores junto a cada campo
+  ok  [oscuro] Asistente en modo demostración (administrador)
+  ok  [oscuro] Mi perfil con errores junto al campo
+
+axe F5e: 10 pantallas (claro y oscuro), 0 reglas incumplidas.

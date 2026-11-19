@@ -1,5 +1,5 @@
 {
-  "fecha": "2026-11-19T04:33:18.550Z",
+  "fecha": "2026-11-19T05:19:26.376Z",
   "gateway": "http://localhost:8080",
   "web": "http://localhost:4173",
   "resultados": [
@@ -60,13 +60,13 @@
       "area": "Validación de entradas",
       "titulo": "Inyección SQL en /pedidos/:id",
       "resultado": "SEGURO",
-      "detalle": "Estados: 404 (11 ms), 404 (11 ms), 404 (9 ms). Las consultas son parametrizadas (invariante 8) y pg_sleep no se ejecuta.",
+      "detalle": "Estados: 404 (9 ms), 404 (8 ms), 404 (8 ms). Las consultas son parametrizadas (invariante 8) y pg_sleep no se ejecuta.",
       "evidencia": {
         "cargas": [
           {
             "carga": "1'OR'1'='1",
             "estado": 404,
-            "ms": 11,
+            "ms": 9,
             "cuerpo": {
               "mensaje": "Pedido no encontrado.",
               "codigo": "NO_ENCONTRADO"
@@ -75,7 +75,7 @@
           {
             "carga": "1 OR 1=1",
             "estado": 404,
-            "ms": 11,
+            "ms": 8,
             "cuerpo": {
               "mensaje": "Pedido no encontrado.",
               "codigo": "NO_ENCONTRADO"
@@ -84,7 +84,7 @@
           {
             "carga": "1;SELECT pg_sleep(3)--",
             "estado": 404,
-            "ms": 9,
+            "ms": 8,
             "cuerpo": {
               "mensaje": "Pedido no encontrado.",
               "codigo": "NO_ENCONTRADO"
@@ -148,10 +148,10 @@
           "content-type": "application/json; charset=utf-8",
           "cross-origin-opener-policy": "same-origin",
           "cross-origin-resource-policy": "cross-origin",
-          "date": "Thu, 19 Nov 2026 04:33:15 GMT",
+          "date": "Thu, 19 Nov 2026 05:19:23 GMT",
           "etag": "W/\"276e-aToicBs4SGQkrtGRJJXhJUJrblg\"",
           "origin-agent-cluster": "?1",
-          "ratelimit": "limit=300, remaining=288, reset=59",
+          "ratelimit": "limit=300, remaining=288, reset=60",
           "ratelimit-policy": "300;w=60",
           "referrer-policy": "no-referrer",
           "strict-transport-security": "max-age=31536000; includeSubDomains",
@@ -161,7 +161,7 @@
           "x-download-options": "noopen",
           "x-frame-options": "SAMEORIGIN",
           "x-permitted-cross-domain-policies": "none",
-          "x-request-id": "10bdb5de-eb78-4e9d-aad3-d926cc04c7cd",
+          "x-request-id": "3b4947f1-0f32-46fe-87dd-82eaab3ecf94",
           "x-xss-protection": "0"
         }
       }
@@ -260,8 +260,8 @@
           "cross-origin-embedder-policy": "require-corp",
           "cross-origin-opener-policy": "same-origin",
           "cross-origin-resource-policy": "same-origin",
-          "date": "Thu, 19 Nov 2026 04:33:15 GMT",
-          "etag": "W/\"293-woSy39c77fio+mTCF9xYbLDLYYY\"",
+          "date": "Thu, 19 Nov 2026 05:19:24 GMT",
+          "etag": "W/\"293-fWwpZ7SfBhDD990DdS+iR5Xq3rw\"",
           "keep-alive": "timeout=5",
           "permissions-policy": "camera=(), microphone=(), geolocation=(), payment=()",
           "referrer-policy": "strict-origin-when-cross-origin",
@@ -319,7 +319,7 @@
       "area": "Validación de entradas",
       "titulo": "El registro acepta un correo sin formato de correo",
       "resultado": "SEGURO",
-      "detalle": "POST /auth/registro con email \"no-es-un-correo-1795062796233\" → 400. El escaneo activo creó además 115 usuarios administradores con \"correos\" como http://www.google.com/ o plantillas de inyección por POST /auth/usuarios.",
+      "detalle": "POST /auth/registro con email \"no-es-un-correo-1795065564692\" → 400. El escaneo activo creó además 115 usuarios administradores con \"correos\" como http://www.google.com/ o plantillas de inyección por POST /auth/usuarios.",
       "evidencia": {
         "estado": 400,
         "cuerpo": {
@@ -472,7 +472,7 @@
       "area": "Control de acceso",
       "titulo": "Leer la consulta de otro cliente o marcar sus notificaciones",
       "resultado": "SEGURO",
-      "detalle": "Bruno leyendo TCK-MWN21JA5FE6B: 404; aparece en su lista: no; marcar 5 notificaciones de Ana: 0 marcadas.",
+      "detalle": "Bruno leyendo TCK-MWN3OV0B6D0C: 404; aparece en su lista: no; marcar 5 notificaciones de Ana: 0 marcadas.",
       "evidencia": {
         "leer": 404,
         "ajenaEnLista": false,

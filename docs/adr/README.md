@@ -13,3 +13,4 @@ Formato de Michael Nygard: **estado, contexto, decisión, consecuencias y altern
 | [0007](0007-asistente-reglas-ia-opcional.md) | Asistente: microservicio con motor de reglas e IA opcional | Implementada (Fase 3) |
 | [0008](0008-openapi-centralizada-gateway.md) | Documentación OpenAPI centralizada en el gateway | Implementada (Fase 2) |
 | [0009](0009-entorno-de-despliegue.md) | Compose con perfil prod, CI en GitHub Actions y túnel para la defensa | Aceptada; se implementa en la Fase 5 |
+| [0010](0010-despliegue-en-una-vm.md) | Despliegue en una VM de la nube con Compose y Caddy; cuentas y correo por entorno | Aceptada (complementa a 0009) |

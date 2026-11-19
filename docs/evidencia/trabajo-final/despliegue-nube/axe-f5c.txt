@@ -1,0 +1,23 @@
+axe de las vistas F5c contra http://localhost:8081
+  ok  [claro] Productos (lista)
+  ok  [claro] Productos (editar)
+  ok  [claro] Productos (nuevo)
+  ok  [claro] Inventario (entrada, historial y proveedores)
+  ok  [claro] Consultas (personal)
+  ok  [claro] Campana abierta (personal)
+  ok  [claro] Catálogo con disponibles y máximo por cliente
+  ok  [claro] Carrito con límite por cliente
+  ok  [claro] Mi perfil > Mis consultas
+  ok  [claro] Asistente: formulario de consulta
+  ok  [oscuro] Productos (lista)
+  ok  [oscuro] Productos (editar)
+  ok  [oscuro] Productos (nuevo)
+  ok  [oscuro] Inventario (entrada, historial y proveedores)
+  ok  [oscuro] Consultas (personal)
+  ok  [oscuro] Campana abierta (personal)
+  ok  [oscuro] Catálogo con disponibles y máximo por cliente
+  ok  [oscuro] Carrito con límite por cliente
+  ok  [oscuro] Mi perfil > Mis consultas
+  ok  [oscuro] Asistente: formulario de consulta
+
+axe F5c: 20 pantallas (claro y oscuro), 0 reglas incumplidas.

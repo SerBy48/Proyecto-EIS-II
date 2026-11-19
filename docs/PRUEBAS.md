@@ -1145,6 +1145,48 @@ La revisión manual después de fusionar F5d encontró tres defectos y una mejor
 
 **Lo que no se repitió.** No se volvió a correr `asistente:metricas`, porque el clasificador (`motor.ts`) y las intenciones no cambiaron: el visitante sigue cayendo en la intención `humano` y solo cambió la respuesta.
 
+### 4.44 Despliegue en la nube (ADR-0010)
+
+Preparación para publicar la tienda en una VM (Azure u Oracle) con HTTPS. Las decisiones están en [ADR-0010](adr/0010-despliegue-en-una-vm.md), los controles en `SEGURIDAD.md` 13 y la guía en `manuales/DESPLIEGUE.md`. Cambios:
+- **Cuentas por entorno:** `07-cuentas-produccion.sh`.
+- **Correo real:** `SMTP_*_PROD`.
+- **Proxies del gateway:** `PROXIES_CONFIANZA` configurable.
+- **Caddy:** `docker-compose.nube.yml`.
+- **Inicio de sesión:** ya no muestra el recuadro de cuentas de prueba.
+
+**Verificación local del despliegue.** Se corrió `npm run nube:up` desde volúmenes vacíos con `DOMINIO=localhost`; Caddy emite su propio certificado para ese nombre.
+- **Arranque:** 338 s; 17 contenedores (16 sanos más Caddy). Solo Caddy publica puertos (80 y 443).
+- **Lo que se comprobó:**
+  - HTTPS 200 y HTTP 308 hacia HTTPS;
+  - las tres cuentas de producción entran y las de prueba responden 401;
+  - el gateway y los servicios no responden desde el host;
+  - CORS ajeno 403;
+  - el límite de inicios de sesión no se evade con un `X-Forwarded-For` falso;
+  - el correo de recuperación llega con el enlace `https://localhost/#restablecer=…`.
+- **Detalle:** `despliegue-nube/verificacion-local.txt`.
+- **Lo que no se puede verificar aquí:** el envío por Gmail y el certificado público. Se verifican en la VM con la sección 7 de la guía.
+
+**Hallazgo al bajar.** `down` con el perfil prod también exige las variables de las cuentas (`${VAR:?}`), porque Compose valida el archivo completo. Sin ellas, el comando falla y los contenedores siguen arriba. En el servidor no ocurre, porque están en el `.env`. Quedó anotado en CLAUDE.md.
+
+**Regresión del laboratorio.** Desde volúmenes vacíos, con las imágenes reconstruidas. En el laboratorio, `07-cuentas-produccion.sh` registró «laboratorio, se conservan las cuentas de prueba».
+
+| Suite | Resultado | Evidencia (`despliegue-nube/`) |
+|---|---|---|
+| `typecheck` | sin errores | — |
+| `test:unit` | 187/187 (3 nuevas: `proxies.test.ts`) | `test-unit.txt` |
+| `test:openapi` | 517/517 | — |
+| `auditar:dependencias` | 0 avisos altos o críticos sin aceptar | — |
+| `build:web` y `build:web:pruebas` | compilan | — |
+| `test:salud` | 10/10 servicios (en la primera corrida, notificaciones aún estaba *degradado* mientras RabbitMQ terminaba de iniciar; se recuperó solo, como en F5b a F5e, y la repetición pasó) | `test-salud.txt` |
+| `test:http` | 73/73 | `test-http.txt` |
+| `test:concurrencia` | 33/33 | `test-concurrencia.txt` |
+| `test:e2e` | 53/53 | `test-e2e.txt` |
+| `test:asistente` | 57/57 con degradación | `test-asistente.txt` |
+| `test:seguridad` | 26 seguras y 1 hallazgo aceptado (V-13 / S-09) | `test-seguridad.txt` |
+| `test:e2e:ui` | 29/29 criterios | `test-e2e-ui.txt` |
+| axe F5c, F5d y F5e | 20 + 18 + 10 pantallas, 0 reglas WCAG incumplidas | `axe-f5c.txt`, `axe-f5d.txt`, `axe-f5e.txt` |
+| Capturas del manual | regeneradas; `02-iniciar-sesion.png` ya sin el recuadro de cuentas | `docs/manuales/img/` |
+
 ---
 
 ## 5. Lo que queda por probar

@@ -1,0 +1,5 @@
+# Los scripts de shell y el Caddyfile se ejecutan en Linux (contenedores y la
+# maquina de la nube): siempre con LF, aunque el equipo sea Windows. Con CRLF,
+# bash falla en el script de las cuentas de produccion ($'\r': command not found).
+*.sh      text eol=lf
+Caddyfile text eol=lf
