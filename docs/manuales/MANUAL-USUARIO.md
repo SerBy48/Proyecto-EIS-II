@@ -19,12 +19,12 @@ Todas las imágenes son capturas reales del sistema (actualizadas para SerByTek 
 
 ## 1. Antes de empezar
 
-- **Dirección.** En el equipo donde corre el sistema, la tienda está en `http://localhost:8081`. Durante la defensa se publica en una dirección `https://….trycloudflare.com` que el equipo comparte en el momento.
+- **Dirección.** En el equipo donde corre el sistema, la tienda está en `http://localhost:8081`. Desplegada en la nube, en la dirección `https://…` que el equipo comparte (por ejemplo `serbytek.<región>.cloudapp.azure.com`; ver `DESPLIEGUE.md`).
 - **Navegador.** Cualquier navegador actual: Chrome, Edge, Firefox o Safari. La tienda se adapta a la pantalla del celular.
 - **Modo oscuro.** El botón de la luna, arriba a la derecha, cambia entre tema claro y oscuro. La primera vez se usa el tema del sistema operativo; después, la tienda recuerda la elección en ese navegador.
 
 ![Modo oscuro](img/17-modo-oscuro.png)
-- **Cuentas de prueba.** Todas usan la contraseña `Password123`.
+- **Cuentas.** La pantalla de inicio de sesión no muestra cuentas. En la tienda desplegada hay tres (administrador, vendedor y un cliente) y el equipo entrega sus datos en persona. En el entorno de laboratorio están las cuentas de prueba, todas con la contraseña `Password123`:
 
 | Correo | Rol |
 |---|---|

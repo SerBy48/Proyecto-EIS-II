@@ -1,0 +1,21 @@
+axe de las vistas F5d contra http://localhost:8081
+  ok  [claro] Salud del sistema (con "qué hacer" abierto)
+  ok  [claro] Pedidos con el detalle y el historial de estados
+  ok  [claro] Notificaciones del personal (bandeja)
+  ok  [claro] Registro de envíos (administrador)
+  ok  [claro] Catálogo en vista previa (vendedor)
+  ok  [claro] Mi perfil > Notificaciones
+  ok  [claro] Inicio de sesión después de salir
+  ok  [claro] Recuperar la contraseña
+  ok  [claro] Crear la contraseña nueva
+  ok  [oscuro] Salud del sistema (con "qué hacer" abierto)
+  ok  [oscuro] Pedidos con el detalle y el historial de estados
+  ok  [oscuro] Notificaciones del personal (bandeja)
+  ok  [oscuro] Registro de envíos (administrador)
+  ok  [oscuro] Catálogo en vista previa (vendedor)
+  ok  [oscuro] Mi perfil > Notificaciones
+  ok  [oscuro] Inicio de sesión después de salir
+  ok  [oscuro] Recuperar la contraseña
+  ok  [oscuro] Crear la contraseña nueva
+
+axe F5d: 18 pantallas (claro y oscuro), 0 reglas incumplidas.

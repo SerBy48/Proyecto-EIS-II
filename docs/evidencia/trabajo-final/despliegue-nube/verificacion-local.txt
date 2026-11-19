@@ -1,0 +1,37 @@
+Verificacion local del despliegue en la nube (2026-11-19)
+==========================================================
+Comando: npm run nube:up (docker-compose.yml + prod + nube) desde volumenes vacios,
+con DOMINIO=localhost (Caddy emite un certificado de su CA local para ese nombre),
+URL_WEB=https://localhost y cuentas de produccion de prueba (correos @ejemplo.com,
+contrasenas de un solo uso). Sin SMTP_HOST_PROD: los correos quedan en Mailpit.
+
+Arranque: 338 s (compilando las imagenes); 17 contenedores: 16 sanos + Caddy.
+Puertos publicados: Caddy 80 y 443; web 127.0.0.1:8081; Mailpit 127.0.0.1:8025. Nada mas.
+docker logs ecom_postgres:
+  running /docker-entrypoint-initdb.d/07-cuentas-produccion.sh
+  07-cuentas-produccion: cuentas de prueba reemplazadas por las de produccion (administrador, vendedor y un cliente).
+
+ 1. web por HTTPS (https://localhost/): 200
+ 2. HTTP redirige a HTTPS: 308 -> https://localhost/
+ 3. login del administrador de produccion: rol administrador
+ 4. login del vendedor de produccion: rol vendedor
+ 5. login del cliente de produccion: rol cliente
+ 6. cuentas de prueba con Password123 (admin@tienda.co, ana@correo.co, vendedor@tienda.co): 401, 401, 401
+ 7. perfil del cliente: Sergio Garcia
+ 8. direcciones del cliente: Neiva
+ 9. gateway (8080) y servicios (3001) desde el host: sin respuesta (no publicados)
+10. CORS desde https://malo.example: 403
+11. /api/health por Caddy: ok
+12. Limite de inicios de sesion con X-Forwarded-For falso distinto en cada peticion:
+    401 401 401 401 401 401 401 429 429 429 429 429
+    (los 6 inicios de sesion de los pasos 3 a 6 cuentan en el mismo minuto: 6 + 4 = 10;
+    el cliente no elige su IP: Caddy descarta su X-Forwarded-For y el gateway, con
+    PROXIES_CONFIANZA=2, toma la IP que agrega Caddy)
+13. Recuperacion de contrasena: POST /api/auth/recuperar 202; el correo llega a Mailpit
+    ("Restablece tu contrasena de SerByTek") con el enlace https://localhost/#restablecer=...
+14. La web compilada (modo production) no contiene "Cuentas de prueba" ni "Password123".
+
+No verificado aqui: el envio por Gmail (requiere la contrasena de aplicacion del
+equipo, que solo va en el .env del servidor) y el certificado publico de Let's
+Encrypt (requiere un dominio que resuelva a la maquina). Ambos se verifican en la
+VM con la seccion 7 de docs/manuales/DESPLIEGUE.md.

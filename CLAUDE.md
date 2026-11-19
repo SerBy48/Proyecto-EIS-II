@@ -57,7 +57,8 @@ npm run test:concurrencia   # no hay sobreventa
 npm run test:e2e            # flujo de compra completo (incluye el correo en Mailpit)
 npm run test:e2e:ui         # 29 criterios de aceptacion en la web (Playwright, 8081, modo pruebas; GRABAR_VIDEO=1)
 npm run prod:up             # perfil de produccion: solo la web publica puerto (prod:down, prod:logs)
-npm run tunel               # Cloudflare Quick Tunnel hacia la web (solo durante la defensa)
+npm run nube:up             # prod + Caddy (HTTPS) para la VM de la nube (nube:down, nube:logs; docs/manuales/DESPLIEGUE.md)
+npm run tunel               # Cloudflare Quick Tunnel hacia la web (plan B de la defensa)
 npm run test:unit           # pruebas unitarias con Vitest (sin Docker); :cobertura para el reporte
 npm run test:openapi        # la especificacion OpenAPI cubre exactamente las rutas del codigo
 npm run docs:openapi        # valida (Redocly) y empaqueta docs/openapi para el gateway
@@ -198,6 +199,14 @@ petición queda colgada. Para los errores se usan los constructores de
     solo al correo]` en el texto, el registro de envíos y `datos_evento`.
     `POST /recuperar` responde lo mismo exista o no la cuenta (V-27).
 
+18. **Las cuentas y los correos de producción no están en el repositorio**
+    (es público). `infra/postgres/07-cuentas-produccion.sh` los lee del `.env`
+    del servidor y solo actúa con `CUENTAS_PRODUCCION=true` (perfil prod); en
+    el laboratorio no hace nada, porque las suites usan las cuentas de prueba.
+    `PROXIES_CONFIANZA` debe coincidir con los proxies reales (2 con Caddy o el
+    túnel): con menos, todos comparten el límite de peticiones; con más, el
+    cliente elige su IP por `X-Forwarded-For`.
+
 ---
 
 ## Dónde está cada cosa
@@ -240,6 +249,7 @@ petición queda colgada. Para los errores se usan los constructores de
 | Web en contenedor y perfil prod | `clients/web/{Dockerfile,nginx.conf}`, `docker-compose.prod.yml` |
 | Criterios de aceptación, trazabilidad y E2E de interfaz | `docs/aceptacion/`, `tests/e2e-ui/aceptacion.ts` |
 | Manuales y guion de la defensa | `docs/manuales/`, `docs/defensa/GUION.md` |
+| Despliegue en la nube (VM, Caddy, cuentas y correo de producción) | `docs/manuales/DESPLIEGUE.md`, `docker-compose.nube.yml`, `infra/caddy/Caddyfile`, `infra/postgres/07-cuentas-produccion.sh`, ADR-0010 |
 | Validación de formularios en la web (mismas reglas que el backend) | `clients/web/src/servicios/reglas.js`, `validaciones.jsx`; paridad en `clients/web/test/reglas.test.ts` |
 
 ---
@@ -273,7 +283,7 @@ Tokens de la pasarela simulada (resultado determinista):
 
 **Verificado y funcionando** (ver `docs/PRUEBAS.md` para el detalle y la
 evidencia; última ejecución el 2026-11-18, segunda revisión manual (F5e), desde
-volúmenes vacíos): 216 casos de integración y 184 unitarios, todos pasan, y los 29
+volúmenes vacíos; repetida para el despliegue en la nube): 216 casos de integración y 187 unitarios, todos pasan, y los 29
 criterios de aceptación de `test:e2e:ui`; `test:openapi` pasa sus 517 comprobaciones y
 `test:asistente` sus 57. El asistente acierta 50/50 frases de SerByTek,
 27/27 de marcas y 13/15 de la validación de contactar al vendedor (`asistente:metricas`), y axe no encuentra reglas WCAG incumplidas en los temas claro
@@ -308,6 +318,15 @@ también por el túnel); los orígenes ajenos los rechaza el gateway
 (`CORS_ORIGENES`, o `CORS_ORIGENES_PROD` en prod). CI en
 `.github/workflows/ci.yml`. `test:seguridad` no falla por los riesgos aceptados
 (`RIESGOS_ACEPTADOS`: V-13 = S-09). El paso de dependencias del CI corre `auditar:dependencias`, con sus propios avisos aceptados y fecha de revisión (S-13).
+
+**Nube (ADR-0010, `docs/manuales/DESPLIEGUE.md`):** una VM (Azure for Students u
+Oracle Always Free) con `npm run nube:up` = prod + `docker-compose.nube.yml`
+(Caddy en 80/443 con HTTPS para `DOMINIO`, web solo en 127.0.0.1,
+`PROXIES_CONFIANZA=2`, CORS `https://DOMINIO`). El perfil prod exige las
+variables de las cuentas (`CORREO_*`, `CLAVE_*`, `NOMBRE_CLIENTE`,
+`APELLIDO_CLIENTE`) incluso para `down`; el correo real va por `SMTP_*_PROD`
+(Gmail, contraseña de aplicación). Verificado en local con `DOMINIO=localhost`
+(`docs/evidencia/trabajo-final/despliegue-nube/verificacion-local.txt`).
 
 **Defectos ya corregidos**, cada uno con su caso de prueba (sección 4 de
 `docs/PRUEBAS.md`): escalada de privilegios por el token interno, error 500 al

@@ -426,3 +426,18 @@ Al restablecer, la contraseña cambia, la cuenta se **desbloquea** y se **revoca
 | V-27 | Distinguir un correo registrado de uno inexistente; leer el enlace en notificaciones o el token en `auth_db`; usar el enlace dos veces; seguir con la sesión abierta antes del cambio | 202/202 con el mismo mensaje; el enlace no está en notificaciones y el token no está en claro; primer uso 200, segundo 400; el refresh anterior responde 401 y la contraseña nueva entra |
 
 La prueba unitaria `services/notificaciones-service/test/secretos.test.ts` cubre además que lo guardado no lleva el enlace y que el HTML del correo convierte en vínculo solo un enlace `http(s)`, con el resto del cuerpo escapado (S-11).
+
+## 13. Despliegue en la nube (ADR-0010)
+
+Publicar la tienda en internet cambia el modelo de amenaza del laboratorio: el repositorio es público y cualquiera puede llegar a la URL. Los riesgos y sus controles:
+
+| Riesgo | Control | Verificación |
+|---|---|---|
+| **Cuentas con contraseña publicada.** `Password123`, incluida la del administrador, está en el repositorio y en el manual | En producción, `infra/postgres/07-cuentas-produccion.sh` borra las cuentas de prueba y crea tres con los correos y las contraseñas del `.env` del servidor (12 caracteres o más; el script se niega con menos). El hash bcrypt lo calcula pgcrypto y la contraseña viaja como variable de psql, no concatenada. La pantalla de inicio de sesión ya no anuncia cuentas | Las tres cuentas de prueba responden 401 con `Password123`; las de producción entran (`despliegue-nube/verificacion-local.txt`, pasos 3 a 6) |
+| **Hashes de producción en un repositorio público**, atacables sin conexión | No se suben: el repositorio no tiene ni los correos ni las contraseñas de producción | Revisión del diff |
+| **Límite de peticiones compartido o evadible.** Detrás de Caddy, con `trust proxy 1`, todos tendrían la IP de Caddy; con un valor alto, el cliente elegiría su IP escribiendo `X-Forwarded-For` | `PROXIES_CONFIANZA` (de 1 a 3; cualquier otro valor vuelve a 1), fijado en 2 por `docker-compose.nube.yml`. Caddy descarta el `X-Forwarded-For` del cliente | Prueba unitaria `proxies.test.ts`; en local, 12 inicios de sesión con un `X-Forwarded-For` falso distinto en cada uno caen en un solo contador (429 tras el décimo del minuto) |
+| **Servicios expuestos.** Docker se salta el firewall del sistema operativo | Solo Caddy publica puertos (80 y 443). La web queda en 127.0.0.1:8081 y Mailpit en 127.0.0.1:8025 (se ven por un túnel SSH). En la nube solo se abren 22, 80 y 443 | Desde el host, 8080 y 3001 no responden (paso 9) |
+| **Tráfico sin cifrar** | Caddy obtiene y renueva el certificado; HTTP responde 308 hacia HTTPS. Los certificados se conservan en un volumen, para no alcanzar el límite de Let's Encrypt | Paso 2 (308) |
+| **Credenciales del correo** | La contraseña de aplicación de Gmail va solo en el `.env` del servidor (`SMTP_CLAVE_PROD`); se revoca desde la cuenta de Google sin tocar la contraseña de la cuenta | — |
+
+Sigue vigente el riesgo aceptado S-09 (token en `localStorage`, mitigado por la CSP).

@@ -12,14 +12,6 @@ import Campana from './componentes/Campana.jsx';
 import CampoContrasena from './componentes/CampoContrasena.jsx';
 import { CamposDireccion, DIRECCION_VACIA, limpiarDireccion } from './componentes/FormularioDireccion.jsx';
 
-const CUENTAS = [
-  ['ana@correo.co', 'Ana (cliente)'],
-  ['bruno@correo.co', 'Bruno (cliente)'],
-  ['carla@correo.co', 'Carla (cliente)'],
-  ['vendedor@tienda.co', 'Vendedor'],
-  ['admin@tienda.co', 'Administrador']
-];
-
 /** Logotipo de SerByTek: un chip estilizado y el nombre. */
 function Logo() {
   return (
@@ -543,8 +535,10 @@ function BotonNav({ activo, onClick, children }) {
  *
  * Antes el correo era un desplegable con las cuatro cuentas de prueba y la
  * contrasena venia escrita: nadie mas podia entrar (hallazgo U-01 de
- * docs/calidad/USABILIDAD.md, severidad 4). Las cuentas de prueba siguen a la
- * vista, pero como ayuda, no como unica opcion.
+ * docs/calidad/USABILIDAD.md, severidad 4). Despues quedaron a la vista como
+ * ayuda; desde el despliegue en la nube ya no se muestran: la tienda publica
+ * no debe anunciar cuentas ni contrasenas (estan en el README de infra/ para
+ * el laboratorio).
  */
 function Login({ onIngreso, aviso, onVisitante }) {
   const [registrando, setRegistrando] = useState(false);
@@ -645,21 +639,6 @@ function Login({ onIngreso, aviso, onVisitante }) {
           </button>
         </p>
 
-        {/* Ayuda del entorno de laboratorio: las cuentas de prueba a la vista,
-            sin escribirlas por el usuario. */}
-        <details className="mt-6 text-sm text-gray-600">
-          <summary className="cursor-pointer font-semibold text-gray-700">Cuentas de prueba</summary>
-          <p className="mt-2">
-            Todas usan la contraseña <code>Password123</code>.
-          </p>
-          <ul className="mt-2 space-y-1">
-            {CUENTAS.map(([correo, etiqueta]) => (
-              <li key={correo}>
-                <code>{correo}</code> · {etiqueta}
-              </li>
-            ))}
-          </ul>
-        </details>
       </form>
     </div>
   );

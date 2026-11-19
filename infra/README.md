@@ -34,6 +34,7 @@ Las migraciones versionadas son un pendiente conocido: hoy no hay forma de aplic
 | `04-pedidos.sql` | `pedidos_db` | `pedidos`, `pedido_items`, `historial_estados` (con disparador), `saga_pasos` y `generar_numero_pedido` |
 | `05-pagos.sql` | `pagos_db` | `transacciones` (sin número, CVV ni vencimiento: invariante 9), `reembolsos` y `auditoria_pasarela` |
 | `06-datos-prueba.sql` | todas | Cuentas de prueba (contraseña `Password123`), clientes, direcciones, bodegas y stock |
+| `07-cuentas-produccion.sh` | auth, clientes | Solo con `CUENTAS_PRODUCCION=true` (perfil prod): cambia las cuentas de prueba por las del `.env` del servidor (administrador, vendedor y un cliente). En el laboratorio no hace nada |
 
 | Usuario | Contraseña (laboratorio) | Solo puede abrir |
 |---|---|---|
