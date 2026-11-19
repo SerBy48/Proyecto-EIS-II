@@ -26,25 +26,35 @@ GitHub Actions (`.github/workflows/ci.yml`) ejecuta en cada push y en cada pull 
 
 El último pull request fusionado (#21) pasó los dos trabajos automáticos.
 
-## 6.3 Despliegue en la nube
+## 6.3 Despliegue en producción
 
-<!-- incluir: docs/adr/0010-despliegue-en-una-vm.md :: Decisión -->
+**La tienda está publicada en <https://149-130-169-209.sslip.io>**, en un VPS con **Dokploy** que facilitó un tercero. El dominio es de sslip.io, que responde con la IP escrita en el nombre.
 
-**Estado.** La configuración está completa y verificada en local. Se levantó el perfil de la nube con `DOMINIO=localhost`; para ese nombre, Caddy emite su propio certificado.
+**Cómo se llegó ahí.**
+1. **Primero se preparó una máquina virtual propia** (ADR-0010): el perfil de producción con Caddy delante para el HTTPS, las cuentas y el correo por entorno y el límite de peticiones por persona. Se verificó completa en local, con `DOMINIO=localhost`.
+2. **No fue posible abrir la cuenta del proveedor a tiempo:** Azure no aceptó el correo institucional y Oracle Cloud rechazó la verificación de la tarjeta.
+3. **Se desplegó en un VPS con Dokploy.** Dokploy ya trae Traefik, que pone el certificado HTTPS, y despliega un archivo de Compose desde GitHub. Para él se creó `docker-compose.dokploy.yml`:
+   - reutiliza los mismos servicios del laboratorio con la configuración de producción;
+   - no publica ningún puerto en el VPS, que es compartido; Traefik llega a la web por su red interna;
+   - fija `PROXIES_CONFIANZA=2`, porque Traefik y nginx van delante del gateway.
+4. **Un incidente en el primer despliegue:** el VPS tenía una versión de Docker Compose anterior a la 2.24, que no entiende `!reset`, y le puso a todos los servicios el mismo nombre. Desde entonces el archivo se **genera** a partir de su fuente (`npm run dokploy:compose`), sin funciones de versiones nuevas. Se validó con Compose 2.22 y 2.24.
 
-Tabla: Verificación local del despliegue en la nube
+Tabla: Verificación del despliegue publicado (2026-11-19, desde fuera del VPS)
 
 | Comprobación | Resultado |
 |---|---|
-| Arranque desde volúmenes vacíos | 17 contenedores (16 sanos más Caddy) en 338 s |
-| HTTPS y redirección | `https://localhost` responde 200; `http://` redirige con 308 |
-| Cuentas | Las tres de producción entran; las de prueba (`Password123`) responden 401 |
-| Exposición | El gateway y los servicios no responden desde fuera; solo Caddy publica puertos |
-| CORS | Un origen ajeno recibe 403 |
-| Límite por persona | 12 inicios de sesión con un `X-Forwarded-For` falso distinto cada uno caen en un solo contador: el cliente no elige su IP |
-| Recuperación de contraseña | El correo llega con el enlace al dominio configurado |
+| Tienda por HTTPS | 200, con certificado válido de Let's Encrypt |
+| HTTP | Redirige a HTTPS (301) |
+| Salud del sistema | El gateway y los nueve servicios en «ok» |
+| Catálogo | Los 60 productos |
+| Cuentas | La cuenta de prueba (`Password123`) es rechazada (401); solo existen las tres de producción |
+| Documentación de la API | No se sirve en producción |
+| Exposición | El puerto de la web (8081) no responde desde fuera: solo Traefik publica 80 y 443 |
+| Cabeceras de la web | `Content-Security-Policy`, `X-Frame-Options` y `X-Content-Type-Options` presentes |
 
-Falta crear la máquina virtual. No fue posible abrir la cuenta del proveedor a tiempo: Azure no aceptó el correo institucional y Oracle Cloud rechazó la verificación de la tarjeta. La guía paso a paso para los dos proveedores está en el manual técnico, capítulo 16. Mientras tanto, la tienda se publica durante la demostración con un túnel de Cloudflare (`npm run tunel`) sobre el perfil de producción.
+**Pendiente: el correo real.** La cuenta de Gmail del equipo no ofrece contraseñas de aplicación. Mientras se configura (con Gmail o con un proveedor como Brevo), los correos de la tienda quedan guardados dentro del sistema sin enviarse. Basta con agregar las variables `SMTP_*_PROD` y volver a desplegar; los datos no se pierden.
+
+La guía paso a paso está en `docs/manuales/DESPLIEGUE-DOKPLOY.md`. La de una máquina virtual propia en Azure u Oracle, en el capítulo 16 del manual técnico.
 
 ## 6.4 Criterios de aceptación
 

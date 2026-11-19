@@ -322,6 +322,12 @@ también por el túnel); los orígenes ajenos los rechaza el gateway
 `.github/workflows/ci.yml`. `test:seguridad` no falla por los riesgos aceptados
 (`RIESGOS_ACEPTADOS`: V-13 = S-09). El paso de dependencias del CI corre `auditar:dependencias`, con sus propios avisos aceptados y fecha de revisión (S-13).
 
+**Publicada (2026-11-19):** <https://149-130-169-209.sslip.io>, con Dokploy en un VPS
+prestado (`docker-compose.dokploy.yml`, GENERADO con `npm run dokploy:compose` desde
+`infra/dokploy/compose-fuente.yml`: el Compose del VPS es anterior a 2.24 y no entiende
+`!reset`; guía `docs/manuales/DESPLIEGUE-DOKPLOY.md`). Correo real pendiente (Gmail sin
+contraseñas de aplicación; alternativa Brevo).
+
 **Nube (ADR-0010, `docs/manuales/DESPLIEGUE.md`):** una VM (Azure for Students u
 Oracle Always Free) con `npm run nube:up` = prod + `docker-compose.nube.yml`
 (Caddy en 80/443 con HTTPS para `DOMINIO`, web solo en 127.0.0.1,

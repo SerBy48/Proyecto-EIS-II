@@ -13,7 +13,7 @@ Este manual está dirigido a quien instala, opera, prueba, despliega o extiende 
 | Consultar o cambiar los datos | 7. Base de datos |
 | Probarlo | 10. Pruebas y 11. Integración continua |
 | Operarlo y resolver fallas | 12. Operación y monitoreo, y 15. Solución de problemas |
-| Publicarlo en internet | 16. Despliegue en la nube |
+| Publicarlo en internet | 4.5 (Dokploy, en uso) y 16. Despliegue en la nube (máquina virtual propia, alternativa) |
 
 ---
 
@@ -161,7 +161,9 @@ Alternativa con ngrok: `ngrok http 8081`, con su cuenta y su token.
 
 ### 4.5 Nube
 
-Una máquina virtual de Azure u Oracle Cloud con el perfil de producción y Caddy delante (HTTPS automático). Está en el capítulo 16.
+Dos formas, con el mismo perfil de producción:
+- **Dokploy** en un VPS (la que está en uso, <https://149-130-169-209.sslip.io>): `docker-compose.dokploy.yml`, generado con `npm run dokploy:compose`. Guía: `docs/manuales/DESPLIEGUE-DOKPLOY.md`.
+- **Una máquina virtual propia** de Azure u Oracle Cloud, con Caddy delante (HTTPS automático): `docker-compose.nube.yml` y `npm run nube:up`. Es la **alternativa** (plan B si el VPS deja de estar disponible), no lo que está en uso: capítulo 16.
 
 ---
 

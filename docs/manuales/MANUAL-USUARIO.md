@@ -19,7 +19,7 @@ Todas las imágenes son capturas reales del sistema (actualizadas para SerByTek 
 
 ## 1. Antes de empezar
 
-- **Dirección.** En el equipo donde corre el sistema, la tienda está en `http://localhost:8081`. Desplegada en la nube, en la dirección `https://…` que el equipo comparte (por ejemplo `serbytek.<región>.cloudapp.azure.com`; ver `DESPLIEGUE.md`).
+- **Dirección.** La tienda está publicada en **<https://149-130-169-209.sslip.io>**. En el equipo donde se desarrolla, está en `http://localhost:8081`.
 - **Navegador.** Cualquier navegador actual: Chrome, Edge, Firefox o Safari. La tienda se adapta a la pantalla del celular.
 - **Modo oscuro.** El botón de la luna, arriba a la derecha, cambia entre tema claro y oscuro. La primera vez se usa el tema del sistema operativo; después, la tienda recuerda la elección en ese navegador.
 

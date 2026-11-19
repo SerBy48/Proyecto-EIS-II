@@ -28,7 +28,7 @@ Tabla: Fases del Trabajo Final y sus entregables
 
 - **Un solo equipo de medición.** Las pruebas de carga generan la carga en la misma máquina que corre los contenedores: las cifras absolutas son cotas conservadoras, válidas para comparar escenarios y para el antes y el después. El escalado horizontal (RNF-06) no se midió.
 - **Sin evaluadores externos.** El cuestionario SUS y la prueba con usuarios pensando en voz alta están preparados (`tests/usabilidad/`), pero no se aplicaron. La usabilidad se evaluó con inspección experta: recorrido cognitivo, KLM, heurísticas de Nielsen y accesibilidad automatizada. No se simuló ningún dato humano.
-- **Despliegue en la nube sin URL.** La configuración está lista y verificada en local (capítulo 6). No se pudo abrir la cuenta del proveedor a tiempo. La tienda se publica con un túnel de Cloudflare durante la demostración.
+- **Despliegue en un VPS facilitado por un tercero.** No fue posible abrir una cuenta propia en Azure ni en Oracle Cloud a tiempo; la tienda se publicó con Dokploy en un VPS compartido (capítulo 6). El correo real queda pendiente de configurar.
 
 ## 1.5 Metodología
 
