@@ -1,0 +1,37 @@
+
+> ecommerce-distribuido@1.0.0 test:salud
+> tsx --env-file-if-exists=.env tests/salud.ts
+
+
+Salud del sistema  http://localhost:8080
+
+  OK   auth             ok
+         └─ postgres:auth_db     conectado
+         └─ rabbitmq             conectado
+  OK   clientes         ok
+         └─ postgres:clientes_db conectado
+         └─ rabbitmq             conectado
+  OK   catalogo         ok
+         └─ mongo:catalogo_db    conectado
+  OK   inventario       ok
+         └─ postgres:inventario_db conectado
+         └─ rabbitmq             conectado
+  OK   carrito          ok
+         └─ redis                conectado
+  OK   pedidos          ok
+         └─ postgres:pedidos_db  conectado
+         └─ rabbitmq             conectado
+  OK   pagos            ok
+         └─ postgres:pagos_db    conectado
+         └─ rabbitmq             conectado
+  OK   notificaciones   ok
+         └─ mongo:notificaciones_db conectado
+         └─ rabbitmq             conectado
+         └─ correo               conectado
+  OK   asistente        ok
+         └─ mongo:asistente_db   conectado
+         └─ rabbitmq             conectado
+
+Los 10 servicios (gateway incluido) responden. El sistema esta listo.
+Siguiente paso: npm run test:e2e
+

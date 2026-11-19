@@ -1,5 +1,5 @@
 import { crearLogger } from './logger';
-import { errorServicioNoDisponible } from './errores';
+import { errorServicioNoDisponible, esFalloDelServicio } from './errores';
 
 /**
  * Circuit breaker (Actividad 6, punto f del documento).
@@ -31,6 +31,8 @@ export class CircuitBreaker {
   private fallosConsecutivos = 0;
   private exitosConsecutivos = 0;
   private abiertoHasta = 0;
+  /** En semiabierto, si ya hay una llamada de prueba en vuelo. */
+  private pruebaEnCurso = false;
 
   private readonly umbralFallos: number;
   private readonly esperaReapertura: number;
@@ -61,15 +63,28 @@ export class CircuitBreaker {
   }
 
   async ejecutar<T>(operacion: () => Promise<T>, alternativa?: () => T | Promise<T>): Promise<T> {
+    // Degradacion elegante: si quien llama ofrece una alternativa, se usa.
+    const rechazar = async (): Promise<T> => {
+      if (alternativa) return await alternativa();
+      throw errorServicioNoDisponible(this.nombre);
+    };
+
     if (this.estado === 'abierto') {
-      if (Date.now() < this.abiertoHasta) {
-        // Degradacion elegante: si quien llama ofrece una alternativa, se usa.
-        if (alternativa) return await alternativa();
-        throw errorServicioNoDisponible(this.nombre);
-      }
+      if (Date.now() < this.abiertoHasta) return rechazar();
       this.estado = 'semiabierto';
       this.exitosConsecutivos = 0;
       this.log.warn('Circuito en prueba', { servicio: this.nombre });
+    }
+
+    // En semiabierto pasa UNA llamada de prueba a la vez; las demas se tratan
+    // como con el circuito abierto. Antes pasaban todas: con el servicio aun
+    // caido, cada una esperaba su timeout y sus reintentos, y el catalogo daba
+    // rafagas de 6 s cada vez que el circuito probaba (hallazgo R7,
+    // docs/calidad/RENDIMIENTO.md 9.3).
+    const esPrueba = this.estado === 'semiabierto';
+    if (esPrueba) {
+      if (this.pruebaEnCurso) return rechazar();
+      this.pruebaEnCurso = true;
     }
 
     try {
@@ -77,11 +92,19 @@ export class CircuitBreaker {
       this.registrarExito();
       return resultado;
     } catch (error) {
+      // Un 4xx es una respuesta valida del servicio: prueba que esta en pie, asi
+      // que cuenta como exito para el circuito aunque el error se propague.
+      if (!esFalloDelServicio(error)) {
+        this.registrarExito();
+        throw error;
+      }
       // registrarFallo informa si este fallo fue el que abrio el circuito, para
       // ofrecer la alternativa de inmediato en lugar de propagar el error.
       const seAbrio = this.registrarFallo();
       if (seAbrio && alternativa) return await alternativa();
       throw error;
+    } finally {
+      if (esPrueba) this.pruebaEnCurso = false;
     }
   }
 

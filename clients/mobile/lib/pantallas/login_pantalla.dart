@@ -52,9 +52,9 @@ class _LoginPantallaState extends State<LoginPantalla> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.storefront, size: 64, color: Colors.indigo),
+                const Icon(Icons.storefront, size: 64, color: Color(0xFF047857)),
                 const SizedBox(height: 8),
-                const Text('Tienda en linea',
+                const Text('SerByTek',
                     style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
                 const Text('Conectado a ${Config.gateway}',
@@ -90,7 +90,7 @@ class _LoginPantallaState extends State<LoginPantalla> {
                   child: ElevatedButton(
                     onPressed: _cargando ? null : _ingresar,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.indigo,
+                      backgroundColor: const Color(0xFF047857),
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),

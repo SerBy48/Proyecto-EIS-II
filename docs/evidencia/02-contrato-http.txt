@@ -1,7 +1,3 @@
-
-> ecommerce-distribuido@1.0.0 test:http
-> tsx --env-file-if-exists=.env tests/contrato-http.ts
-
 Arrancando un gateway temporal en el puerto 18080 (limitador limpio)...
 Gateway listo: 200
 Restableciendo el estado de las bases de datos...
@@ -17,6 +13,10 @@ Estado restablecido.
   A-04    PASA   Login sin campos obligatorios                        esperado 400, obtenido 400
   A-05    PASA   Consulta del perfil con token valido                 esperado 200, obtenido 200
   A-06    INFO   Token JWT emitido: 212 caracteres
+  A-07    PASA   Registro con el cliente_id de otra persona           esperado 403, obtenido 403
+  A-08    PASA   Registro de un cliente que ya tiene cuenta           esperado 409, obtenido 409
+  A-09    PASA   Registro con un cliente_id inexistente               esperado 400, obtenido 400
+  A-10    PASA   Registro con un correo sin formato de correo         esperado 400, obtenido 400
 
 ============================================================================
  SUITE B · CONTROL DE ACCESO (RBAC Y PROPIEDAD DEL DATO)
@@ -35,6 +35,12 @@ Estado restablecido.
   B-12    PASA   Cliente consultando la bitacora de la saga           esperado 403, obtenido 403
   B-13    PASA   Inyeccion de cabeceras de confianza falsas           esperado 403, obtenido 403
   B-14    PASA   Ruta inexistente en el gateway                       esperado 404, obtenido 404
+  B-15    PASA   Cliente listando sus propias direcciones             esperado 200, obtenido 200
+  B-16    PASA   Cliente listando las direcciones de otro cliente     esperado 403, obtenido 403
+  B-17    PASA   Seis SKU inexistentes no abren el circuito del carrito esperado 200, obtenido 200
+  B-18    PASA   Operador NoSQL en un filtro del catalogo             esperado 400, obtenido 400
+  B-19    PASA   Id de pedido fuera del rango de un entero            esperado 400, obtenido 400
+  B-20    PASA   Peticion desde un origen no permitido por CORS       esperado 403, obtenido 403
 
 ============================================================================
  SUITE C · INVENTARIO: RESERVAS, IDEMPOTENCIA Y COMPENSACION
@@ -48,6 +54,9 @@ Estado restablecido.
   C-07    PASA   Liberar de nuevo (idempotente)                       esperado 200, obtenido 200
   C-08    INFO   Stock tras la compensacion: 1 unidad(es) — debe ser 1
   C-09    PASA   Registrar entrada de mercancia                       esperado 200, obtenido 200
+  C-10    PASA   Primera entrada de un producto nuevo abre su inventario esperado 200, obtenido 200
+  C-11    PASA   Entrada de un SKU que no existe en el catalogo       esperado 404, obtenido 404
+  C-12    PASA   Entrada hacia una bodega inexistente                 esperado 400, obtenido 400
   C-10    PASA   Entrada sobre un SKU inexistente                     esperado 404, obtenido 404
 
 ============================================================================
@@ -72,7 +81,7 @@ Estado restablecido.
   E-04    PASA   Bitacora de saga con identificador invalido          esperado 404, obtenido 404
   E-05    PASA   Cancelacion con identificador invalido               esperado 404, obtenido 404
   E-06    PASA   Cambio de estado con identificador invalido          esperado 404, obtenido 404
-  E-07    PASA   Pedido existente por NUMERO (PED-202610-001032)      esperado 200, obtenido 200
+  E-07    PASA   Pedido existente por NUMERO (PED-202611-001060)      esperado 200, obtenido 200
   E-08    PASA   El mismo pedido por ID numerico                      esperado 200, obtenido 200
   E-09    PASA   Bitacora de la saga (administrador)                  esperado 200, obtenido 200
   E-10    PASA   Transicion valida: pagado -> en_preparacion          esperado 200, obtenido 200
@@ -130,7 +139,8 @@ Estado restablecido.
            pedidos          ok=true  estado=ok
            pagos            ok=true  estado=ok
            notificaciones   ok=true  estado=ok
+           asistente        ok=true  estado=ok
 
 ============================================================================
- RESULTADO: 60 casos PASA, 0 casos FALLA
+ RESULTADO: 73 casos PASA, 0 casos FALLA
 ============================================================================

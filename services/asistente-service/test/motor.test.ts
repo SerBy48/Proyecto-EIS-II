@@ -1,0 +1,238 @@
+import { describe, expect, it, vi } from 'vitest';
+import { Caso, medir } from '../../../tests/asistente/metricas';
+import frases from '../../../tests/asistente/frases.json';
+import { completarPlantilla, enmascarar } from '../src/configuracion';
+import datos from '../src/datos/intenciones.json';
+import { ClienteIa, responderConIa } from '../src/ia';
+import serbytek from '../../../tests/asistente/frases-serbytek.json';
+import frasesMarcas from '../../../tests/asistente/frases-marcas.json';
+import frasesConsultas from '../../../tests/asistente/frases-consultas.json';
+import { vocabularioDelCatalogo } from '../../../tests/asistente/vocabulario';
+import {
+  Intencion,
+  NO_ENTENDIDO,
+  clasificar,
+  extraerConsultaProducto,
+  extraerEntidades,
+  extraerPrecio,
+  formasDeMarca,
+  normalizar,
+  singular
+} from '../src/motor';
+
+const intenciones = datos.intenciones as Intencion[];
+
+describe('normalizar', () => {
+  it('quita tildes, signos y mayusculas, y conserva los guiones de un SKU', () => {
+    expect(normalizar('¿Cuánto CUESTA el envío?')).toBe('cuanto cuesta el envio');
+    expect(normalizar('Precio del SKU-TEC-004!!')).toBe('precio del sku-tec-004');
+  });
+});
+
+describe('entidades', () => {
+  it('reconoce SKU y numero de pedido', () => {
+    expect(extraerEntidades(normalizar('hay stock de SKU-TEC-004?'))).toEqual({ sku: 'SKU-TEC-004' });
+    expect(extraerEntidades(normalizar('mi pedido PED-202611-001105'))).toEqual({ pedido: 'PED-202611-001105' });
+    expect(extraerEntidades(normalizar('el pedido 106 no llega'))).toEqual({ pedido: '106' });
+  });
+
+  it('un numero suelto solo es un pedido si el asistente lo estaba esperando', () => {
+    expect(extraerEntidades('106')).toEqual({});
+    expect(extraerEntidades('106', { intencion: 'estado_pedido', espera: 'pedido' })).toEqual({ pedido: '106' });
+  });
+});
+
+describe('clasificar', () => {
+  it('los terminos de varias palabras desempatan: "cuanto cuesta el envio" es FAQ, no precio', () => {
+    expect(clasificar('cuanto cuesta el envio?', intenciones).intencion).toBe('faq_envio');
+    expect(clasificar('cuanto cuesta la cafetera', intenciones).intencion).toBe('precio_disponibilidad');
+  });
+
+  it('una palabra suelta de otra intencion no gana a una pregunta concreta', () => {
+    expect(clasificar('hola, cual es el estado de mi pedido', intenciones).intencion).toBe('estado_pedido');
+  });
+
+  it('por debajo del umbral responde no_entendido', () => {
+    const r = clasificar('el cielo es azul', intenciones);
+    expect(r.intencion).toBe(NO_ENTENDIDO);
+    expect(r.confianza).toBe(0);
+  });
+
+  it('contexto de varios turnos: el numero que responde a la pregunta va a la intencion pendiente', () => {
+    expect(clasificar('PED-202611-000001', intenciones, { intencion: 'cancelar_pedido', espera: 'pedido' }).intencion).toBe('cancelar_pedido');
+    const r = clasificar('el 45', intenciones, { intencion: 'estado_pedido', espera: 'pedido' });
+    expect(r).toMatchObject({ intencion: 'estado_pedido', por_contexto: true, entidades: { pedido: '45' } });
+  });
+
+  it('si el usuario cambia de tema, el contexto no lo retiene', () => {
+    expect(clasificar('cuales son los medios de pago', intenciones, { intencion: 'estado_pedido', espera: 'pedido' }).intencion).toBe('faq_pagos');
+  });
+
+  it('extrae el nombre del producto quitando palabras vacias y SKU', () => {
+    expect(extraerConsultaProducto('¿Tienen portátiles Aurora?')).toBe('portatiles aurora');
+    expect(extraerConsultaProducto('cuanto cuesta el SKU-TEC-001')).toBe('');
+  });
+});
+
+describe('SerByTek: plural, errores de tipeo, vocabulario del catalogo y precios', () => {
+  const vocabulario = vocabularioDelCatalogo();
+
+  it('singular: celulares, monitores, redes y disponibles (el defecto de la primera medicion)', () => {
+    expect(['celulares', 'monitores', 'redes', 'disponibles', 'audifonos', 'tablets'].map(singular)).toEqual([
+      'celular', 'monitor', 'red', 'disponible', 'audifono', 'tablet'
+    ]);
+  });
+
+  it('la frase compuesta que fallaba: "Hay audífonos disponibles?" pregunta por la seccion Audio', () => {
+    const r = clasificar('Hay audífonos disponibles?', intenciones, undefined, vocabulario);
+    expect(r).toMatchObject({ intencion: 'precio_disponibilidad', entidades: { subcategoria: 'audio' } });
+  });
+
+  it('un producto nombrado sin verbo es una busqueda y se reconoce su seccion', () => {
+    expect(clasificar('router wifi', intenciones, undefined, vocabulario)).toMatchObject({ intencion: 'buscar_producto', entidades: { subcategoria: 'redes' } });
+    expect(clasificar('portatil gamer', intenciones, undefined, vocabulario).entidades.subcategoria).toBe('computadores');
+  });
+
+  it('tolera un error de tipeo, pero no confunde palabras conocidas ("cuesta" no es "cuenta")', () => {
+    expect(clasificar('audifnos inalambricos', intenciones, undefined, vocabulario).entidades.subcategoria).toBe('audio');
+    expect(clasificar('cuanto cuesta el mouse', intenciones, undefined, vocabulario).intencion).toBe('precio_disponibilidad');
+  });
+
+  it('un termino y su plural cuentan una vez ("quiero cancelar mi pedido" es cancelar)', () => {
+    expect(clasificar('quiero cancelar mi pedido', intenciones).intencion).toBe('cancelar_pedido');
+  });
+
+  it('extrae rangos de precio en pesos', () => {
+    expect(extraerPrecio('portátiles de menos de 3 millones')).toEqual({ precio_max: 3_000_000 });
+    expect(extraerPrecio('algo hasta 500 mil')).toEqual({ precio_max: 500_000 });
+    expect(extraerPrecio('entre 1 y 2,5 millones')).toEqual({ precio_min: 1_000_000, precio_max: 2_500_000 });
+    expect(extraerPrecio('más de $1.200.000')).toEqual({ precio_min: 1_200_000 });
+    expect(extraerPrecio('desde cuanto el envio es gratis')).toEqual({});
+  });
+
+  it('sin intencion clara sugiere las mas cercanas', () => {
+    const r = clasificar('quiero saber algo del envio de mi pedido urgente', intenciones.filter((i) => i.clave !== 'estado_pedido'), undefined, vocabulario);
+    expect(r.intencion === 'no_entendido' ? r.sugerencias?.length : 1).toBeGreaterThan(0);
+  });
+
+  it('la consulta de producto quita precios y palabras vacias', () => {
+    expect(extraerConsultaProducto('quiero ver portátiles de menos de 3 millones')).toBe('portatiles');
+  });
+});
+
+describe('marcas del catalogo', () => {
+  const vocabulario = vocabularioDelCatalogo();
+
+  it('reconoce la marca con su nombre exacto, tambien escrita de otras formas o con un error', () => {
+    expect(formasDeMarca('TP-Link')).toEqual(['tp-link', 'tp link', 'tplink']);
+    expect(clasificar('manejan tp link?', intenciones, undefined, vocabulario).entidades.marca).toBe('TP-Link');
+    expect(clasificar('Samsumg', intenciones, undefined, vocabulario).entidades.marca).toBe('Samsung');
+    expect(clasificar('base Cooler Master', intenciones, undefined, vocabulario).entidades.marca).toBe('Cooler Master');
+  });
+
+  it('una marca sola es una busqueda; con "disponibles" es precio y disponibilidad', () => {
+    expect(clasificar('Logitech', intenciones, undefined, vocabulario).intencion).toBe('buscar_producto');
+    expect(clasificar('hay audífonos Sony disponibles?', intenciones, undefined, vocabulario)).toMatchObject({
+      intencion: 'precio_disponibilidad',
+      entidades: { subcategoria: 'audio', marca: 'Sony' }
+    });
+  });
+
+  it('las entidades confirman una intencion, no la crean: "que tienen de Logitech" no es la lista de secciones', () => {
+    expect(clasificar('¿qué tienen de Logitech?', intenciones, undefined, vocabulario).intencion).toBe('buscar_producto');
+    expect(clasificar('¿qué tienen?', intenciones, undefined, vocabulario).intencion).toBe('categorias');
+  });
+
+  it('evaluacion de marcas (tests/asistente/frases-marcas.json): al menos 90 %', () => {
+    const m = medir(frasesMarcas.evaluacion as Caso[]);
+    expect(m.total).toBe(27);
+    expect(m.tasa).toBeGreaterThanOrEqual(0.9);
+  });
+});
+
+describe('contactar al vendedor (RF-53)', () => {
+  const vocabulario = vocabularioDelCatalogo();
+
+  it('"quiero contactar al vendedor" es la intencion humano, no una busqueda', () => {
+    expect(clasificar('quiero contactar al vendedor', intenciones, undefined, vocabulario).intencion).toBe('humano');
+    expect(clasificar('necesito hablar con el vendedor', intenciones, undefined, vocabulario).intencion).toBe('humano');
+  });
+
+  it('validacion (escrita despues del ajuste): al menos 80 %; la cifra real esta en la evidencia', () => {
+    const m = medir(frasesConsultas.validacion as Caso[]);
+    expect(m.total).toBe(15);
+    expect(m.tasa).toBeGreaterThanOrEqual(0.8);
+  });
+});
+
+describe('tasa de acierto (tests/asistente/frases.json)', () => {
+  it('desarrollo: todas las frases (es el conjunto con el que se ajustan los terminos)', () => {
+    const m = medir(frases.desarrollo as Caso[]);
+    expect(m.errores).toEqual([]);
+  });
+
+  it('evaluacion: al menos 85 % (RNF-20); la cifra real esta en la evidencia', () => {
+    const m = medir(frases.evaluacion as Caso[]);
+    expect(m.total).toBeGreaterThanOrEqual(30);
+    expect(m.tasa).toBeGreaterThanOrEqual(0.85);
+  });
+
+  it('evaluacion SerByTek (tests/asistente/frases-serbytek.json): al menos 90 %', () => {
+    const m = medir(serbytek.evaluacion as Caso[]);
+    expect(m.total).toBe(50);
+    expect(m.tasa).toBeGreaterThanOrEqual(0.9);
+  });
+});
+
+describe('configuracion', () => {
+  it('las cifras de la FAQ salen de la configuracion, no del texto', () => {
+    expect(completarPlantilla('Envio {{costo_envio}}; gratis desde {{umbral_envio_gratis}}')).toMatch(/15\.000.*500\.000/);
+    expect(completarPlantilla('{{desconocida}}')).toBe('{{desconocida}}');
+  });
+
+  it('enmascara correos, tarjetas y telefonos antes de guardar la conversacion', () => {
+    const texto = enmascarar('soy ana@correo.co, mi tarjeta 4111 1111 1111 1111 y mi celular 3001112233');
+    expect(texto).not.toMatch(/ana@|4111|3001112233/);
+    expect(enmascarar('mi pedido PED-202611-001105')).toBe('mi pedido PED-202611-001105');
+  });
+});
+
+describe('IA opcional', () => {
+  const clienteSimulado = (respuesta: unknown) => {
+    const crear = vi.fn(async () => respuesta);
+    return { cliente: { beta: { messages: { create: crear } } } as unknown as ClienteIa, crear };
+  };
+
+  it('apagada por defecto: no llama al proveedor', async () => {
+    delete process.env.ASISTENTE_IA;
+    const { cliente, crear } = clienteSimulado({});
+    expect(await responderConIa('hola', '', cliente)).toBeNull();
+    expect(crear).not.toHaveBeenCalled();
+  });
+
+  it('activa: envia solo la pregunta y la informacion publica, sin herramientas', async () => {
+    process.env.ASISTENTE_IA = 'anthropic';
+    try {
+      const { cliente, crear } = clienteSimulado({ stop_reason: 'end_turn', content: [{ type: 'text', text: 'Respuesta breve.' }] });
+      expect(await responderConIa('que es esta tienda?', 'Envio 15000', cliente)).toBe('Respuesta breve.');
+      const peticion = (crear.mock.calls[0] as unknown as [Record<string, unknown>])[0];
+      expect(peticion.tools).toBeUndefined();
+      expect(peticion.messages).toEqual([{ role: 'user', content: 'que es esta tienda?' }]);
+      expect(String(peticion.system)).toContain('Envio 15000');
+    } finally {
+      delete process.env.ASISTENTE_IA;
+    }
+  });
+
+  it('si el modelo declina o falla, el asistente sigue sin IA (null)', async () => {
+    process.env.ASISTENTE_IA = 'anthropic';
+    try {
+      const declina = clienteSimulado({ stop_reason: 'refusal', stop_details: { category: null }, content: [] });
+      expect(await responderConIa('x', '', declina.cliente)).toBeNull();
+      const falla = { beta: { messages: { create: vi.fn(async () => { throw new Error('red'); }) } } } as unknown as ClienteIa;
+      expect(await responderConIa('x', '', falla)).toBeNull();
+    } finally {
+      delete process.env.ASISTENTE_IA;
+    }
+  });
+});

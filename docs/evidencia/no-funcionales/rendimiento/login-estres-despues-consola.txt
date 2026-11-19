@@ -1,0 +1,45 @@
+
+
+  █ THRESHOLDS 
+
+    checks
+    ✗ 'rate>0.99' rate=27.14%
+
+    http_req_duration{endpoint:login}
+    ✗ 'p(95)<1000' p(95)=5.74s
+
+    http_req_failed
+    ✗ 'rate<0.01' rate=72.85%
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 86902  147.062165/s
+    checks_succeeded...: 27.14% 23586 out of 86902
+    checks_failed......: 72.85% 63316 out of 86902
+
+    ✗ login 200
+      ↳  27% — ✓ 11793 / ✗ 31658
+    ✗ emite token
+      ↳  27% — ✓ 11793 / ✗ 31658
+
+    HTTP
+    http_req_duration..............: avg=1.14s min=517.1µs med=102.6ms p(90)=5s    p(95)=5.74s p(99)=7.9s   max=11.5s
+      { endpoint:login }...........: avg=1.14s min=517.1µs med=102.6ms p(90)=5s    p(95)=5.74s p(99)=7.9s   max=11.5s
+      { expected_response:true }...: avg=3.9s  min=84.73ms med=3.85s   p(90)=6.23s p(95)=7.24s p(99)=10.45s max=11.5s
+    http_req_failed................: 72.85% 31658 out of 43451
+    http_reqs......................: 43451  73.531083/s
+
+    EXECUTION
+    iteration_duration.............: avg=2.14s min=1s      med=1.1s    p(90)=6s    p(95)=6.74s p(99)=8.93s  max=12.5s
+    iterations.....................: 43451  73.531083/s
+    vus............................: 2      min=2              max=300
+    vus_max........................: 300    min=300            max=300
+
+    NETWORK
+    data_received..................: 47 MB  80 kB/s
+    data_sent......................: 8.3 MB 14 kB/s
+
+
+
+time="2026-11-15T00:28:14-05:00" level=error msg="thresholds on metrics 'checks, http_req_duration{endpoint:login}, http_req_failed' have been crossed"

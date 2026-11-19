@@ -24,6 +24,12 @@ CREATE TABLE usuarios (
 CREATE INDEX idx_usuarios_email ON usuarios(email);
 CREATE INDEX idx_usuarios_rol   ON usuarios(rol);
 
+-- Un cliente tiene como maximo una cuenta. Sin esta restriccion, cualquiera
+-- podia registrarse con el cliente_id de otra persona y leer sus datos
+-- (docs/calidad/SEGURIDAD.md, hallazgo S-01). El controlador lo valida antes;
+-- el indice cierra la carrera entre dos registros simultaneos.
+CREATE UNIQUE INDEX uq_usuarios_cliente ON usuarios(cliente_id) WHERE cliente_id IS NOT NULL;
+
 -- Tokens de renovacion. Se almacena el hash, no el token, para que un volcado
 -- de esta tabla no permita suplantar sesiones. La revocacion es explicita.
 CREATE TABLE tokens_renovacion (
@@ -37,6 +43,21 @@ CREATE TABLE tokens_renovacion (
 
 CREATE INDEX idx_tokens_usuario ON tokens_renovacion(usuario_id);
 CREATE INDEX idx_tokens_hash    ON tokens_renovacion(token_hash);
+
+-- Recuperacion de contrasena (RF-54). Como los refresh tokens, se guarda el
+-- hash del enlace, nunca el enlace: quien lea esta tabla no puede usarlo. Cada
+-- enlace sirve una sola vez (usado_en) y vence a los 30 minutos.
+CREATE TABLE restablecimientos_contrasena (
+    id            SERIAL PRIMARY KEY,
+    usuario_id    INT NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    token_hash    VARCHAR(64) UNIQUE NOT NULL,
+    expira_en     TIMESTAMPTZ NOT NULL,
+    usado_en      TIMESTAMPTZ,
+    ip            VARCHAR(45),
+    creado_en     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_restablecimientos_usuario ON restablecimientos_contrasena(usuario_id, creado_en DESC);
 
 -- Auditoria de accesos: registro inmutable, solo inserciones.
 CREATE TABLE auditoria_accesos (

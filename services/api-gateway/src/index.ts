@@ -1,11 +1,14 @@
 import 'dotenv/config';
 import express, { NextFunction, Request, Response } from 'express';
 import { randomUUID } from 'node:crypto';
+import { Agent, IncomingMessage } from 'node:http';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { createProxyMiddleware, Options } from 'http-proxy-middleware';
-import { crearLogger, PeticionAutenticada, verificarAcceso } from '@ecommerce/shared';
+import { crearLogger, ErrorApp, leerSecreto, PeticionAutenticada, verificarAcceso, verificarSecretos } from '@ecommerce/shared';
+import { docsExpuestas, montarDocumentacion, PATRON_DOCS } from './documentacion';
+import { proxiesDeConfianza } from './proxies';
 
 /**
  * API GATEWAY - punto unico de entrada del sistema (seccion 5.2 del documento).
@@ -25,6 +28,15 @@ import { crearLogger, PeticionAutenticada, verificarAcceso } from '@ecommerce/sh
  */
 
 const log = crearLogger('api-gateway');
+
+// Sin secretos propios el gateway no arranca (hallazgos S-02 y S-03 de
+// docs/calidad/SEGURIDAD.md): no hay valores por defecto.
+try {
+  verificarSecretos();
+} catch (error) {
+  log.error((error as Error).message);
+  process.exit(1);
+}
 const app = express();
 const PUERTO = Number(process.env.PORT || 8080);
 
@@ -46,7 +58,8 @@ const DESTINOS: Destino[] = [
   { prefijo: '/api/carrito',        url: process.env.URL_CARRITO        || 'http://localhost:3005' },
   { prefijo: '/api/pedidos',        url: process.env.URL_PEDIDOS        || 'http://localhost:3006' },
   { prefijo: '/api/pagos',          url: process.env.URL_PAGOS          || 'http://localhost:3007' },
-  { prefijo: '/api/notificaciones', url: process.env.URL_NOTIFICACIONES || 'http://localhost:3008' }
+  { prefijo: '/api/notificaciones', url: process.env.URL_NOTIFICACIONES || 'http://localhost:3008' },
+  { prefijo: '/api/asistente',      url: process.env.URL_ASISTENTE      || 'http://localhost:3009', tienePublicas: true }
 ];
 
 /**
@@ -57,10 +70,18 @@ const DESTINOS: Destino[] = [
  * gateway lo rechaza por defecto en lugar de dejarlo abierto.
  */
 const RUTAS_PUBLICAS: Array<{ metodo: string; patron: RegExp }> = [
-  { metodo: 'POST', patron: /^\/api\/auth\/(login|registro|renovar)$/ },
+  { metodo: 'POST', patron: /^\/api\/auth\/(login|registro|renovar|recuperar|restablecer)$/ },
   { metodo: 'POST', patron: /^\/api\/clientes\/?$/ },
+  // Lista de departamentos para el formulario de registro.
+  { metodo: 'GET',  patron: /^\/api\/clientes\/departamentos$/ },
   { metodo: 'GET',  patron: /^\/api\/catalogo\/productos(\/[^/]+)?$/ },
-  { metodo: 'GET',  patron: /^\/api\/catalogo\/categorias$/ }
+  { metodo: 'GET',  patron: /^\/api\/catalogo\/categorias$/ },
+  // Fotos de los productos (las carga tambien la app movil).
+  { metodo: 'GET',  patron: /^\/api\/catalogo\/imagenes\/[^/]+$/ },
+  // El asistente atiende tambien a visitantes; con token, el servicio lo valida.
+  { metodo: 'POST', patron: /^\/api\/asistente\/mensajes$/ },
+  // Swagger UI y la especificacion, solo si estan expuestas (EXPONER_DOCS).
+  ...(docsExpuestas() ? [{ metodo: 'GET', patron: PATRON_DOCS }] : [])
 ];
 
 const esPublica = (metodo: string, ruta: string): boolean =>
@@ -69,7 +90,8 @@ const esPublica = (metodo: string, ruta: string): boolean =>
 // --------------------------------------------------------------------------
 // Seguridad de transporte y cabeceras
 // --------------------------------------------------------------------------
-app.set('trust proxy', 1);
+// Cuantos proxies hay delante (nginx; mas Caddy o el tunel en la nube): proxies.ts.
+app.set('trust proxy', proxiesDeConfianza());
 app.disable('x-powered-by');
 
 app.use(
@@ -79,7 +101,7 @@ app.use(
   })
 );
 
-const origenesPermitidos = (process.env.CORS_ORIGENES || 'http://localhost:5173')
+const origenesPermitidos = (process.env.CORS_ORIGENES || 'http://localhost:5173,http://localhost:4173,http://localhost:8081')
   .split(',')
   .map((o) => o.trim());
 
@@ -90,7 +112,9 @@ app.use(
       if (!origen || origenesPermitidos.includes('*') || origenesPermitidos.includes(origen)) {
         return callback(null, true);
       }
-      callback(new Error('Origen no permitido por la politica de CORS.'));
+      // 403 explicito: antes era un Error generico que el manejador final
+      // respondia como 500 (hallazgo S-07 de docs/calidad/SEGURIDAD.md).
+      callback(new ErrorApp(403, 'Origen no permitido por la politica de CORS.', 'ORIGEN_NO_PERMITIDO'));
     },
     credentials: true,
     exposedHeaders: ['x-request-id']
@@ -173,6 +197,20 @@ const limiteLogin = rateLimit({
   message: { mensaje: 'Demasiados intentos de inicio de sesion. Espere 15 minutos.', codigo: 'LIMITE_LOGIN' }
 });
 
+/**
+ * Recuperacion de contrasena (RF-54): cada solicitud envia un correo, asi que
+ * se limita por IP, cuente o no la cuenta (la respuesta es la misma en ambos
+ * casos). El servicio limita ademas por cuenta.
+ */
+const limiteRecuperacion = rateLimit({
+  windowMs: 15 * 60_000,
+  limit: Number(process.env.LIMITE_RECUPERACION || 5),
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  keyGenerator: (req) => `recuperar:${req.ip}`,
+  message: { mensaje: 'Ya pediste varios enlaces. Espera 15 minutos antes de pedir otro.', codigo: 'LIMITE_RECUPERACION' }
+});
+
 const limiteCheckout = rateLimit({
   windowMs: 60_000,
   limit: Number(process.env.LIMITE_CHECKOUT || 10),
@@ -182,9 +220,45 @@ const limiteCheckout = rateLimit({
   message: { mensaje: 'Demasiados intentos de compra. Espere un momento.', codigo: 'LIMITE_CHECKOUT' }
 });
 
+/**
+ * El chat es publico y cada mensaje puede consultar el catalogo o los pedidos:
+ * lleva su propio limite, mas estricto que el general, para que no sirva de
+ * amplificador contra los servicios de dominio.
+ */
+const limiteAsistente = rateLimit({
+  windowMs: 60_000,
+  limit: Number(process.env.LIMITE_ASISTENTE || 30),
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  keyGenerator: identificar,
+  message: { mensaje: 'Estas enviando mensajes muy rapido. Espera un momento.', codigo: 'LIMITE_ASISTENTE' }
+});
+
+/**
+ * Fotos de los productos (F5c): una vista del catalogo pide unas 20 y el
+ * navegador no les manda el token, asi que contaban por IP contra el limite
+ * general (300/min) y lo agotaban: el inicio de sesion siguiente recibia 429.
+ * Son lecturas baratas y cacheables (Cache-Control de un dia o un año): llevan
+ * su propio limite, mas holgado, y no gastan el cupo de la API.
+ */
+const limiteImagenes = rateLimit({
+  windowMs: 60_000,
+  limit: Number(process.env.LIMITE_IMAGENES || 1500),
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  keyGenerator: (req) => `img:${req.ip}`,
+  message: { mensaje: 'Demasiadas peticiones de imagenes. Intente de nuevo en un momento.', codigo: 'LIMITE_EXCEDIDO' }
+});
+const esImagenPublica = (req: Request): boolean => req.method === 'GET' && req.path.startsWith('/catalogo/imagenes/');
+
 app.use('/api/auth/login', limiteLogin);
+app.use('/api/auth/recuperar', limiteRecuperacion);
+// Un enlace adivinado tiene 256 bits: imposible, pero los intentos fallidos cuentan como los del login.
+app.use('/api/auth/restablecer', limiteLogin);
 app.use('/api/pedidos/checkout', limiteCheckout);
-app.use('/api', limiteGeneral);
+app.use('/api/asistente/mensajes', limiteAsistente);
+app.use('/api/catalogo/imagenes', limiteImagenes);
+app.use('/api', (req, res, next) => (esImagenPublica(req) ? next() : limiteGeneral(req, res, next)));
 
 // --------------------------------------------------------------------------
 // Registro de peticiones
@@ -204,6 +278,12 @@ app.use((req: PeticionAutenticada, res: Response, next: NextFunction) => {
   });
   next();
 });
+
+// --------------------------------------------------------------------------
+// Documentacion de la API (Swagger UI). Antes de la validacion del token: es
+// publica, y despues del rate limit general y del registro de peticiones.
+// --------------------------------------------------------------------------
+montarDocumentacion(app);
 
 // --------------------------------------------------------------------------
 // Validacion centralizada del token
@@ -241,17 +321,39 @@ app.use('/api', (req: PeticionAutenticada, res: Response, next: NextFunction) =>
 // --------------------------------------------------------------------------
 // Proxy hacia los microservicios
 // --------------------------------------------------------------------------
+const PROXY_TIMEOUT_MS = Number(process.env.PROXY_TIMEOUT_MS || 15000);
+
+/**
+ * Conexiones persistentes hacia los servicios.
+ *
+ * Sin un agent, http-proxy envia "Connection: close" a cada servicio y
+ * reenvia esa cabecera al cliente: cada peticion abria dos conexiones TCP
+ * nuevas, y con 300 usuarios el equipo generador agotaba sus puertos
+ * (docs/calidad/RENDIMIENTO.md, hallazgo R3). Con keep-alive se reutilizan.
+ * 'lifo' reutiliza primero la conexion usada mas recientemente, que es la que
+ * menos riesgo tiene de que el servicio la haya cerrado por inactividad.
+ */
+const agenteServicios = new Agent({ keepAlive: true, scheduling: 'lifo' });
+
+/** Peticiones cuyo proxyTimeout vencio: se responden con 504 y no con 503. */
+const tiempoAgotado = new WeakSet<IncomingMessage>();
+
 const opcionesComunes = (destino: Destino): Options => ({
   target: destino.url,
+  agent: agenteServicios,
   changeOrigin: true,
   // El prefijo /api/<servicio> se elimina: cada servicio publica sus rutas en
   // la raiz y no necesita saber bajo que prefijo lo expone el gateway.
   pathRewrite: { [`^${destino.prefijo}`]: '' },
-  proxyTimeout: Number(process.env.PROXY_TIMEOUT_MS || 15000),
-  timeout: Number(process.env.PROXY_TIMEOUT_MS || 15000),
+  // Solo proxyTimeout (espera por el servicio). La opcion "timeout" de
+  // http-proxy se aplica al socket del CLIENTE y, al vencer, lo destruye sin
+  // responder: el cliente recibia un EOF en vez del 504 de abajo (hallazgo R4).
+  proxyTimeout: PROXY_TIMEOUT_MS,
   on: {
     proxyReq: (proxyReq, req) => {
       const peticion = req as PeticionAutenticada;
+
+      proxyReq.once('timeout', () => tiempoAgotado.add(req));
 
       proxyReq.setHeader('x-request-id', peticion.requestId ?? '');
 
@@ -259,7 +361,7 @@ const opcionesComunes = (destino: Destino): Options => ({
       // no por un atajo a la red privada. Deliberadamente NO se envia
       // x-llamada-interna: esto es trafico de un usuario final, y el control de
       // rol de cada servicio debe seguir aplicandose.
-      proxyReq.setHeader('x-internal-token', process.env.INTERNAL_TOKEN || 'secreto-interno-desarrollo');
+      proxyReq.setHeader('x-internal-token', leerSecreto('INTERNAL_TOKEN'));
 
       if (peticion.usuario) {
         proxyReq.setHeader('x-usuario-id', String(peticion.usuario.sub));
@@ -270,6 +372,12 @@ const opcionesComunes = (destino: Destino): Options => ({
         }
       }
     },
+    proxyRes: (proxyRes) => {
+      // Keep-Alive es una cabecera de salto (hop-by-hop): describe la conexion
+      // gateway-servicio (65 s), no la del cliente con el gateway. Si se
+      // reenviara, el cliente reutilizaria sockets que el gateway ya cerro.
+      delete proxyRes.headers['keep-alive'];
+    },
     error: (error, req, res) => {
       const peticion = req as PeticionAutenticada;
       log.con({ request_id: peticion.requestId }).error('Error al enrutar la peticion', {
@@ -278,12 +386,15 @@ const opcionesComunes = (destino: Destino): Options => ({
       });
 
       if ('writeHead' in res && !res.headersSent) {
-        res.writeHead(503, { 'Content-Type': 'application/json' });
+        const servicio = destino.prefijo.replace('/api/', '');
+        const vencido = tiempoAgotado.has(req);
+        res.writeHead(vencido ? 504 : 503, { 'Content-Type': 'application/json' });
         res.end(
-          JSON.stringify({
-            mensaje: `El servicio ${destino.prefijo.replace('/api/', '')} no esta disponible en este momento.`,
-            codigo: 'SERVICIO_NO_DISPONIBLE'
-          })
+          JSON.stringify(
+            vencido
+              ? { mensaje: `El servicio ${servicio} no respondio a tiempo. Intente de nuevo.`, codigo: 'TIEMPO_AGOTADO' }
+              : { mensaje: `El servicio ${servicio} no esta disponible en este momento.`, codigo: 'SERVICIO_NO_DISPONIBLE' }
+          )
         );
       }
     }
@@ -330,6 +441,14 @@ app.get('/api/health', async (_req: Request, res: Response) => {
   });
 });
 
+// Liveness del propio gateway: lo consulta el HEALTHCHECK de la imagen
+// (infra/Dockerfile.servicio pide /health en todos los servicios). No consulta
+// a los demas servicios a proposito: si uno cae, el orquestador no debe
+// reiniciar el gateway, que sigue sano y responde 503 solo para esa ruta.
+app.get('/health', (_req: Request, res: Response) => {
+  res.status(200).json({ servicio: 'api-gateway', estado: 'ok' });
+});
+
 app.get('/', (_req: Request, res: Response) => {
   res.status(200).json({
     nombre: 'API Gateway - Plataforma de comercio electronico',
@@ -344,6 +463,13 @@ app.use((_req: Request, res: Response) => {
 });
 
 app.use((error: unknown, req: PeticionAutenticada, res: Response, _next: NextFunction) => {
+  // Errores esperados del propio gateway (p. ej. un origen rechazado por CORS):
+  // se responden con su codigo, no como un fallo del servidor.
+  if (error instanceof ErrorApp && error.estado < 500) {
+    log.con({ request_id: req.requestId }).warn(error.message, { codigo: error.codigo, origen: req.headers.origin });
+    if (!res.headersSent) res.status(error.estado).json({ mensaje: error.message, codigo: error.codigo });
+    return;
+  }
   log.con({ request_id: req.requestId }).error('Error en el gateway', {
     error: error instanceof Error ? error.message : String(error)
   });

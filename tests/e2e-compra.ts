@@ -197,6 +197,37 @@ const escenarioA = async (admin: string): Promise<void> => {
     'El servicio de notificaciones reacciono al evento',
     { mensajes: mensajes.datos?.length }
   );
+
+  paso('El correo de confirmacion llega al buzon (SMTP real, Mailpit)');
+  const correo = await buscarCorreo(compra.datos.pedido.numero);
+  afirmar(correo !== null, `Llega un correo con el numero ${compra.datos.pedido.numero}`, { mailpit: MAILPIT });
+  afirmar(
+    correo?.To?.some((d: { Address: string }) => d.Address === ana.usuario.email) ?? false,
+    'El correo va dirigido al cliente que compro',
+    correo?.To
+  );
+};
+
+/**
+ * Busca en Mailpit el correo de un pedido. Reintenta durante unos segundos: el
+ * correo es asincrono y la cola de notificaciones puede traer eventos atrasados
+ * de pruebas anteriores (consume ~10 por segundo, hallazgo R6).
+ */
+const MAILPIT = process.env.MAILPIT_URL || 'http://localhost:8025';
+const buscarCorreo = async (numeroPedido: string, esperaMs = 15_000): Promise<any | null> => {
+  const consulta = encodeURIComponent(`subject:"${numeroPedido}"`);
+  const limite = Date.now() + esperaMs;
+  while (Date.now() < limite) {
+    try {
+      const respuesta = await fetch(`${MAILPIT}/api/v1/search?query=${consulta}`);
+      const datos = (await respuesta.json()) as { messages?: any[] };
+      if (datos.messages?.length) return datos.messages[0];
+    } catch {
+      /* Mailpit aun no responde: se reintenta */
+    }
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  return null;
 };
 
 const escenarioB = async (admin: string): Promise<void> => {
@@ -205,7 +236,7 @@ const escenarioB = async (admin: string): Promise<void> => {
   const bruno = await login('bruno@correo.co');
   await vaciarCarrito(bruno.token, bruno.usuario.cliente_id);
 
-  const catalogo = await pedir('/api/catalogo/productos?categoria=hogar');
+  const catalogo = await pedir('/api/catalogo/productos?subcategoria=accesorios');
   const producto = catalogo.datos.productos?.find((p: any) => p.hay_stock === true);
   if (!producto) {
     console.log(`  ${AMARILLO}OMITIDO${FIN} no hay productos con stock para este escenario`);
@@ -347,7 +378,7 @@ const escenarioD = async (admin: string): Promise<void> => {
   const carla = await login('carla@correo.co');
   await vaciarCarrito(carla.token, carla.usuario.cliente_id);
 
-  const catalogo = await pedir('/api/catalogo/productos?categoria=deportes');
+  const catalogo = await pedir('/api/catalogo/productos?subcategoria=gaming');
   const producto = catalogo.datos.productos?.find((p: any) => p.hay_stock === true);
   if (!producto) {
     console.log(`  ${AMARILLO}OMITIDO${FIN} no hay productos con stock`);
@@ -402,7 +433,7 @@ const escenarioE = async (admin: string): Promise<void> => {
   const ana = await login('ana@correo.co');
   await vaciarCarrito(ana.token, ana.usuario.cliente_id);
 
-  const catalogo = await pedir('/api/catalogo/productos?categoria=hogar');
+  const catalogo = await pedir('/api/catalogo/productos?subcategoria=accesorios');
   const producto = catalogo.datos.productos?.find((p: any) => p.hay_stock === true);
   if (!producto) {
     console.log(`  ${AMARILLO}OMITIDO${FIN} no hay productos con stock`);
@@ -451,6 +482,21 @@ const escenarioE = async (admin: string): Promise<void> => {
   afirmar(
     stockFinal === stockTrasCompra + 1,
     `El stock vuelve a subir (${stockTrasCompra} -> ${stockFinal})`
+  );
+
+  // Hallazgo H-F5-01: el correo de cancelacion iba al buzon de operaciones,
+  // con "Hola ," y diciendo que no hubo cobro cuando si lo hubo.
+  paso('El correo de cancelacion le llega al cliente y menciona el reembolso');
+  const correo = await buscarCorreo(`${compra.datos.pedido.numero} fue cancelado`);
+  afirmar(
+    correo?.To?.some((d: { Address: string }) => d.Address === ana.usuario.email) ?? false,
+    'El correo de cancelacion va dirigido al cliente',
+    correo?.To
+  );
+  afirmar(
+    /Hola \S/.test(correo?.Snippet ?? '') && /reembolso/i.test(correo?.Snippet ?? ''),
+    'Saluda al cliente por su nombre e informa el reembolso',
+    correo?.Snippet
   );
 
   paso('Cancelar de nuevo es idempotente');
@@ -510,7 +556,7 @@ const principal = async (): Promise<void> => {
       );
       process.exit(1);
     }
-    console.log(`${VERDE}Los nueve servicios responden correctamente.${FIN}`);
+    console.log(`${VERDE}Todos los servicios responden correctamente.${FIN}`);
   } catch (error) {
     console.error(
       `\n${ROJO}No fue posible contactar al API Gateway en ${GATEWAY}.${FIN}\n` +
@@ -526,8 +572,8 @@ const principal = async (): Promise<void> => {
   for (const [sku, cantidad] of [
     ['SKU-TEC-001', 50],
     ['SKU-TEC-002', 25],
-    ['SKU-HOG-001', 40],
-    ['SKU-DEP-001', 60]
+    ['SKU-TEC-006', 40],
+    ['SKU-TEC-009', 60]
   ] as Array<[string, number]>) {
     const actual = await stockDe(sku, admin);
     if (actual < 10) await reponer(sku, cantidad, admin);

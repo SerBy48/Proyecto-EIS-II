@@ -1,0 +1,339 @@
+# auth-service (prefijo /api/auth). x-roles: publica | sesion | <roles>.
+salud:
+  get:
+    tags: [plataforma]
+    summary: Salud agregada de todos los servicios
+    description: Consulta el /health de cada servicio en paralelo (2 s de espera por servicio).
+    operationId: saludAgregada
+    security: []
+    x-roles: [publica]
+    responses:
+      '200':
+        description: Estado de cada servicio y de sus dependencias.
+        content:
+          application/json:
+            schema: { $ref: '../componentes/esquemas.yaml#/Salud' }
+      '429': { $ref: '../componentes/respuestas.yaml#/LimiteExcedido' }
+      '503':
+        description: Algun servicio esta caido.
+        content:
+          application/json:
+            schema: { $ref: '../componentes/esquemas.yaml#/Salud' }
+
+registro:
+  post:
+    tags: [auth]
+    summary: Registrar una cuenta de cliente
+    description: |
+      El rol `cliente` es el unico que se puede autoasignar. Si se envia `cliente_id`,
+      clientes-service confirma que existe, que su correo es el mismo y que no tiene
+      ya una cuenta (hallazgo S-01).
+    operationId: registrar
+    security: []
+    x-roles: [publica]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../componentes/esquemas.yaml#/Registro' }
+    responses:
+      '201':
+        description: Cuenta creada.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mensaje: { type: string, example: Usuario registrado. }
+                usuario: { $ref: '../componentes/esquemas.yaml#/Usuario' }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+      '409': { $ref: '../componentes/respuestas.yaml#/Conflicto' }
+      '503': { $ref: '../componentes/respuestas.yaml#/NoDisponible' }
+
+login:
+  post:
+    tags: [auth]
+    summary: Iniciar sesion
+    description: |
+      Devuelve un JWT de 15 minutos y un refresh token rotatorio de 7 dias. El mensaje de
+      error es el mismo para un correo inexistente y una contrasena incorrecta (evita
+      enumerar cuentas). Tras 5 intentos fallidos la cuenta se bloquea 15 minutos. El
+      gateway limita a 10 intentos cada 15 minutos por IP.
+    operationId: iniciarSesion
+    security: []
+    x-roles: [publica]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../componentes/esquemas.yaml#/Credenciales' }
+    responses:
+      '200':
+        description: Sesion iniciada.
+        content:
+          application/json:
+            schema: { $ref: '../componentes/esquemas.yaml#/Sesion' }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '429': { $ref: '../componentes/respuestas.yaml#/LimiteExcedido' }
+      '503': { $ref: '../componentes/respuestas.yaml#/NoDisponible' }
+
+renovar:
+  post:
+    tags: [auth]
+    summary: Renovar la sesion con el refresh token
+    description: El refresh usado queda revocado y se emite otro (rotacion); reutilizarlo responde 401.
+    operationId: renovarSesion
+    security: []
+    x-roles: [publica]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [refresh_token]
+            properties:
+              refresh_token: { type: string }
+    responses:
+      '200':
+        description: Nuevo par de tokens.
+        content:
+          application/json:
+            schema: { $ref: '../componentes/esquemas.yaml#/Renovacion' }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+
+recuperar:
+  post:
+    tags: [auth]
+    summary: Pedir un enlace para restablecer la contrasena (RF-54)
+    description: >-
+      Si el correo es de una cuenta activa, crea un enlace de un solo uso que vence en 30 minutos y lo envia
+      por correo (evento auth.recuperacion_solicitada). La respuesta es la misma exista o no la cuenta, para
+      no permitir enumerar correos. Limite de 5 solicitudes por IP cada 15 minutos (gateway) y 3 por cuenta.
+    operationId: solicitarRecuperacion
+    security: []
+    x-roles: [publica]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [email]
+            properties:
+              email: { type: string, format: email, maxLength: 150 }
+    responses:
+      '202':
+        description: Solicitud recibida (mismo mensaje exista o no la cuenta).
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mensaje: { type: string }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+      '429': { $ref: '../componentes/respuestas.yaml#/LimiteExcedido' }
+
+restablecer:
+  post:
+    tags: [auth]
+    summary: Crear la contrasena nueva con el enlace del correo (RF-54)
+    description: >-
+      Consume el enlace (una sola vez), cambia la contrasena, desbloquea la cuenta y revoca todas sus
+      sesiones. Un enlace usado, vencido o inexistente responde 400 ENLACE_INVALIDO.
+    operationId: restablecerContrasena
+    security: []
+    x-roles: [publica]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [token, password]
+            properties:
+              token: { type: string, pattern: '^[a-f0-9]{64}$', description: 'El que trae el enlace (#restablecer=...).' }
+              password: { type: string, minLength: 8, maxLength: 128 }
+    responses:
+      '200':
+        description: Contrasena actualizada.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mensaje: { type: string }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+      '429': { $ref: '../componentes/respuestas.yaml#/LimiteExcedido' }
+
+logout:
+  post:
+    tags: [auth]
+    summary: Cerrar sesion
+    description: Revoca todos los refresh tokens del usuario. El JWT de acceso vale hasta que expire (15 min).
+    operationId: cerrarSesion
+    x-roles: [sesion]
+    responses:
+      '200':
+        description: Sesion cerrada.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mensaje: { type: string, example: Sesion cerrada. }
+                tokens_revocados: { type: integer, example: 1 }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+
+perfil:
+  get:
+    tags: [auth]
+    summary: Perfil del usuario autenticado
+    operationId: obtenerPerfil
+    x-roles: [sesion]
+    responses:
+      '200':
+        description: Datos de la cuenta.
+        content:
+          application/json:
+            schema: { $ref: '../componentes/esquemas.yaml#/Perfil' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+
+verificar:
+  post:
+    tags: [auth]
+    summary: Verificar el token actual
+    description: Devuelve los claims del JWT. Permite a otros sistemas validar un token sin conocer el secreto.
+    operationId: verificarToken
+    x-roles: [sesion]
+    responses:
+      '200':
+        description: Token valido.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                valido: { type: boolean, example: true }
+                usuario: { type: object, additionalProperties: true }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+
+usuarios:
+  get:
+    tags: [auth]
+    summary: Listar usuarios
+    description: Para el panel de administracion. Hasta 200, del mas reciente al mas antiguo.
+    operationId: listarUsuarios
+    x-roles: [administrador]
+    parameters:
+      - { name: rol, in: query, schema: { $ref: '../componentes/esquemas.yaml#/Rol' } }
+    responses:
+      '200':
+        description: Usuarios (sin el hash de la contrasena).
+        content:
+          application/json:
+            schema: { type: array, items: { $ref: '../componentes/esquemas.yaml#/UsuarioAdministrado' } }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+  post:
+    tags: [auth]
+    summary: Crear un usuario interno
+    description: Alta de vendedores y administradores.
+    operationId: crearUsuarioInterno
+    x-roles: [administrador]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../componentes/esquemas.yaml#/UsuarioInterno' }
+    responses:
+      '201':
+        description: Usuario creado.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mensaje: { type: string, example: Usuario creado. }
+                usuario: { $ref: '../componentes/esquemas.yaml#/Usuario' }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+      '409': { $ref: '../componentes/respuestas.yaml#/Conflicto' }
+
+usuario:
+  parameters:
+    - { name: id, in: path, required: true, schema: { type: integer, example: 2 } }
+  patch:
+    tags: [auth]
+    summary: Cambiar el rol o desactivar un usuario
+    operationId: actualizarUsuario
+    x-roles: [administrador]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../componentes/esquemas.yaml#/CambiosUsuario' }
+    responses:
+      '200':
+        description: Usuario actualizado y sus sesiones revocadas.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mensaje: { type: string, example: Usuario actualizado. }
+                usuario: { $ref: '../componentes/esquemas.yaml#/UsuarioAdministrado' }
+                sesiones_cerradas: { type: integer, example: 1 }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+      '404': { $ref: '../componentes/respuestas.yaml#/NoEncontrado' }
+      '409': { $ref: '../componentes/respuestas.yaml#/Conflicto' }
+
+cuenta:
+  delete:
+    tags: [auth]
+    summary: Eliminar la propia cuenta
+    description: |
+      Solo cuentas de cliente, confirmando con la contrasena. Se rechaza con 409 si hay pedidos
+      creados, pagados, en preparacion o enviados. Si procede, se ANONIMIZA: el perfil pierde sus
+      datos personales y direcciones, la cuenta queda inactiva y se cierran sus sesiones. Los
+      pedidos se conservan sin datos personales (obligaciones contables).
+    operationId: eliminarCuenta
+    x-roles: [cliente]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [password]
+            properties:
+              password: { type: string, format: password }
+    responses:
+      '200':
+        description: Cuenta eliminada.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mensaje: { type: string, example: Tu cuenta fue eliminada. }
+                sesiones_cerradas: { type: integer, example: 1 }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403':
+        description: Contrasena incorrecta (CONTRASENA_INCORRECTA) o la cuenta no es de cliente.
+        content:
+          application/json:
+            schema: { $ref: '../componentes/esquemas.yaml#/Error' }
+      '409':
+        description: Hay pedidos en curso (PEDIDOS_EN_CURSO); detalle.pendientes los lista.
+        content:
+          application/json:
+            schema: { $ref: '../componentes/esquemas.yaml#/Error' }

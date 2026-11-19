@@ -1,7 +1,7 @@
 /**
  * Suite de pruebas del contrato HTTP a traves del API Gateway.
  *
- * 60 casos sobre nueve areas: autenticacion, control de acceso, inventario,
+ * 73 casos sobre nueve areas: autenticacion, control de acceso, inventario,
  * pagos, pedidos, limitacion de peticiones, cumplimiento PCI-DSS, aislamiento de
  * las bases de datos y degradacion del sistema.
  *
@@ -140,8 +140,8 @@ const restablecerEstado = async (): Promise<void> => {
     'inventario_db',
     `UPDATE stock s SET cantidad_disponible = v.cant, cantidad_reservada = 0, version = s.version + 1
        FROM (VALUES ('SKU-TEC-001',50),('SKU-TEC-002',25),('SKU-TEC-003',12),('SKU-TEC-004',1),
-                    ('SKU-TEC-005',30),('SKU-HOG-001',40),('SKU-HOG-002',3),('SKU-HOG-003',18),
-                    ('SKU-DEP-001',60),('SKU-DEP-002',8)) AS v(sku, cant)
+                    ('SKU-TEC-005',30),('SKU-TEC-006',40),('SKU-TEC-007',3),('SKU-TEC-008',18),
+                    ('SKU-TEC-009',60),('SKU-TEC-010',8)) AS v(sku, cant)
       WHERE s.sku = v.sku`
   );
   await sql('pagos_db', 'DELETE FROM reembolsos; DELETE FROM auditoria_pasarela; DELETE FROM transacciones;');
@@ -169,6 +169,21 @@ const ejecutar = async (): Promise<void> => {
   await caso('A-04', 400, 'Login sin campos obligatorios', '/api/auth/login', { metodo: 'POST', cuerpo: { email: 'ana@correo.co' } });
   await caso('A-05', 200, 'Consulta del perfil con token valido', '/api/auth/perfil', ana);
   info('A-06', `Token JWT emitido: ${ANA.length} caracteres`);
+  // Hallazgo S-01 de docs/calidad/SEGURIDAD.md: el registro aceptaba el
+  // cliente_id de otra persona. Ahora el correo del cliente debe coincidir.
+  await caso('A-07', 403, 'Registro con el cliente_id de otra persona', '/api/auth/registro', {
+    metodo: 'POST', cuerpo: { email: `intruso-${Date.now()}@correo.co`, password: 'Password123', cliente_id: 1 }
+  });
+  await caso('A-08', 409, 'Registro de un cliente que ya tiene cuenta', '/api/auth/registro', {
+    metodo: 'POST', cuerpo: { email: 'ana@correo.co', password: 'Password123', cliente_id: 1 }
+  });
+  await caso('A-09', 400, 'Registro con un cliente_id inexistente', '/api/auth/registro', {
+    metodo: 'POST', cuerpo: { email: `nadie-${Date.now()}@correo.co`, password: 'Password123', cliente_id: 999999 }
+  });
+  // Hallazgo S-10: el correo no se validaba.
+  await caso('A-10', 400, 'Registro con un correo sin formato de correo', '/api/auth/registro', {
+    metodo: 'POST', cuerpo: { email: 'http://www.google.com/', password: 'Password123' }
+  });
 
   seccion('SUITE B · CONTROL DE ACCESO (RBAC Y PROPIEDAD DEL DATO)');
   await caso('B-01', 401, 'Ruta protegida sin token', '/api/pedidos');
@@ -192,6 +207,24 @@ const ejecutar = async (): Promise<void> => {
     cabeceras: { 'x-usuario-rol': 'administrador', 'x-llamada-interna': '1', 'x-internal-token': 'secreto-interno-desarrollo' }
   });
   await caso('B-14', 404, 'Ruta inexistente en el gateway', '/api/inventado/ruta', ana);
+  await caso('B-15', 200, 'Cliente listando sus propias direcciones', '/api/clientes/1/direcciones', ana);
+  await caso('B-16', 403, 'Cliente listando las direcciones de otro cliente', '/api/clientes/2/direcciones', ana);
+  // Hallazgo S-04: seis 404 de un cliente abrian el circuit breaker de carrito
+  // hacia catalogo y dejaban a todos sin poder agregar productos.
+  for (let i = 0; i < 6; i++) {
+    await pedir('/api/carrito/1/items', { ...ana, metodo: 'POST', cuerpo: { sku: `SKU-NO-EXISTE-${i}`, cantidad: 1 } });
+  }
+  await caso('B-17', 200, 'Seis SKU inexistentes no abren el circuito del carrito', '/api/carrito/1/items', {
+    ...ana, metodo: 'POST', cuerpo: { sku: 'SKU-TEC-001', cantidad: 1 }
+  });
+  await pedir('/api/carrito/1', { ...ana, metodo: 'DELETE' });
+  // Hallazgos S-05, S-06 y S-07: entradas mal formadas y origenes rechazados
+  // respondian 200 con el operador interpretado, o 500.
+  await caso('B-18', 400, 'Operador NoSQL en un filtro del catalogo', '/api/catalogo/productos?categoria[$ne]=tecnologia');
+  await caso('B-19', 400, 'Id de pedido fuera del rango de un entero', '/api/pedidos/99999999999', ana);
+  await caso('B-20', 403, 'Peticion desde un origen no permitido por CORS', '/api/catalogo/productos', {
+    cabeceras: { Origin: 'http://sitio-malicioso.example' }
+  });
 
   seccion('SUITE C · INVENTARIO: RESERVAS, IDEMPOTENCIA Y COMPENSACION');
   // Se deja SKU-TEC-004 con una sola unidad.
@@ -212,6 +245,19 @@ const ejecutar = async (): Promise<void> => {
   const [stock] = await sql('inventario_db', `SELECT cantidad_disponible FROM stock WHERE sku='SKU-TEC-004'`);
   info('C-08', `Stock tras la compensacion: ${stock?.cantidad_disponible} unidad(es) — debe ser 1`);
   await caso('C-09', 200, 'Registrar entrada de mercancia', '/api/inventario/stock/SKU-TEC-002/entrada', { ...vend, metodo: 'POST', cuerpo: { cantidad: 5 } });
+  // Un producto recien creado en el catalogo no tiene registro de inventario:
+  // la primera entrada debe abrirlo (antes respondia 404 y el producto no se
+  // podia vender nunca). El 409 del alta cubre las re-ejecuciones de la suite.
+  await pedir('/api/catalogo/productos', {
+    ...vend, metodo: 'POST', cuerpo: { sku: 'SKU-EV-INV-001', nombre: 'Producto de evidencia inventario', categoria: 'tecnologia', subcategoria: 'accesorios', precio: 10000 }
+  });
+  await caso('C-10', 200, 'Primera entrada de un producto nuevo abre su inventario', '/api/inventario/stock/SKU-EV-INV-001/entrada', { ...vend, metodo: 'POST', cuerpo: { cantidad: 3 } });
+  // Hallazgo U-17: el producto de evidencia no debe quedar a la vista de los
+  // clientes. Se desactiva (si la suite se interrumpe antes, la siguiente
+  // ejecucion lo vuelve a desactivar aqui).
+  await pedir('/api/catalogo/productos/SKU-EV-INV-001', { ...vend, metodo: 'PATCH', cuerpo: { activo: false } });
+  await caso('C-11', 404, 'Entrada de un SKU que no existe en el catalogo', '/api/inventario/stock/SKU-NO-EXISTE-999/entrada', { ...vend, metodo: 'POST', cuerpo: { cantidad: 3 } });
+  await caso('C-12', 400, 'Entrada hacia una bodega inexistente', '/api/inventario/stock/SKU-TEC-002/entrada', { ...vend, metodo: 'POST', cuerpo: { cantidad: 1, bodega_id: 9999 } });
   await caso('C-10', 404, 'Entrada sobre un SKU inexistente', '/api/inventario/stock/SKU-NO-EXISTE/entrada', { ...vend, metodo: 'POST', cuerpo: { cantidad: 5 } });
 
   seccion('SUITE D · PAGOS: LOS CUATRO DESENLACES DE LA PASARELA');

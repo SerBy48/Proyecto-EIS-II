@@ -1,8 +1,10 @@
 import 'dotenv/config';
 import { Application, Router } from 'express';
-import { BusEventos, asincrono, crearServicio, requiereRol, verificarPostgres } from '@ecommerce/shared';
+import { BusEventos, asincrono, crearServicio, requiereRol, soloLlamadaInterna, verificarPostgres } from '@ecommerce/shared';
 import { pool } from './db';
 import { metricasCircuitos } from './dependencias';
+import { cambiarDireccion, pedidosEnCurso } from './direccion-pedido';
+import { consultarLimites } from './limites-compra';
 import {
   bitacoraSaga,
   cambiarEstado,
@@ -28,9 +30,14 @@ const rutas = (app: Application): void => {
 
   router.post('/checkout', requiereRol('cliente', 'administrador', 'vendedor'), asincrono(checkout));
   router.get('/', requiereRol(), asincrono(listarPedidos));
+  // Cuanto puede llevar el cliente de cada producto (RF-47); el carrito lo muestra.
+  router.get('/limites', requiereRol('cliente', 'administrador', 'vendedor'), asincrono(consultarLimites));
+  // Interno: auth-service lo consulta antes de eliminar una cuenta.
+  router.get('/internos/clientes/:clienteId/pendientes', requiereRol('administrador'), soloLlamadaInterna, asincrono(pedidosEnCurso));
   router.get('/:id', requiereRol(), asincrono(obtenerPedido));
   router.get('/:id/saga', requiereRol('administrador'), asincrono(bitacoraSaga));
   router.post('/:id/cancelar', requiereRol(), asincrono(cancelarPedido));
+  router.patch('/:id/direccion', requiereRol('cliente'), asincrono(cambiarDireccion));
   router.patch('/:id/estado', requiereRol('administrador', 'vendedor'), asincrono(cambiarEstado));
 
   app.use('/', router);

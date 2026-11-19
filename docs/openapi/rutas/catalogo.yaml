@@ -1,0 +1,218 @@
+# catalogo-service (prefijo /api/catalogo).
+productos:
+  get:
+    tags: [catalogo]
+    summary: Buscar y filtrar productos
+    description: |
+      Solo productos activos, con su disponibilidad. Si inventario no responde, el circuit
+      breaker lo aisla y los productos se devuelven igual con `disponible: null`
+      (degradacion elegante).
+    operationId: listarProductos
+    security: []
+    x-roles: [publica]
+    parameters:
+      - { name: q, in: query, description: 'Busqueda de texto (nombre, marca, subcategoria, descripcion). Si el indice no encuentra nada, se repite con una busqueda tolerante: palabras incompletas, plural y tildes (busqueda = tolerante).', schema: { type: string, example: portatil } }
+      - { name: categoria, in: query, schema: { type: string, example: tecnologia } }
+      - { name: subcategoria, in: query, description: 'Seccion de GET /api/catalogo/categorias.', schema: { type: string, example: audio } }
+      - { name: en_oferta, in: query, description: 'true: solo productos con descuento.', schema: { type: string, enum: ['true'] } }
+      - { name: marca, in: query, schema: { type: string, example: Aurora } }
+      - { name: precio_min, in: query, schema: { type: number, example: 100000 } }
+      - { name: precio_max, in: query, schema: { type: number, example: 5000000 } }
+      - { name: orden, in: query, description: 'Sin orden, por relevancia si hay q o por los mas nuevos.', schema: { type: string, enum: [precio_asc, precio_desc, nombre, descuento] } }
+      - { name: pagina, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+      - { name: limite, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      - { name: incluir_inactivos, in: query, description: 'Solo personal interno (con token): incluye los productos inactivos y lo configurado de la oferta (panel Productos). Para los demas se ignora.', schema: { type: string, enum: ['true'] } }
+      - { name: skus, in: query, description: 'Lista de 1 a 100 SKU separados por comas: solo esos productos (el panel pone nombre a las alertas de reposicion y al historial de entradas).', schema: { type: string, example: 'SKU-TEC-004,SKU-TEC-007' } }
+    responses:
+      '200':
+        description: Pagina de resultados.
+        content:
+          application/json:
+            schema: { $ref: '../componentes/esquemas.yaml#/PaginaProductos' }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+  post:
+    tags: [catalogo]
+    summary: Crear un producto
+    operationId: crearProducto
+    x-roles: [administrador, vendedor]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../componentes/esquemas.yaml#/ProductoNuevo' }
+    responses:
+      '201':
+        description: Producto creado.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mensaje: { type: string, example: Producto creado. }
+                producto: { $ref: '../componentes/esquemas.yaml#/Producto' }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+      '409': { $ref: '../componentes/respuestas.yaml#/Conflicto' }
+
+producto:
+  parameters: [{ $ref: '../componentes/parametros.yaml#/Sku' }]
+  get:
+    tags: [catalogo]
+    summary: Detalle de un producto
+    operationId: obtenerProducto
+    security: []
+    x-roles: [publica]
+    responses:
+      '200':
+        description: Producto con su disponibilidad.
+        content:
+          application/json:
+            schema: { $ref: '../componentes/esquemas.yaml#/Producto' }
+      '404': { $ref: '../componentes/respuestas.yaml#/NoEncontrado' }
+  patch:
+    tags: [catalogo]
+    summary: Actualizar un producto
+    description: |
+      El precio que cuenta en el carrito y en el checkout es siempre el vigente aqui (invariante 2).
+      Valida rangos (precio de 1.000 a 100.000.000, descuento de 0 a 90 %, fecha de fin futura, seccion existente)
+      y deja cada cambio de precio u oferta en el historial (RF-48).
+    operationId: actualizarProducto
+    x-roles: [administrador, vendedor]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../componentes/esquemas.yaml#/CambiosProducto' }
+    responses:
+      '200':
+        description: Producto actualizado.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mensaje: { type: string, example: Producto actualizado. }
+                producto: { $ref: '../componentes/esquemas.yaml#/Producto' }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+      '404': { $ref: '../componentes/respuestas.yaml#/NoEncontrado' }
+
+categorias:
+  get:
+    tags: [catalogo]
+    summary: Categorias con su conteo y precio minimo
+    operationId: listarCategorias
+    security: []
+    x-roles: [publica]
+    responses:
+      '200':
+        description: Categorias.
+        content:
+          application/json:
+            schema: { type: array, items: { $ref: '../componentes/esquemas.yaml#/Categoria' } }
+      '429': { $ref: '../componentes/respuestas.yaml#/LimiteExcedido' }
+
+promocion:
+  get:
+    tags: [catalogo]
+    summary: Consultar un cupon
+    operationId: validarPromocion
+    x-roles: [sesion]
+    parameters:
+      - { name: codigo, in: path, required: true, schema: { type: string, example: BIENVENIDA10 } }
+    responses:
+      '200':
+        description: Cupon vigente.
+        content:
+          application/json:
+            schema: { $ref: '../componentes/esquemas.yaml#/Promocion' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '404': { $ref: '../componentes/respuestas.yaml#/NoEncontrado' }
+
+historialPrecios:
+  parameters: [{ $ref: '../componentes/parametros.yaml#/Sku' }]
+  get:
+    tags: [catalogo]
+    summary: Historial de cambios de precio y oferta de un producto
+    operationId: historialPrecios
+    x-roles: [administrador, vendedor]
+    responses:
+      '200':
+        description: Ultimos 50 cambios, del mas reciente al mas antiguo.
+        content:
+          application/json:
+            schema: { type: array, items: { $ref: '../componentes/esquemas.yaml#/CambioPrecio' } }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+
+imagenes:
+  parameters: [{ $ref: '../componentes/parametros.yaml#/Sku' }]
+  post:
+    tags: [catalogo]
+    summary: Subir una foto del producto
+    description: |
+      El archivo va crudo en el cuerpo (sin multipart), maximo 2 MB. El tipo se verifica por el contenido
+      (JPEG, PNG o WebP): un HTML o SVG renombrado se rechaza (V-24). La primera foto subida reemplaza la
+      de la semilla; maximo 6 por producto (RF-50).
+    operationId: subirImagen
+    x-roles: [administrador, vendedor]
+    requestBody:
+      required: true
+      content:
+        image/jpeg: { schema: { type: string, format: binary } }
+        image/png: { schema: { type: string, format: binary } }
+        image/webp: { schema: { type: string, format: binary } }
+    responses:
+      '201':
+        description: Foto guardada en GridFS; la ruta publica queda en imagenes del producto.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mensaje: { type: string, example: Imagen subida. }
+                imagen: { type: string, example: /api/catalogo/imagenes/6740f1a2b3c4d5e6f7a8b9c0 }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+      '404': { $ref: '../componentes/respuestas.yaml#/NoEncontrado' }
+      '409': { $ref: '../componentes/respuestas.yaml#/Conflicto' }
+      '413': { description: La foto supera 2 MB. }
+
+imagen:
+  parameters:
+    - { $ref: '../componentes/parametros.yaml#/Sku' }
+    - { name: id, in: path, required: true, description: Identificador de la foto subida (24 hexadecimales)., schema: { type: string, pattern: '^[a-f0-9]{24}$' } }
+  delete:
+    tags: [catalogo]
+    summary: Quitar una foto subida
+    description: Sin fotos propias, el producto vuelve a la foto de su seccion.
+    operationId: eliminarImagen
+    x-roles: [administrador, vendedor]
+    responses:
+      '200': { description: Foto eliminada. }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+      '404': { $ref: '../componentes/respuestas.yaml#/NoEncontrado' }
+
+imagenPublica:
+  parameters:
+    - { name: nombre, in: path, required: true, description: 'Foto de la semilla (sku-tec-001.webp, audio.webp) o id de una foto subida.', schema: { type: string, example: sku-tec-001.webp } }
+  get:
+    tags: [catalogo]
+    summary: Foto de un producto
+    description: Publica (la cargan la web y la app movil). Responde con nosniff y una CSP sin scripts.
+    operationId: servirImagen
+    security: []
+    x-roles: [publica]
+    responses:
+      '200':
+        description: La imagen.
+        content:
+          image/webp: { schema: { type: string, format: binary } }
+          image/jpeg: { schema: { type: string, format: binary } }
+          image/png: { schema: { type: string, format: binary } }
+      '404': { $ref: '../componentes/respuestas.yaml#/NoEncontrado' }

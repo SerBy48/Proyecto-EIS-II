@@ -1,0 +1,622 @@
+{
+  "fecha": "2026-11-15T22:11:24.425Z",
+  "web": "http://localhost:4173",
+  "navegador": "Chromium (Playwright 1.48.2), 1280 x 800",
+  "klm": {
+    "operadores_s": {
+      "K": 0.28,
+      "P": 1.1,
+      "B": 0.1,
+      "H": 0.4,
+      "M": 1.35
+    },
+    "fuente": "Card, Moran y Newell (1983); Kieras (2001)"
+  },
+  "tareas": [
+    {
+      "id": "T1",
+      "titulo": "Iniciar sesion como cliente",
+      "tiempo_esperado_s": 30,
+      "exito": true,
+      "pasos": [
+        {
+          "accion": "Abrir el formulario de inicio de sesion",
+          "operadores": "M P B B",
+          "segundos_usuario": 2.65,
+          "r_sistema_s": 0
+        },
+        {
+          "accion": "Reconocer a Ana en el desplegable de cuentas (viene elegida por defecto)",
+          "operadores": "M",
+          "segundos_usuario": 1.35,
+          "r_sistema_s": 0
+        },
+        {
+          "accion": "Comprobar la contrasena (el campo ya viene lleno)",
+          "operadores": "M",
+          "segundos_usuario": 1.35,
+          "r_sistema_s": 0
+        },
+        {
+          "accion": "Pulsar Ingresar",
+          "operadores": "P B B",
+          "segundos_usuario": 1.3,
+          "r_sistema_s": 0
+        },
+        {
+          "accion": "Esperar la sesion iniciada",
+          "operadores": "",
+          "segundos_usuario": 0,
+          "r_sistema_s": 0.3
+        }
+      ],
+      "conteo": {
+        "K": 0,
+        "P": 2,
+        "B": 4,
+        "H": 0,
+        "M": 3
+      },
+      "klm_usuario_s": 6.6,
+      "r_sistema_s": 0.3,
+      "klm_total_s": 6.9,
+      "observaciones": [
+        "El correo se elige en un desplegable con 4 cuentas de prueba y la contrasena viene escrita: no hay forma de entrar con otra cuenta."
+      ]
+    },
+    {
+      "id": "T2",
+      "titulo": "Buscar un producto y filtrar por categoria",
+      "tiempo_esperado_s": 30,
+      "exito": true,
+      "pasos": [
+        {
+          "accion": "Escribir \"portatil\" en el buscador",
+          "operadores": "M P B B H K K K K K K K K",
+          "segundos_usuario": 5.29,
+          "r_sistema_s": 0
+        },
+        {
+          "accion": "Esperar los resultados (la busqueda se lanza sola tras 350 ms)",
+          "operadores": "",
+          "segundos_usuario": 0,
+          "r_sistema_s": 0.5
+        },
+        {
+          "accion": "Elegir la categoria tecnologia",
+          "operadores": "M H P B B P B B",
+          "segundos_usuario": 4.35,
+          "r_sistema_s": 0
+        },
+        {
+          "accion": "Esperar la lista filtrada",
+          "operadores": "",
+          "segundos_usuario": 0,
+          "r_sistema_s": 0.03
+        },
+        {
+          "accion": "Revisar la lista resultante",
+          "operadores": "M",
+          "segundos_usuario": 1.35,
+          "r_sistema_s": 0
+        }
+      ],
+      "conteo": {
+        "K": 8,
+        "P": 3,
+        "B": 6,
+        "H": 2,
+        "M": 3
+      },
+      "klm_usuario_s": 11,
+      "r_sistema_s": 0.5,
+      "klm_total_s": 11.5,
+      "observaciones": [
+        "La busqueda muestra 3 producto(s); no se indica cuantos resultados hay en total."
+      ]
+    },
+    {
+      "id": "T3",
+      "titulo": "Agregar dos productos y cambiar una cantidad",
+      "tiempo_esperado_s": 60,
+      "exito": true,
+      "pasos": [
+        {
+          "accion": "Agregar el producto 1 al carrito",
+          "operadores": "M P B B",
+          "segundos_usuario": 2.65,
+          "r_sistema_s": 0
+        },
+        {
+          "accion": "Esperar el aviso de agregado",
+          "operadores": "",
+          "segundos_usuario": 0,
+          "r_sistema_s": 0.87
+        },
+        {
+          "accion": "Agregar el producto 2 al carrito",
+          "operadores": "M P B B",
+          "segundos_usuario": 2.65,
+          "r_sistema_s": 0
+        },
+        {
+          "accion": "Esperar el aviso de agregado",
+          "operadores": "",
+          "segundos_usuario": 0,
+          "r_sistema_s": 0.03
+        },
+        {
+          "accion": "Ir al carrito",
+          "operadores": "M P B B",
+          "segundos_usuario": 2.65,
+          "r_sistema_s": 0
+        },
+        {
+          "accion": "Esperar el carrito",
+          "operadores": "",
+          "segundos_usuario": 0,
+          "r_sistema_s": 0.02
+        },
+        {
+          "accion": "Aumentar la cantidad del primer producto",
+          "operadores": "M P B B",
+          "segundos_usuario": 2.65,
+          "r_sistema_s": 0
+        },
+        {
+          "accion": "Esperar la cantidad 2",
+          "operadores": "",
+          "segundos_usuario": 0,
+          "r_sistema_s": 0.01
+        }
+      ],
+      "conteo": {
+        "K": 0,
+        "P": 4,
+        "B": 8,
+        "H": 0,
+        "M": 4
+      },
+      "klm_usuario_s": 10.6,
+      "r_sistema_s": 0.9,
+      "klm_total_s": 11.5,
+      "observaciones": [
+        "El aviso de confirmacion dice \"SKU-TEC-101 agregado al carrito.\": muestra el SKU, no el nombre del producto."
+      ]
+    },
+    {
+      "id": "T4",
+      "titulo": "Aplicar un cupon",
+      "tiempo_esperado_s": 30,
+      "exito": true,
+      "pasos": [
+        {
+          "accion": "Escribir el cupon",
+          "operadores": "M P B B H K K K K K K K K K K K K",
+          "segundos_usuario": 6.41,
+          "r_sistema_s": 0
+        },
+        {
+          "accion": "Pulsar Aplicar",
+          "operadores": "M H P B B",
+          "segundos_usuario": 3.05,
+          "r_sistema_s": 0
+        },
+        {
+          "accion": "Esperar la linea de descuento",
+          "operadores": "",
+          "segundos_usuario": 0,
+          "r_sistema_s": 0.84
+        },
+        {
+          "accion": "Comprobar el descuento en el resumen",
+          "operadores": "M",
+          "segundos_usuario": 1.35,
+          "r_sistema_s": 0
+        }
+      ],
+      "conteo": {
+        "K": 12,
+        "P": 2,
+        "B": 4,
+        "H": 2,
+        "M": 3
+      },
+      "klm_usuario_s": 10.8,
+      "r_sistema_s": 0.8,
+      "klm_total_s": 11.7,
+      "observaciones": [
+        "No hay mensaje de confirmacion: el unico indicio es la linea \"Descuento\" en el resumen. Tampoco hay forma de quitar el cupon."
+      ]
+    },
+    {
+      "id": "T5",
+      "titulo": "Finalizar la compra con pago aprobado",
+      "tiempo_esperado_s": 45,
+      "exito": true,
+      "pasos": [
+        {
+          "accion": "Revisar el medio de pago y el token de prueba (ya vienen en \"aprueba\")",
+          "operadores": "M",
+          "segundos_usuario": 1.35,
+          "r_sistema_s": 0
+        },
+        {
+          "accion": "Pulsar Pagar",
+          "operadores": "M P B B",
+          "segundos_usuario": 2.65,
+          "r_sistema_s": 0
+        },
+        {
+          "accion": "Esperar la confirmacion (saga completa)",
+          "operadores": "",
+          "segundos_usuario": 0,
+          "r_sistema_s": 0.38
+        }
+      ],
+      "conteo": {
+        "K": 0,
+        "P": 1,
+        "B": 2,
+        "H": 0,
+        "M": 2
+      },
+      "klm_usuario_s": 4,
+      "r_sistema_s": 0.4,
+      "klm_total_s": 4.4,
+      "observaciones": []
+    },
+    {
+      "id": "T6",
+      "titulo": "Consultar el pedido y cancelarlo",
+      "tiempo_esperado_s": 60,
+      "exito": true,
+      "pasos": [
+        {
+          "accion": "Ir a Mis pedidos",
+          "operadores": "M P B B",
+          "segundos_usuario": 2.65,
+          "r_sistema_s": 0
+        },
+        {
+          "accion": "Esperar la lista de pedidos",
+          "operadores": "",
+          "segundos_usuario": 0,
+          "r_sistema_s": 0.11
+        },
+        {
+          "accion": "Encontrar el pedido PED-202611-001066 en la tabla",
+          "operadores": "M",
+          "segundos_usuario": 1.35,
+          "r_sistema_s": 0
+        },
+        {
+          "accion": "Abrir el detalle",
+          "operadores": "M P B B",
+          "segundos_usuario": 2.65,
+          "r_sistema_s": 0
+        },
+        {
+          "accion": "Esperar el detalle",
+          "operadores": "",
+          "segundos_usuario": 0,
+          "r_sistema_s": 0.36
+        },
+        {
+          "accion": "Pulsar Cancelar pedido",
+          "operadores": "M P B B",
+          "segundos_usuario": 2.65,
+          "r_sistema_s": 0
+        },
+        {
+          "accion": "Esperar el estado cancelado",
+          "operadores": "",
+          "segundos_usuario": 0,
+          "r_sistema_s": 0.98
+        },
+        {
+          "accion": "Comprobar el nuevo estado en la tabla",
+          "operadores": "M",
+          "segundos_usuario": 1.35,
+          "r_sistema_s": 0
+        }
+      ],
+      "conteo": {
+        "K": 0,
+        "P": 3,
+        "B": 6,
+        "H": 0,
+        "M": 5
+      },
+      "klm_usuario_s": 10.7,
+      "r_sistema_s": 1.4,
+      "klm_total_s": 12.1,
+      "observaciones": [
+        "Cancelar es una accion irreversible y se ejecuta con un solo clic, sin confirmacion; tampoco hay un mensaje que confirme que se cancelo."
+      ]
+    },
+    {
+      "id": "T7",
+      "titulo": "Comprar con pago rechazado e interpretar el mensaje",
+      "tiempo_esperado_s": 90,
+      "exito": true,
+      "pasos": [
+        {
+          "accion": "Volver al catalogo",
+          "operadores": "M P B B",
+          "segundos_usuario": 2.65,
+          "r_sistema_s": 0
+        },
+        {
+          "accion": "Esperar el catalogo",
+          "operadores": "",
+          "segundos_usuario": 0,
+          "r_sistema_s": 0.53
+        },
+        {
+          "accion": "Agregar un producto",
+          "operadores": "M P B B",
+          "segundos_usuario": 2.65,
+          "r_sistema_s": 0
+        },
+        {
+          "accion": "Esperar el aviso",
+          "operadores": "",
+          "segundos_usuario": 0,
+          "r_sistema_s": 1.01
+        },
+        {
+          "accion": "Ir al carrito",
+          "operadores": "M P B B",
+          "segundos_usuario": 2.65,
+          "r_sistema_s": 0
+        },
+        {
+          "accion": "Esperar el carrito",
+          "operadores": "",
+          "segundos_usuario": 0,
+          "r_sistema_s": 0.02
+        },
+        {
+          "accion": "Elegir el token que rechaza el pago",
+          "operadores": "M P B B P B B",
+          "segundos_usuario": 3.95,
+          "r_sistema_s": 0
+        },
+        {
+          "accion": "Pulsar Pagar",
+          "operadores": "M P B B",
+          "segundos_usuario": 2.65,
+          "r_sistema_s": 0
+        },
+        {
+          "accion": "Esperar el resultado",
+          "operadores": "",
+          "segundos_usuario": 0,
+          "r_sistema_s": 0.88
+        },
+        {
+          "accion": "Leer el mensaje del rechazo",
+          "operadores": "M",
+          "segundos_usuario": 1.35,
+          "r_sistema_s": 0
+        },
+        {
+          "accion": "Leer la lista \"Que ocurrio con tu compra\"",
+          "operadores": "M",
+          "segundos_usuario": 1.35,
+          "r_sistema_s": 0
+        },
+        {
+          "accion": "Volver al carrito",
+          "operadores": "M P B B",
+          "segundos_usuario": 2.65,
+          "r_sistema_s": 0
+        }
+      ],
+      "conteo": {
+        "K": 0,
+        "P": 7,
+        "B": 14,
+        "H": 0,
+        "M": 8
+      },
+      "klm_usuario_s": 19.9,
+      "r_sistema_s": 2.4,
+      "klm_total_s": 22.3,
+      "observaciones": [
+        "La pantalla explica que el pedido quedo cancelado, que no hubo cobro y que el carrito se conserva."
+      ]
+    },
+    {
+      "id": "T8",
+      "titulo": "Registrar stock y avanzar un pedido como administrador",
+      "tiempo_esperado_s": 90,
+      "exito": true,
+      "pasos": [
+        {
+          "accion": "Cerrar la sesion de cliente",
+          "operadores": "M P B B",
+          "segundos_usuario": 2.65,
+          "r_sistema_s": 0
+        },
+        {
+          "accion": "Abrir el formulario de inicio de sesion",
+          "operadores": "M P B B",
+          "segundos_usuario": 2.65,
+          "r_sistema_s": 0
+        },
+        {
+          "accion": "Elegir la cuenta admin@tienda.co en el desplegable",
+          "operadores": "M P B B P B B",
+          "segundos_usuario": 3.95,
+          "r_sistema_s": 0
+        },
+        {
+          "accion": "Comprobar la contrasena (el campo ya viene lleno)",
+          "operadores": "M",
+          "segundos_usuario": 1.35,
+          "r_sistema_s": 0
+        },
+        {
+          "accion": "Pulsar Ingresar",
+          "operadores": "P B B",
+          "segundos_usuario": 1.3,
+          "r_sistema_s": 0
+        },
+        {
+          "accion": "Esperar la sesion iniciada",
+          "operadores": "",
+          "segundos_usuario": 0,
+          "r_sistema_s": 0.87
+        },
+        {
+          "accion": "Esperar el panel",
+          "operadores": "",
+          "segundos_usuario": 0,
+          "r_sistema_s": 0.01
+        },
+        {
+          "accion": "Abrir Inventario",
+          "operadores": "M P B B",
+          "segundos_usuario": 2.65,
+          "r_sistema_s": 0
+        },
+        {
+          "accion": "Esperar el formulario",
+          "operadores": "",
+          "segundos_usuario": 0,
+          "r_sistema_s": 0.01
+        },
+        {
+          "accion": "Escribir el SKU",
+          "operadores": "M P B B H K K K K K K K K K K K",
+          "segundos_usuario": 6.13,
+          "r_sistema_s": 0
+        },
+        {
+          "accion": "Escribir la cantidad",
+          "operadores": "M H P B B H K K",
+          "segundos_usuario": 4.01,
+          "r_sistema_s": 0
+        },
+        {
+          "accion": "Pulsar Registrar",
+          "operadores": "M H P B B",
+          "segundos_usuario": 3.05,
+          "r_sistema_s": 0
+        },
+        {
+          "accion": "Esperar la confirmacion",
+          "operadores": "",
+          "segundos_usuario": 0,
+          "r_sistema_s": 0.84
+        },
+        {
+          "accion": "Abrir Pedidos",
+          "operadores": "M P B B",
+          "segundos_usuario": 2.65,
+          "r_sistema_s": 0
+        },
+        {
+          "accion": "Esperar la lista",
+          "operadores": "",
+          "segundos_usuario": 0,
+          "r_sistema_s": 0.05
+        },
+        {
+          "accion": "Encontrar un pedido pagado",
+          "operadores": "M",
+          "segundos_usuario": 1.35,
+          "r_sistema_s": 0
+        },
+        {
+          "accion": "Pulsar \"Marcar en preparacion\"",
+          "operadores": "M P B B",
+          "segundos_usuario": 2.65,
+          "r_sistema_s": 0
+        },
+        {
+          "accion": "Esperar el nuevo estado",
+          "operadores": "",
+          "segundos_usuario": 0,
+          "r_sistema_s": 0.02
+        }
+      ],
+      "conteo": {
+        "K": 13,
+        "P": 11,
+        "B": 22,
+        "H": 4,
+        "M": 11
+      },
+      "klm_usuario_s": 34.4,
+      "r_sistema_s": 1.8,
+      "klm_total_s": 36.2,
+      "observaciones": [
+        "La tabla de pedidos muestra el id numerico del cliente, no su nombre; los cambios de estado no piden confirmacion."
+      ]
+    }
+  ],
+  "estados": [
+    {
+      "id": "E1",
+      "estado": "Error de inicio de sesion",
+      "resultado": "Mensaje: \"Credenciales invalidas.\"",
+      "captura": "capturas/E1-login-error.png"
+    },
+    {
+      "id": "E2",
+      "estado": "Busqueda sin resultados",
+      "resultado": "Mensaje: \"No se encontraron productos con esos criterios.\" sin sugerencias ni opcion para limpiar los filtros",
+      "captura": "capturas/E2-sin-resultados.png"
+    },
+    {
+      "id": "E3",
+      "estado": "Alcance del catalogo",
+      "resultado": "Se muestran 20 de 71 productos activos y hay 0 controles de paginacion: 51 productos solo se encuentran buscandolos por nombre.",
+      "captura": "capturas/E3-catalogo-completo.png"
+    },
+    {
+      "id": "E4",
+      "estado": "Carrito vacio",
+      "resultado": "Mensaje \"Tu carrito esta vacio.\" sin enlace para volver al catalogo; el boton Pagar queda deshabilitado mostrando $0.",
+      "captura": "capturas/E4-carrito-vacio.png"
+    },
+    {
+      "id": "E5",
+      "estado": "Cupon invalido",
+      "resultado": "Mensaje \"Cupon no encontrado.\", mostrado arriba de la lista de productos, a 710 px del campo del cupon.",
+      "captura": "capturas/E5-cupon-invalido.png"
+    },
+    {
+      "id": "E6",
+      "estado": "Token expirado durante la navegacion",
+      "resultado": "La sesion se renueva sola y la pagina carga sin errores."
+    },
+    {
+      "id": "E7",
+      "estado": "Sesion vencida sin posibilidad de renovar",
+      "resultado": "Mensaje \"La sesion expiro. Inicie sesion de nuevo.\"; la cabecera sigue mostrando la sesion abierta y no lleva al inicio de sesion.",
+      "captura": "capturas/E7-sesion-vencida.png"
+    },
+    {
+      "id": "E8",
+      "estado": "Error al cancelar un pedido que ya fue despachado",
+      "resultado": "Mensaje \"El pedido ya esta en preparacion. Contacte al servicio al cliente.\": tapado por el velo del modal; el modal sigue abierto y el boton no cambia.",
+      "captura": "capturas/E8-error-tapado.png"
+    },
+    {
+      "id": "E9",
+      "estado": "Catalogo en movil (390 px)",
+      "resultado": "Sin desplazamiento horizontal; la grilla pasa a una columna.",
+      "captura": "capturas/E9-movil-catalogo.png"
+    },
+    {
+      "id": "E10",
+      "estado": "Inventario caido",
+      "resultado": "El catalogo sigue funcionando; 20 productos muestran \"Disponibilidad no verificada\".",
+      "captura": "capturas/E10-inventario-caido.png"
+    }
+  ]
+}

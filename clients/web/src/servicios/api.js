@@ -52,7 +52,7 @@ const renovarToken = async () => {
 
   renovacionEnCurso = (async () => {
     const refresh = sesion.refresh;
-    if (!refresh) throw new ErrorApi(401, 'Sesion expirada.', 'SIN_REFRESH');
+    if (!refresh) throw new ErrorApi(401, 'Sesión expirada.', 'SIN_REFRESH');
 
     const respuesta = await fetch(`${BASE}/auth/renovar`, {
       method: 'POST',
@@ -62,7 +62,7 @@ const renovarToken = async () => {
 
     if (!respuesta.ok) {
       sesion.limpiar();
-      throw new ErrorApi(401, 'La sesion expiro. Inicie sesion de nuevo.', 'SESION_EXPIRADA');
+      throw new ErrorApi(401, 'La sesión expiró. Inicie sesión de nuevo.', 'SESION_EXPIRADA');
     }
 
     const datos = await respuesta.json();
@@ -78,13 +78,14 @@ const renovarToken = async () => {
 };
 
 const ejecutar = async (ruta, opciones, token) => {
-  const cabeceras = { 'Content-Type': 'application/json', ...(opciones.headers || {}) };
+  // Un archivo (foto de producto) viaja crudo con su tipo; lo demas, como JSON.
+  const cabeceras = { 'Content-Type': opciones.archivo ? opciones.archivo.type : 'application/json', ...(opciones.headers || {}) };
   if (token) cabeceras.Authorization = `Bearer ${token}`;
 
   const respuesta = await fetch(`${BASE}${ruta}`, {
     method: opciones.metodo || 'GET',
     headers: cabeceras,
-    body: opciones.cuerpo === undefined ? undefined : JSON.stringify(opciones.cuerpo)
+    body: opciones.archivo ?? (opciones.cuerpo === undefined ? undefined : JSON.stringify(opciones.cuerpo))
   });
 
   const texto = await respuesta.text();
@@ -93,13 +94,45 @@ const ejecutar = async (ruta, opciones, token) => {
   return { respuesta, datos };
 };
 
-export const api = async (ruta, opciones = {}) => {
-  let { respuesta, datos } = await ejecutar(ruta, opciones, sesion.token);
+/**
+ * Evento que avisa a la aplicacion que la sesion guardada ya no sirve (token
+ * invalido o renovacion rechazada): App vuelve al modo visitante.
+ */
+export const EVENTO_SESION_EXPIRADA = 'sesion-expirada';
 
-  // Token expirado: se renueva y se repite la peticion una sola vez.
-  if (respuesta.status === 401 && datos?.codigo === 'TOKEN_EXPIRADO' && sesion.refresh) {
-    const nuevo = await renovarToken();
-    ({ respuesta, datos } = await ejecutar(ruta, opciones, nuevo));
+const sesionInvalida = () => {
+  sesion.limpiar();
+  window.dispatchEvent(new CustomEvent(EVENTO_SESION_EXPIRADA));
+};
+
+/**
+ * Peticion a la API. Con `publica: true` (catalogo, chat) una sesion invalida
+ * no impide la respuesta: se descarta la sesion y se repite como visitante.
+ *
+ * Hallazgo H-F5-02: antes, un token que el servidor ya no aceptaba (secretos
+ * rotados, bases recreadas) se quedaba en el navegador; la web seguia
+ * mostrando la sesion iniciada y el chat respondia "no disponible".
+ */
+export const api = async (ruta, opciones = {}) => {
+  const tokenUsado = sesion.token;
+  let { respuesta, datos } = await ejecutar(ruta, opciones, tokenUsado);
+
+  if (respuesta.status === 401 && tokenUsado) {
+    if (datos?.codigo === 'TOKEN_EXPIRADO' && sesion.refresh) {
+      // Token expirado: se renueva y se repite la peticion una sola vez.
+      try {
+        const nuevo = await renovarToken();
+        ({ respuesta, datos } = await ejecutar(ruta, opciones, nuevo));
+      } catch (error) {
+        sesionInvalida();
+        if (!opciones.publica) throw error;
+        ({ respuesta, datos } = await ejecutar(ruta, opciones, null));
+      }
+    } else if (datos?.codigo === 'TOKEN_INVALIDO' || datos?.codigo === 'TOKEN_EXPIRADO') {
+      sesionInvalida();
+      if (opciones.publica) ({ respuesta, datos } = await ejecutar(ruta, opciones, null));
+      else throw new ErrorApi(401, 'Tu sesión expiró. Inicia sesión de nuevo.', 'SESION_EXPIRADA');
+    }
   }
 
   if (!respuesta.ok) {
@@ -123,6 +156,16 @@ export const iniciarSesion = async (email, password) => {
 export const cerrarSesion = async () => {
   await api('/auth/logout', { metodo: 'POST' }).catch(() => undefined);
   sesion.limpiar();
+};
+
+/**
+ * Ruta de una foto de producto. El catalogo las sirve en /api/catalogo/imagenes;
+ * si la API esta en otro origen (VITE_API_URL), se carga de alla.
+ */
+export const urlImagen = (ruta) => {
+  if (!ruta) return '';
+  if (/^https?:/.test(BASE) && ruta.startsWith('/api/')) return new URL(BASE).origin + ruta;
+  return ruta;
 };
 
 export const moneda = (valor) =>

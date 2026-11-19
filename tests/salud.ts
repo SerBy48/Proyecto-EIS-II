@@ -2,7 +2,7 @@
  * Comprobacion rapida de salud de todo el sistema.
  *
  * Es lo primero que conviene ejecutar tras levantar la infraestructura: dice en
- * diez segundos si los nueve servicios y sus cuatro motores de datos estan en
+ * diez segundos si los diez servicios y sus motores de datos estan en
  * pie, y cual falla si algo no arranco.
  *
  * Uso: npm run test:salud
@@ -43,7 +43,7 @@ const principal = async (): Promise<void> => {
     console.error(`${GRIS}${error instanceof Error ? error.message : error}${FIN}\n`);
     console.error('Levante el sistema con:');
     console.error('  npm run infra:up     (postgres, mongo, redis, rabbitmq)');
-    console.error('  npm run dev          (los nueve servicios)\n');
+    console.error('  npm run dev          (los diez servicios)\n');
     process.exitCode = 1;
     return;
   }
@@ -72,7 +72,7 @@ const principal = async (): Promise<void> => {
   console.log('');
 
   if (datos.servicios_caidos.length === 0) {
-    console.log(`${VERDE}Los nueve servicios responden. El sistema esta listo.${FIN}`);
+    console.log(`${VERDE}Los ${datos.servicios.length + 1} servicios (gateway incluido) responden. El sistema esta listo.${FIN}`);
     console.log(`${GRIS}Siguiente paso: npm run test:e2e${FIN}\n`);
     return;
   }

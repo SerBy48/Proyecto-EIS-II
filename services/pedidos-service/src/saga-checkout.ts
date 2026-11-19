@@ -11,6 +11,7 @@ import {
 } from '@ecommerce/shared';
 import { pool } from './db';
 import { carrito, catalogo, clientes, inventario, pagos } from './dependencias';
+import { verificarLimites } from './limites-compra';
 
 /**
  * ORQUESTADOR DE LA COMPRA - patron Saga con transacciones compensatorias.
@@ -198,6 +199,20 @@ export const ejecutarCheckout = async (
 
     await registrarPaso(clave, 'verificar_precios', 'completado');
 
+    // =========================================================== PASO 10b ===
+    // Limite por cliente (RF-47): debe dejar al menos 5 unidades para los
+    // demas, contando sus pedidos en curso. Solo lee: sin compensacion.
+    await registrarPaso(clave, 'verificar_limites', 'iniciado');
+    try {
+      await verificarLimites(cliente_id, itemsVerificados, { requestId, usuario });
+    } catch (error) {
+      if (error instanceof ErrorApp && error.codigo === 'LIMITE_POR_CLIENTE') {
+        await registrarPaso(clave, 'verificar_limites', 'fallido', error.detalle);
+      }
+      throw error;
+    }
+    await registrarPaso(clave, 'verificar_limites', 'completado');
+
     // Los totales se recalculan sobre los precios verificados, conservando el
     // descuento y el envio que calculo el carrito.
     const subtotal = itemsVerificados.reduce((s, i) => s + i.precio_unitario * i.cantidad, 0);
@@ -331,7 +346,9 @@ export const ejecutarCheckout = async (
           cliente_id,
           monto: total,
           medio_pago: entrada.medio_pago,
-          token_medio_pago: entrada.token_medio_pago
+          token_medio_pago: entrada.token_medio_pago,
+          // Para que el aviso de pago rechazado le llegue al cliente (H-F5c-02).
+          contacto: { email: validacion.cliente.email, nombre: validacion.cliente.nombre }
         },
         claveIdempotencia: `${clave}:pago`,
         requestId,
@@ -354,6 +371,7 @@ export const ejecutarCheckout = async (
           total,
           estado: 'cancelado',
           motivo: 'No fue posible procesar el pago.',
+          detalle_cobro: 'No se realizo ningun cobro.',
           email: validacion.cliente.email,
           nombre: validacion.cliente.nombre
         },
@@ -390,6 +408,7 @@ export const ejecutarCheckout = async (
           total,
           estado: 'cancelado',
           motivo,
+          detalle_cobro: 'No se realizo ningun cobro.',
           email: validacion.cliente.email,
           nombre: validacion.cliente.nombre
         },

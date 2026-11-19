@@ -98,6 +98,40 @@ CREATE TABLE movimientos (
 
 CREATE INDEX idx_movimientos_sku ON movimientos(sku, creado_en DESC);
 
+-- ----------------------------------------------------------------------------
+-- Proveedores y entradas de mercancia (RF-51).
+-- La entrada amplia el movimiento con lo que pide la recepcion en bodega:
+-- quien la trajo, a que costo y con que factura o remision. El movimiento
+-- sigue siendo el libro de stock; la entrada es su soporte documental.
+-- ----------------------------------------------------------------------------
+CREATE TABLE proveedores (
+    id          SERIAL PRIMARY KEY,
+    nombre      VARCHAR(120) NOT NULL,
+    nit         VARCHAR(20)  NOT NULL UNIQUE,
+    contacto    VARCHAR(120),
+    telefono    VARCHAR(20),
+    email       VARCHAR(160),
+    activo      BOOLEAN NOT NULL DEFAULT TRUE,
+    creado_en   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE entradas (
+    id             BIGSERIAL PRIMARY KEY,
+    movimiento_id  BIGINT NOT NULL UNIQUE REFERENCES movimientos(id),
+    sku            VARCHAR(40) NOT NULL,
+    bodega_id      INT NOT NULL REFERENCES bodegas(id),
+    cantidad       INT NOT NULL CHECK (cantidad > 0),
+    proveedor_id   INT REFERENCES proveedores(id),
+    costo_unitario NUMERIC(12, 0) CHECK (costo_unitario IS NULL OR costo_unitario >= 0),
+    documento      VARCHAR(40),
+    observacion    VARCHAR(300),
+    registrado_por VARCHAR(160),
+    creado_en      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_entradas_sku ON entradas(sku, creado_en DESC);
+CREATE INDEX idx_entradas_proveedor ON entradas(proveedor_id, creado_en DESC);
+
 -- ============================================================================
 -- reservar_stock: la operacion critica del sistema.
 --

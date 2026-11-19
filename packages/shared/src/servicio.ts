@@ -1,8 +1,8 @@
 import express, { Application, NextFunction, Request, Response } from 'express';
 import { randomUUID } from 'node:crypto';
-import { ErrorApp } from './errores';
+import { ErrorApp, traducirErrorDeEntrada } from './errores';
 import { crearLogger, Logger } from './logger';
-import { detectarLlamadaInterna } from './autenticacion';
+import { detectarLlamadaInterna, verificarSecretos } from './autenticacion';
 import { PeticionAutenticada } from './tipos';
 
 /**
@@ -64,6 +64,16 @@ const registrarPeticiones = (log: Logger) => {
 
 export const crearServicio = async (opciones: OpcionesServicio): Promise<void> => {
   const log = crearLogger(opciones.nombre);
+
+  // Sin secretos propios el servicio no arranca: es preferible un error claro
+  // al iniciar que un despliegue que acepta tokens forjados.
+  try {
+    verificarSecretos();
+  } catch (error) {
+    log.error((error as Error).message);
+    process.exit(1);
+  }
+
   const app = express();
 
   app.disable('x-powered-by');
@@ -119,6 +129,19 @@ export const crearServicio = async (opciones: OpcionesServicio): Promise<void> =
       return;
     }
 
+    // Entrada mal formada que rechazo body-parser o PostgreSQL: es un error del
+    // cliente (400), no del servidor. Se registra como advertencia con el
+    // codigo original, para poder distinguir un abuso de un defecto real.
+    const deEntrada = traducirErrorDeEntrada(error);
+    if (deEntrada) {
+      contexto.warn('Entrada rechazada', {
+        codigo_origen: (error as { code?: string; type?: string }).code ?? (error as { type?: string }).type,
+        error: error instanceof Error ? error.message : String(error)
+      });
+      res.status(deEntrada.estado).json({ mensaje: deEntrada.message, codigo: deEntrada.codigo });
+      return;
+    }
+
     contexto.error('Error no controlado', {
       error: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined
@@ -130,15 +153,28 @@ export const crearServicio = async (opciones: OpcionesServicio): Promise<void> =
     try {
       await opciones.alIniciar();
     } catch (error) {
-      log.error('Fallo la inicializacion', {
+      // Sin su base de datos el servicio no sirve: antes seguia escuchando y
+      // respondia 503 para siempre. Ahora termina con codigo 1 y Docker lo
+      // reinicia (restart: unless-stopped) hasta que la dependencia este lista.
+      // El broker no entra aqui: BusEventos reintenta solo, sin lanzar.
+      log.error('Fallo la inicializacion; el proceso termina para reiniciarse', {
         error: error instanceof Error ? error.message : error
       });
+      process.exit(1);
     }
   }
 
   const servidor = app.listen(opciones.puerto, '0.0.0.0', () => {
     log.info(`Servicio escuchando en http://localhost:${opciones.puerto}`);
   });
+
+  // El gateway reutiliza conexiones (keep-alive). Con los 5 s por defecto de
+  // Node, el servicio podia cerrar un socket ocioso justo cuando el gateway lo
+  // reutilizaba, y esa peticion fallaba con ECONNRESET. El servicio mantiene la
+  // conexion mas tiempo y anuncia el valor en "Keep-Alive: timeout=65", que el
+  // agente HTTP de Node respeta para soltar el socket antes.
+  servidor.keepAliveTimeout = 65_000;
+  servidor.headersTimeout = 66_000;
 
   const detener = async (senal: string) => {
     log.info(`Recibida ${senal}, cerrando de forma ordenada`);

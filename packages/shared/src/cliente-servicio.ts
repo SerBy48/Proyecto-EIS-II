@@ -1,6 +1,7 @@
 import { CABECERA_LLAMADA_INTERNA } from './autenticacion';
 import { CircuitBreaker, OpcionesCircuito } from './circuit-breaker';
-import { ErrorApp } from './errores';
+import { ErrorApp, esFalloDelServicio } from './errores';
+import { leerSecreto } from './autenticacion';
 import { crearLogger } from './logger';
 import { ClaimsToken } from './tipos';
 
@@ -38,6 +39,15 @@ export interface OpcionesPeticion {
   claveIdempotencia?: string;
   /** Valor alternativo si el circuito esta abierto (degradacion elegante). */
   alternativa?: () => unknown;
+  /**
+   * Cabecera Authorization del usuario final ("Bearer <jwt>"). Con ella la
+   * llamada viaja COMO ESE USUARIO, igual que si llegara por el gateway: se
+   * envia el secreto compartido pero NO x-llamada-interna, asi que el servicio
+   * destino aplica su control de rol y su autorizacion por dato (invariante
+   * 11). La usa el asistente para consultar pedidos: un cliente no puede ver
+   * por el chat lo que no veria por la API.
+   */
+  autorizacion?: string;
 }
 
 const esperar = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -77,9 +87,7 @@ export class ClienteServicio {
         ultimoError = error;
 
         // Los errores de negocio (4xx) no se reintentan.
-        const esReintentable =
-          !(error instanceof ErrorApp) || error.estado >= 500 || error.codigo === 'TIMEOUT';
-        if (!esReintentable || intento === this.reintentos) break;
+        if (!esFalloDelServicio(error) || intento === this.reintentos) break;
 
         // Espera exponencial con jitter para no sincronizar los reintentos
         // de todas las instancias durante un incidente.
@@ -97,7 +105,7 @@ export class ClienteServicio {
   }
 
   private async llamar<T>(opciones: OpcionesPeticion): Promise<T> {
-    const { metodo = 'GET', ruta, cuerpo, requestId, usuario, claveIdempotencia } = opciones;
+    const { metodo = 'GET', ruta, cuerpo, requestId, usuario, claveIdempotencia, autorizacion } = opciones;
     const url = `${this.opciones.urlBase}${ruta}`;
 
     const controlador = new AbortController();
@@ -109,12 +117,15 @@ export class ClienteServicio {
     // pasa por interno ni se salta el control de rol.
     const cabeceras: Record<string, string> = {
       'content-type': 'application/json',
-      'x-internal-token': process.env.INTERNAL_TOKEN || 'secreto-interno-desarrollo',
-      [CABECERA_LLAMADA_INTERNA]: '1'
+      'x-internal-token': leerSecreto('INTERNAL_TOKEN')
     };
+    if (autorizacion) cabeceras.authorization = autorizacion;
+    else cabeceras[CABECERA_LLAMADA_INTERNA] = '1';
     if (requestId) cabeceras['x-request-id'] = requestId;
     if (claveIdempotencia) cabeceras['idempotency-key'] = claveIdempotencia;
-    if (usuario) {
+    // Con la identidad del usuario en el token no se propagan las cabeceras
+    // x-usuario-*: las escribiria el servicio a partir de un JWT ya verificado.
+    if (usuario && !autorizacion) {
       cabeceras['x-usuario-id'] = String(usuario.sub);
       cabeceras['x-usuario-rol'] = usuario.rol;
       cabeceras['x-usuario-email'] = usuario.email;

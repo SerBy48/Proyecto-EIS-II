@@ -1,0 +1,67 @@
+
+> ecommerce-distribuido@1.0.0 test:asistente
+> tsx --env-file-if-exists=.env tests/asistente/integracion.ts
+
+
+Asistente virtual  http://localhost:8080
+
+1. Intenciones sin sesion
+  PASA  Saludo
+  PASA  El saludo ofrece el menu de opciones rapidas
+  PASA  Devuelve un id de conversacion
+  PASA  Tildes, mayusculas y sinonimos: "vale el ENVIO" -> faq_envio
+  PASA  Las cifras salen de la configuracion (COSTO_ENVIO_BASE, UMBRAL_ENVIO_GRATIS)
+  PASA  FAQ del IVA con el porcentaje configurado
+  PASA  Busqueda de producto devuelve tarjetas del catalogo
+  PASA  Cada tarjeta trae SKU y precio
+  PASA  Entidad SKU -> precio y disponibilidad
+  PASA  El precio es el vigente del catalogo (invariante 2)
+  PASA  Sin sesion, la intencion de pedidos se reconoce
+  PASA  Sin sesion pide iniciar sesion y no muestra ningun pedido
+  PASA  Sin sesion no hay tarjetas de pedido
+  PASA  Frase fuera de dominio: pide reformular y ofrece el menu
+
+2. Pedidos con la identidad del usuario
+  PASA  Ana y Bruno tienen pedidos (los crea test:e2e)
+  PASA  Con sesion lista los pedidos recientes
+  PASA  Todos los pedidos listados son de Ana
+  PASA  Contexto de varios turnos: "el <id>" responde el pedido pedido en el turno anterior
+  PASA  Entidad numero de pedido: estado correcto
+
+3. Aislamiento entre clientes (invariantes 1 y 11)
+  PASA  Bruno NO ve el pedido de Ana por su numero
+  PASA  Bruno NO ve el pedido de Ana por su id
+  PASA  Tampoco por la guia de cancelacion
+  PASA  Con el id de la conversacion de Ana, Bruno empieza una conversacion nueva
+  PASA  Y solo ve sus propios pedidos
+  PASA  Ana consulta su conversacion
+  PASA  Bruno no puede leer la conversacion de Ana (404)
+  PASA  Sin sesion, 401
+  PASA  La conversacion se guarda sin el numero de tarjeta (enmascarado)
+
+4. Escalamiento a un humano
+  PASA  Registra un ticket y le da el numero al cliente
+  PASA  El administrador ve el ticket con el contacto
+  PASA  El vendedor tambien
+  PASA  Un cliente no (403)
+  PASA  Operaciones recibe el aviso por correo (evento asistente.escalamiento -> notificaciones -> Mailpit)
+
+5. El administrador edita la FAQ sin desplegar
+  PASA  PATCH /faq/:clave como administrador
+  PASA  El asistente responde con el texto nuevo de inmediato
+  PASA  Un cliente no puede editarla (403)
+  PASA  El administrador consulta las intenciones
+
+6. Validaciones y abuso
+  PASA  Mensaje vacio -> 400
+  PASA  Mensaje de mas de 500 caracteres -> 400
+  PASA  Texto que no es una cadena -> 400
+  PASA  conversacion_id con operador NoSQL se ignora: conversacion nueva
+  PASA  El HTML del usuario no vuelve en la respuesta
+  PASA  Token invalido -> 401 (no se trata como visitante)
+
+8. Rate limit propio del asistente (al final: agota la cuota de este cliente)
+  PASA  Tras 30 mensajes por minuto responde 429 LIMITE_ASISTENTE
+
+Las 44 comprobaciones pasaron.
+

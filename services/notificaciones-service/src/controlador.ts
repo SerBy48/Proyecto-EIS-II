@@ -7,6 +7,8 @@ import {
   errorNoEncontrado
 } from '@ecommerce/shared';
 import { coleccionMensajes, coleccionPlantillas } from './db';
+import { canalPara } from './canales';
+import { canalConHtml, escaparHtml, renderizar } from './plantillas';
 
 const log = crearLogger('notificaciones-service');
 
@@ -20,12 +22,6 @@ const log = crearLogger('notificaciones-service');
  * vuelve a estar disponible.
  */
 
-/** Sustituye los marcadores {{campo}} de la plantilla. */
-const renderizar = (plantilla: string, datos: Record<string, unknown>): string =>
-  plantilla.replace(/\{\{(\w+)\}\}/g, (_coincidencia, campo: string) => {
-    const valor = datos[campo];
-    return valor === undefined || valor === null ? '' : String(valor);
-  });
 
 const formatearMoneda = (valor: unknown): string => {
   const numero = Number(valor);
@@ -33,26 +29,32 @@ const formatearMoneda = (valor: unknown): string => {
   return `$${numero.toLocaleString('es-CO')}`;
 };
 
-/**
- * Envio real del mensaje.
- *
- * En produccion aqui iria el proveedor de correo (SendGrid, SES), el de SMS
- * (Twilio) o el de push (FCM). Para el laboratorio se registra en el log y se
- * persiste en MongoDB, que es suficiente para verificar el flujo completo.
- */
-const enviar = async (
-  canal: string,
-  destinatario: string,
-  asunto: string,
-  cuerpo: string
-): Promise<{ exitoso: boolean; proveedor: string }> => {
-  // Latencia simulada del proveedor externo. Es precisamente esta latencia la
-  // que justifica que la notificacion sea asincrona: el cliente no deberia
-  // esperarla para ver su pedido confirmado.
-  await new Promise((r) => setTimeout(r, Number(process.env.LATENCIA_ENVIO_MS || 100)));
+/** Texto con el que se guarda un campo secreto en lugar de su valor. */
+export const TEXTO_OCULTO = '[enlace enviado solo al correo]';
 
-  log.info(`[${canal.toUpperCase()}] -> ${destinatario}`, { asunto, cuerpo });
-  return { exitoso: true, proveedor: `${canal}-simulado` };
+/** Campos que el evento marca como secretos (lista "secretos" de los datos). */
+export const camposSecretos = (datos: Record<string, unknown>): string[] =>
+  Array.isArray(datos.secretos) ? datos.secretos.filter((c): c is string => typeof c === 'string') : [];
+
+export const ocultarSecretos = (datos: Record<string, unknown>, secretos: string[]): Record<string, unknown> => {
+  if (!secretos.length) return datos;
+  const copia = { ...datos };
+  for (const campo of secretos) if (copia[campo] !== undefined) copia[campo] = TEXTO_OCULTO;
+  return copia;
+};
+
+/**
+ * HTML del correo. Si el evento trae un enlace http(s) (recuperacion de
+ * contrasena), el texto del enlace se vuelve un vinculo: el enlace lo genera
+ * auth-service, pero igual se escapa.
+ */
+export const htmlDelCorreo = (cuerpoEscapado: string, enlace: unknown): string => {
+  let html = cuerpoEscapado.replace(/\n/g, '<br>');
+  if (typeof enlace === 'string' && /^https?:\/\//.test(enlace)) {
+    const seguro = escaparHtml(enlace);
+    html = html.split(seguro).join(`<a href="${seguro}">${seguro}</a>`);
+  }
+  return `<p>${html}</p>`;
 };
 
 /**
@@ -86,15 +88,33 @@ export const procesarEvento = async (evento: EventoDominio): Promise<void> => {
     items: Array.isArray(datos.items) ? datos.items.length : datos.items
   };
 
+  // RF-54: los campos "secretos" (el enlace para restablecer la contrasena) van
+  // solo en el envio. Lo que se guarda (la campana, el registro de envios del
+  // administrador, datos_evento) los lleva ocultos: quien lea la base no puede
+  // usar el enlace de otra persona.
+  const secretos = camposSecretos(datos);
+  const guardables = ocultarSecretos(variables, secretos);
+
+  // En el correo, los datos del usuario se escapan como HTML (hallazgo S-11).
+  // Se guarda la version escapada; el texto plano va solo en el envio.
+  const canal = String(plantilla.canal);
+  const conHtml = canalConHtml(canal);
   const asunto = renderizar(String(plantilla.asunto), variables);
-  const cuerpo = renderizar(String(plantilla.cuerpo), variables);
+  const textoEnvio = renderizar(String(plantilla.cuerpo), variables);
+  const cuerpoEnvio = renderizar(String(plantilla.cuerpo), variables, conHtml);
+  const texto = renderizar(String(plantilla.cuerpo), guardables);
+  const cuerpo = renderizar(String(plantilla.cuerpo), guardables, conHtml);
 
   // La clave de deduplicacion combina el evento con el identificador del
   // agregado afectado: el mismo evento sobre el mismo pedido se envia una vez.
   const claveDedupe = [
     evento.nombre,
-    datos.pedido_id ?? datos.sku ?? datos.cliente_id ?? '',
-    datos.estado ?? ''
+    // El ticket identifica cada consulta al vendedor.
+    // La solicitud identifica cada correo de recuperacion de contrasena.
+    datos.pedido_id ?? datos.sku ?? datos.ticket ?? datos.solicitud ?? datos.cliente_id ?? '',
+    datos.estado ?? '',
+    // Cada cambio de direccion de un pedido es un aviso distinto.
+    datos.cambio ?? ''
   ].join(':');
 
   try {
@@ -104,32 +124,54 @@ export const procesarEvento = async (evento: EventoDominio): Promise<void> => {
       destinatario,
       asunto,
       cuerpo,
+      // Texto plano para la campana de la web (React lo escapa al mostrarlo).
+      texto,
       estado: 'pendiente',
       clave_dedupe: claveDedupe,
       request_id: evento.request_id,
-      datos_evento: datos,
+      datos_evento: ocultarSecretos(datos, secretos),
       creado_en: new Date()
     });
   } catch (error) {
-    if ((error as { code?: number }).code === 11000) {
+    if ((error as { code?: number }).code !== 11000) throw error;
+    // Ya existe un mensaje con esta clave. Si se envio, es un duplicado del
+    // broker y se ignora. Si quedo pendiente o fallido, es un REINTENTO del
+    // mismo evento tras un fallo del proveedor: hay que volver a enviarlo. Antes
+    // todo se trataba como duplicado y un fallo de envio perdia el mensaje.
+    const previo = await coleccionMensajes().findOne({ clave_dedupe: claveDedupe }, { projection: { estado: 1 } });
+    if (previo?.estado === 'enviado') {
       log.info('Evento duplicado, no se reenvia', { evento: evento.nombre, clave: claveDedupe });
       return;
     }
-    throw error;
   }
 
-  const resultado = await enviar(String(plantilla.canal), destinatario, asunto, cuerpo);
-
-  await coleccionMensajes().updateOne(
-    { clave_dedupe: claveDedupe },
-    {
-      $set: {
-        estado: resultado.exitoso ? 'enviado' : 'fallido',
-        proveedor: resultado.proveedor,
-        enviado_en: new Date()
+  try {
+    const resultado = await canalPara(canal).enviar({
+      destinatario,
+      asunto,
+      texto: textoEnvio,
+      html: conHtml ? htmlDelCorreo(cuerpoEnvio, datos.enlace) : undefined
+    });
+    await coleccionMensajes().updateOne(
+      { clave_dedupe: claveDedupe },
+      {
+        $set: { estado: 'enviado', proveedor: resultado.proveedor, id_externo: resultado.id_externo, enviado_en: new Date() },
+        $inc: { intentos: 1 }
       }
-    }
-  );
+    );
+  } catch (error) {
+    // El fallo queda registrado y se relanza: el bus reintenta el evento y, al
+    // agotar los intentos, lo deja en la dead letter queue. Nunca se pierde
+    // (mismo principio de la invariante 12, del lado del consumidor).
+    await coleccionMensajes().updateOne(
+      { clave_dedupe: claveDedupe },
+      {
+        $set: { estado: 'fallido', ultimo_error: (error as Error).message, fallido_en: new Date() },
+        $inc: { intentos: 1 }
+      }
+    );
+    throw error;
+  }
 };
 
 /**
@@ -143,7 +185,7 @@ export const registrarSuscripciones = async (bus: BusEventos): Promise<void> => 
   await bus.suscribir(
     {
       cola: 'notificaciones.envio',
-      patrones: ['pedido.*', 'pago.rechazado', 'inventario.stock_minimo', 'carrito.abandonado'],
+      patrones: ['pedido.*', 'pago.rechazado', 'inventario.stock_minimo', 'carrito.abandonado', 'asistente.*', 'auth.recuperacion_solicitada'],
       maxIntentos: 3
     },
     procesarEvento

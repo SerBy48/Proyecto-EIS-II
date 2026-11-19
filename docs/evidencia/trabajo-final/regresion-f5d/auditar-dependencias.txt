@@ -1,0 +1,6 @@
+
+> ecommerce-distribuido@1.0.0 auditar:dependencias
+> tsx scripts/auditar-dependencias.ts
+
+
+0 avisos en dependencias de produccion; 0 altos o criticos sin aceptar.

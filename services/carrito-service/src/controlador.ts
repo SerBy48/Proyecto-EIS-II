@@ -8,6 +8,7 @@ import {
   exigirCampos
 } from '@ecommerce/shared';
 import { redis } from './db';
+import { Promocion, Totales, calcularTotales } from './totales';
 
 /**
  * Servicio de carrito (seccion 5.7 del documento).
@@ -22,9 +23,6 @@ import { redis } from './db';
  */
 
 const TTL_SEGUNDOS = Number(process.env.TTL_CARRITO_SEGUNDOS || 7 * 24 * 60 * 60); // 7 dias
-const IVA = Number(process.env.PORCENTAJE_IVA || 19);
-const ENVIO_BASE = Number(process.env.COSTO_ENVIO_BASE || 15000);
-const UMBRAL_ENVIO_GRATIS = Number(process.env.UMBRAL_ENVIO_GRATIS || 500000);
 
 const catalogo = new ClienteServicio({
   nombre: 'catalogo',
@@ -74,73 +72,28 @@ const guardar = async (carrito: CarritoGuardado): Promise<void> => {
   await redis.set(clave(carrito.cliente_id), JSON.stringify(carrito), 'EX', TTL_SEGUNDOS);
 };
 
-interface Totales {
-  subtotal: number;
-  descuento: number;
-  impuestos: number;
-  envio: number;
-  total: number;
-  cupon_aplicado?: string;
-}
-
 /**
- * Calcula los totales del carrito (seccion 5.7: subtotales, impuestos y costo
- * de envio estimado, mas la aplicacion de cupones).
- *
- * El descuento se aplica sobre el subtotal y ANTES del IVA, y el envio se
- * calcula sobre el subtotal ya descontado. El orden importa para que las cifras
- * cuadren con las del pedido.
+ * Totales del carrito. Consulta el cupon en el catalogo y delega el calculo en
+ * calcularTotales() (totales.ts), que es puro y tiene pruebas unitarias.
  */
-const calcularTotales = async (
-  carrito: CarritoGuardado,
-  requestId?: string
-): Promise<Totales> => {
-  const subtotal = carrito.items.reduce((suma, i) => suma + i.precio_unitario * i.cantidad, 0);
-
-  let descuento = 0;
-  let envio = subtotal >= UMBRAL_ENVIO_GRATIS || subtotal === 0 ? 0 : ENVIO_BASE;
-  let cuponAplicado: string | undefined;
-
+const totalesDelCarrito = async (carrito: CarritoGuardado, requestId?: string): Promise<Totales> => {
+  let promocion: Promocion | null = null;
   if (carrito.cupon) {
     try {
-      const promocion = await catalogo.pedir<{
-        codigo: string;
-        tipo: string;
-        valor: number;
-        minimo_compra: number;
-      }>({ ruta: `/promociones/${encodeURIComponent(carrito.cupon)}`, requestId });
-
-      if (subtotal >= (promocion.minimo_compra ?? 0)) {
-        cuponAplicado = promocion.codigo;
-        if (promocion.tipo === 'porcentaje') {
-          descuento = Math.round(subtotal * (promocion.valor / 100));
-        } else if (promocion.tipo === 'monto_fijo') {
-          descuento = Math.min(promocion.valor, subtotal);
-        } else if (promocion.tipo === 'envio_gratis') {
-          envio = 0;
-        }
-      }
+      promocion = await catalogo.pedir<Promocion>({
+        ruta: `/promociones/${encodeURIComponent(carrito.cupon)}`,
+        requestId
+      });
     } catch {
       // Cupon invalido o catalogo caido: el carrito sigue funcionando sin el.
-      cuponAplicado = undefined;
+      promocion = null;
     }
   }
-
-  const baseImponible = subtotal - descuento;
-  const impuestos = Math.round(baseImponible * (IVA / 100));
-
-  return {
-    subtotal,
-    descuento,
-    impuestos,
-    envio,
-    total: baseImponible + impuestos + envio,
-    ...(cuponAplicado ? { cupon_aplicado: cuponAplicado } : {})
-  };
+  return calcularTotales(carrito.items, promocion);
 };
 
 const responder = async (res: Response, carrito: CarritoGuardado, requestId?: string) => {
-  const totales = await calcularTotales(carrito, requestId);
+  const totales = await totalesDelCarrito(carrito, requestId);
   res.status(200).json({
     cliente_id: carrito.cliente_id,
     items: carrito.items,
@@ -292,6 +245,6 @@ export const datosCheckout = async (req: PeticionAutenticada, res: Response): Pr
 
   if (!carrito.items.length) throw errorSolicitud('El carrito esta vacio.');
 
-  const totales = await calcularTotales(carrito, req.requestId);
+  const totales = await totalesDelCarrito(carrito, req.requestId);
   res.status(200).json({ cliente_id: clienteId, items: carrito.items, cupon: carrito.cupon ?? null, totales });
 };

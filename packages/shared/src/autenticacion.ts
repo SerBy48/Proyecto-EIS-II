@@ -3,8 +3,60 @@ import { Response, NextFunction } from 'express';
 import { ClaimsToken, PeticionAutenticada, Rol } from './tipos';
 import { errorNoAutenticado, errorProhibido } from './errores';
 
-const secreto = () => process.env.JWT_SECRET || 'FirmaSecretaEcommerceDesarrollo';
-const secretoRenovacion = () => process.env.JWT_REFRESH_SECRET || 'FirmaRenovacionEcommerceDesarrollo';
+/**
+ * Secretos del sistema. NO tienen valor por defecto.
+ *
+ * Antes, cada uno tenia un respaldo escrito en el codigo y en
+ * docker-compose.yml. Ese valor publico era el que corria en el despliegue,
+ * asi que cualquiera con acceso al repositorio podia forjar un token de
+ * administrador o llamar a los servicios internos saltandose el gateway
+ * (docs/calidad/SEGURIDAD.md, hallazgos S-02 y S-03). Ahora el servicio no
+ * arranca sin un secreto propio, largo y distinto de los valores publicados.
+ */
+export const SECRETOS_REQUERIDOS = ['JWT_SECRET', 'JWT_REFRESH_SECRET', 'INTERNAL_TOKEN'] as const;
+type NombreSecreto = (typeof SECRETOS_REQUERIDOS)[number];
+
+const LONGITUD_MINIMA_SECRETO = 32;
+
+/** Valores que alguna vez estuvieron publicados en el repositorio. */
+const SECRETOS_PUBLICADOS = new Set([
+  'FirmaSecretaEcommerceDesarrollo',
+  'FirmaRenovacionEcommerceDesarrollo',
+  'secreto-interno-desarrollo'
+]);
+
+/** Describe por que un secreto no es aceptable, o null si lo es. */
+const problemaDelSecreto = (nombre: NombreSecreto): string | null => {
+  const valor = process.env[nombre];
+  if (!valor) return `${nombre} no esta definido`;
+  if (SECRETOS_PUBLICADOS.has(valor)) return `${nombre} usa un valor publicado en el repositorio`;
+  if (valor.length < LONGITUD_MINIMA_SECRETO) return `${nombre} tiene menos de ${LONGITUD_MINIMA_SECRETO} caracteres`;
+  return null;
+};
+
+/**
+ * Comprueba los tres secretos al arrancar y lanza un error que los enumera
+ * todos. Lo llaman crearServicio() y el gateway antes de escuchar.
+ */
+export const verificarSecretos = (): void => {
+  const problemas = SECRETOS_REQUERIDOS.map(problemaDelSecreto).filter((p): p is string => p !== null);
+  if (problemas.length) {
+    throw new Error(
+      `Configuracion insegura: ${problemas.join('; ')}. ` +
+        'Genere cada secreto con "openssl rand -hex 32" y definalo en .env (ver .env.example).'
+    );
+  }
+};
+
+/** Lee un secreto ya verificado; falla si no esta definido. */
+export const leerSecreto = (nombre: NombreSecreto): string => {
+  const valor = process.env[nombre];
+  if (!valor) throw new Error(`${nombre} no esta definido.`);
+  return valor;
+};
+
+const secreto = () => leerSecreto('JWT_SECRET');
+const secretoRenovacion = () => leerSecreto('JWT_REFRESH_SECRET');
 
 /** Vigencia corta del token de acceso; la renovacion usa el refresh token. */
 export const firmarAcceso = (claims: ClaimsToken): string =>
@@ -84,6 +136,17 @@ export const requiereRol = (...rolesPermitidos: Rol[]) => {
   };
 };
 
+/**
+ * Restringe una ruta a las llamadas entre servicios. Va DESPUES de
+ * requiereRol(): un administrador con su token pasa el control de rol, pero no
+ * este. Sirve para operaciones que solo tienen sentido dentro de un flujo de
+ * otro servicio, como anonimizar un perfil al eliminar la cuenta.
+ */
+export const soloLlamadaInterna = (req: PeticionAutenticada, _res: Response, next: NextFunction): void => {
+  if (req.esLlamadaInterna) return next();
+  next(errorProhibido('Esta operacion solo la invoca otro servicio.'));
+};
+
 /** Cabecera con la que un microservicio se identifica ante otro. */
 export const CABECERA_LLAMADA_INTERNA = 'x-llamada-interna';
 
@@ -109,7 +172,7 @@ export const detectarLlamadaInterna = (
   next: NextFunction
 ): void => {
   const secreto = req.headers['x-internal-token'];
-  const esperado = process.env.INTERNAL_TOKEN || 'secreto-interno-desarrollo';
+  const esperado = leerSecreto('INTERNAL_TOKEN');
   const seDeclaraInterna = req.headers[CABECERA_LLAMADA_INTERNA] === '1';
 
   if (typeof secreto === 'string' && secreto === esperado && seDeclaraInterna) {

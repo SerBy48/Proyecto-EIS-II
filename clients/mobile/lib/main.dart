@@ -21,10 +21,10 @@ class TiendaApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Tienda en linea',
+      title: 'SerByTek',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF047857)),
         useMaterial3: true,
       ),
       routes: {'/': (_) => const LoginPantalla()},

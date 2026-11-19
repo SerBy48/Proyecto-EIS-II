@@ -43,8 +43,10 @@ export const cobrar = async (req: PeticionAutenticada, res: Response): Promise<v
     (req.body.clave_idempotencia as string | undefined);
   if (!clave) throw errorSolicitud('Se requiere la cabecera Idempotency-Key para cobrar.');
 
-  const { pedido_id, numero_pedido, cliente_id, monto, medio_pago, token_medio_pago, moneda } =
+  const { pedido_id, numero_pedido, cliente_id, monto, medio_pago, token_medio_pago, moneda, contacto } =
     req.body as {
+      /** Correo y nombre del cliente (los pone la saga): sin ellos, el aviso de pago rechazado no tiene destinatario. */
+      contacto?: { email?: unknown; nombre?: unknown };
       pedido_id: number;
       numero_pedido?: string;
       cliente_id: number;
@@ -190,6 +192,11 @@ export const cobrar = async (req: PeticionAutenticada, res: Response): Promise<v
       referencia,
       pedido_id,
       numero_pedido,
+      // La plantilla pago.rechazado usa {{numero}} y {{nombre}}; con email, el
+      // aviso le llega al cliente y no al buzon de operaciones (hallazgo H-F5c-02).
+      numero: numero_pedido,
+      ...(typeof contacto?.email === 'string' ? { email: contacto.email } : {}),
+      ...(typeof contacto?.nombre === 'string' ? { nombre: contacto.nombre } : {}),
       cliente_id,
       monto,
       motivo: respuesta.codigo_rechazo

@@ -1,0 +1,48 @@
+
+
+  █ THRESHOLDS 
+
+    checks
+    ✓ 'rate>0.99' rate=100.00%
+
+    http_req_duration{endpoint:asistente,tipo:faq}
+    ✓ 'p(95)<300' p(95)=21.71ms
+
+    http_req_duration{endpoint:asistente}
+    ✓ 'p(95)<500' p(95)=34.87ms
+
+    http_req_failed
+    ✓ 'rate<0.01' rate=0.00%
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 25871   95.260982/s
+    checks_succeeded...: 100.00% 25871 out of 25871
+    checks_failed......: 0.00%   0 out of 25871
+
+    ✓ asistente 200
+    ✓ intencion esperada
+    ✓ con sesion no pide iniciar sesion
+    ✓ segundo turno resuelve el pedido
+
+    HTTP
+    http_req_duration...................: avg=15.46ms min=2.51ms med=12.4ms  p(90)=28.16ms p(95)=35.74ms p(99)=55.17ms max=154.58ms
+      { endpoint:asistente,tipo:faq }...: avg=8.92ms  min=2.51ms med=6.5ms   p(90)=16.85ms p(95)=21.71ms p(99)=33.19ms max=112.79ms
+      { endpoint:asistente }............: avg=15.06ms min=2.51ms med=12.37ms p(90)=27.6ms  p(95)=34.87ms p(99)=48.15ms max=154.58ms
+      { expected_response:true }........: avg=15.46ms min=2.51ms med=12.4ms  p(90)=28.16ms p(95)=35.74ms p(99)=55.17ms max=154.58ms
+    http_req_failed.....................: 0.00%  0 out of 11132
+    http_reqs...........................: 11132  40.989728/s
+
+    EXECUTION
+    iteration_duration..................: avg=1.22s   min=1s     med=1.01s   p(90)=2.03s   p(95)=2.04s   p(99)=2.07s   max=2.22s   
+    iterations..........................: 9217   33.938405/s
+    vus.................................: 1      min=0          max=50
+    vus_max.............................: 50     min=50         max=50
+
+    NETWORK
+    data_received.......................: 15 MB  54 kB/s
+    data_sent...........................: 3.5 MB 13 kB/s
+
+
+

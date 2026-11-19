@@ -1,0 +1,41 @@
+@startuml 05-despliegue
+!include lib/C4_Deployment.puml
+!include estilo.puml
+title Despliegue - Docker Compose, perfil prod (npm run prod:up) con tunel para la defensa
+
+Person(usuario, "Usuarios", "Navegador / app movil")
+System_Ext(cf, "Cloudflare", "Quick Tunnel: https://<aleatorio>.trycloudflare.com")
+
+Deployment_Node(host, "Equipo anfitrion", "Windows/Linux + Docker Engine") {
+  Deployment_Node(red, "Red Docker 'interna'", "bridge") {
+    Container(tunel, "ecom_tunel", "cloudflare/cloudflared", "npm run tunel; solo mientras dura la demostracion")
+    Container(web, "web", "nginx-unprivileged:1.27 + build de Vite", "UNICO puerto publicado: 8081. Proxy /api -> api-gateway")
+    Container(gw, "api-gateway", "node:22-alpine", "Prod: sin puerto publicado. Lab: :8080")
+    Deployment_Node(svcs, "Microservicios", "infra/Dockerfile.servicio (tsx), limites de CPU y memoria") {
+      Container(ms, "auth, clientes, catalogo, inventario, carrito, pedidos, pagos, notificaciones", "node:22-alpine", "Prod: sin puertos. Lab: 127.0.0.1:3001-3008")
+      Container(asis, "asistente-service", "node:22-alpine", "Prod: sin puerto. Lab: 127.0.0.1:3009")
+    }
+    Deployment_Node(datos, "Motores de datos", "imagenes oficiales") {
+      ContainerDb(pg, "postgres:16-alpine", "", "Prod: sin publicar. Lab: 127.0.0.1:5432|5434")
+      ContainerDb(mongo, "mongo:7", "", "Prod: sin publicar")
+      ContainerDb(redis, "redis:7-alpine", "", "Prod: sin publicar")
+      ContainerQueue(mq, "rabbitmq:3.13-management", "", "Prod: sin publicar")
+      Container(mail, "axllent/mailpit:v1.27", "", "Prod: interfaz solo en 127.0.0.1:8025")
+    }
+  }
+}
+
+Rel(usuario, cf, "HTTPS (defensa)")
+Rel(cf, tunel, "conexion saliente del tunel")
+Rel(tunel, web, "HTTP :8080")
+Rel(usuario, web, "HTTP :8081 (mismo equipo / red local)")
+Rel(web, gw, "/api (mismo origen)")
+Rel(gw, ms, "REST (red interna)")
+Rel(gw, asis, "REST")
+Rel(ms, pg, "TCP 5432")
+Rel(ms, mongo, "TCP 27017")
+Rel(ms, redis, "TCP 6379")
+Rel(ms, mq, "AMQP 5672 (reconexion con espera exponencial)")
+Rel(ms, mail, "SMTP 1025 (notificaciones)")
+SHOW_LEGEND()
+@enduml

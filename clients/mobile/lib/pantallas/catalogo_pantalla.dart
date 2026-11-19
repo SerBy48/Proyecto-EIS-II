@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../config.dart';
 import '../servicios/api_service.dart';
 import 'carrito_pantalla.dart';
 import 'pedidos_pantalla.dart';
@@ -56,7 +57,7 @@ class _CatalogoPantallaState extends State<CatalogoPantalla> {
     try {
       final productos = await ApiService.productos(
         busqueda: _busquedaCtrl.text,
-        categoria: _categoriaSeleccionada,
+        subcategoria: _categoriaSeleccionada,
       );
       final categorias = _categorias.isEmpty ? await ApiService.categorias() : _categorias;
       if (!mounted) return;
@@ -113,20 +114,60 @@ class _CatalogoPantallaState extends State<CatalogoPantalla> {
       return Text('Agotado',
           style: TextStyle(fontSize: 11, color: Colors.red.shade700, fontWeight: FontWeight.bold));
     }
-    if (disponible is int && disponible <= 3) {
-      return Text('Ultimas $disponible unidades',
-          style: TextStyle(fontSize: 11, color: Colors.orange.shade800, fontWeight: FontWeight.bold));
-    }
-    return Text('Disponible',
-        style: TextStyle(fontSize: 11, color: Colors.green.shade700, fontWeight: FontWeight.bold));
+    // RF-47: cuantas hay y cuantas puede llevar un cliente (deja 5 para los demas).
+    final maximo = p['maximo_por_cliente'];
+    final limite = maximo is int && disponible is int && maximo < disponible
+        ? Text('Maximo $maximo por cliente', style: const TextStyle(fontSize: 11, color: Colors.grey))
+        : null;
+    final estado = disponible is int && disponible <= 3
+        ? Text(disponible == 1 ? 'Ultima unidad' : 'Ultimas $disponible unidades',
+            style: TextStyle(fontSize: 11, color: Colors.orange.shade800, fontWeight: FontWeight.bold))
+        : Text('Disponible: $disponible unidades',
+            style: TextStyle(fontSize: 11, color: Colors.green.shade700, fontWeight: FontWeight.bold));
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [estado, if (limite != null) limite],
+    );
+  }
+
+  /// Foto del producto: la sirve el catalogo por el gateway (la misma direccion
+  /// de la API). Si no carga, el icono de siempre.
+  Widget _foto(Map<String, dynamic> p) {
+    final imagenes = p['imagenes'];
+    final ruta = imagenes is List && imagenes.isNotEmpty ? imagenes.first.toString() : '';
+    final respaldo = Container(
+      width: 72,
+      height: 72,
+      decoration: BoxDecoration(
+        color: Colors.green.shade50,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: const Icon(Icons.inventory_2_outlined, color: Color(0xFF047857)),
+    );
+    if (ruta.isEmpty) return respaldo;
+    final url = ruta.startsWith('http') ? ruta : '${Config.gateway}$ruta';
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(10),
+      child: Image.network(
+        url,
+        width: 72,
+        height: 72,
+        fit: BoxFit.cover,
+        semanticLabel: 'Foto de ${p['nombre']}',
+        loadingBuilder: (context, hijo, progreso) => progreso == null
+            ? hijo
+            : Container(width: 72, height: 72, color: Colors.grey.shade200),
+        errorBuilder: (context, error, pila) => respaldo,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Tienda en linea'),
-        backgroundColor: Colors.indigo,
+        title: const Text('SerByTek'),
+        backgroundColor: const Color(0xFF047857),
         foregroundColor: Colors.white,
         actions: [
           IconButton(
@@ -202,7 +243,7 @@ class _CatalogoPantallaState extends State<CatalogoPantalla> {
                     children: [
                       _chip('Todas', null),
                       ..._categorias.map(
-                        (c) => _chip(c['categoria'] as String, c['categoria'] as String),
+                        (c) => _chip(c['nombre'] as String, c['slug'] as String),
                       ),
                     ],
                   ),
@@ -269,15 +310,7 @@ class _CatalogoPantallaState extends State<CatalogoPantalla> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 56,
-                    height: 56,
-                    decoration: BoxDecoration(
-                      color: Colors.indigo.shade50,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(Icons.inventory_2_outlined, color: Colors.indigo),
-                  ),
+                  _foto(p),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -327,7 +360,7 @@ class _CatalogoPantallaState extends State<CatalogoPantalla> {
                   ),
                   IconButton(
                     icon: const Icon(Icons.add_shopping_cart),
-                    color: Colors.indigo,
+                    color: const Color(0xFF047857),
                     onPressed: agotado ? null : () => _agregar(p['sku'] as String),
                   ),
                 ],

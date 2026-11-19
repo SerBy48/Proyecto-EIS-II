@@ -1,0 +1,65 @@
+{
+  "_descripcion": "Respuestas a preguntas frecuentes. Se siembran en asistente_db.faq solo si la coleccion esta vacia y el administrador las edita con PATCH /api/asistente/faq/:clave. Las {{variables}} salen de la configuracion (configuracion.ts): los valores de dinero e impuestos son los mismos que usa el carrito, nunca se escriben a mano aquí.",
+  "faq": [
+    {
+      "clave": "faq_envio",
+      "respuesta": "El envío cuesta {{costo_envio}} a cualquier ciudad de Colombia. Es gratis cuando el subtotal de tu compra llega a {{umbral_envio_gratis}}."
+    },
+    {
+      "clave": "faq_envio_gratis",
+      "respuesta": "El envío es gratis cuando el subtotal de tu compra (antes de IVA) llega a {{umbral_envio_gratis}}. Un cupón de descuento no te hace perder el envío gratis. Por debajo de ese valor, el envío cuesta {{costo_envio}}."
+    },
+    {
+      "clave": "faq_iva",
+      "respuesta": "Los precios del catálogo no incluyen IVA. En el carrito se suma el {{porcentaje_iva}} % de IVA sobre el subtotal, después de aplicar el descuento del cupón."
+    },
+    {
+      "clave": "faq_pagos",
+      "respuesta": "Puedes pagar con tarjeta de crédito, tarjeta de débito, PSE o Efecty. Nunca guardamos los datos de tu tarjeta: la pasarela de pagos los procesa directamente."
+    },
+    {
+      "clave": "faq_entrega",
+      "respuesta": "Los pedidos llegan en {{dias_entrega}} días hábiles según la ciudad. Cuando tu pedido sale de la bodega cambia a 'enviado' y te avisamos por correo."
+    },
+    {
+      "clave": "faq_devoluciones",
+      "respuesta": "Tienes {{dias_retracto}} días hábiles desde la entrega para retractarte de la compra (derecho de retracto). Si el pedido aun no está en preparación, puedes cancelarlo tu mismo desde 'Mis pedidos' y el reembolso es automatico."
+    },
+    {
+      "clave": "faq_horario",
+      "respuesta": "SerByTek funciona en línea todo el día. Nuestros asesores atienden {{horario_atencion}}. Si quieres, te comunico con uno."
+    },
+    {
+      "clave": "faq_cupones",
+      "respuesta": "Escribe el cupón en el carrito, en el campo \"Cupón\", y pulsa Aplicar. El descuento se aplica antes del IVA y no te hace perder el envío gratis. Por ejemplo, BIENVENIDA10 da 10 % de descuento en compras desde $100.000."
+    },
+    {
+      "clave": "faq_cuenta",
+      "respuesta": "Pulsa \"Iniciar sesión\" y luego \"Crear cuenta\". Necesitas tu nombre, tu correo, una contraseña de al menos 8 caracteres y tu dirección de envío con departamento y ciudad. Al terminar quedas con la sesión iniciada y listo para comprar."
+    },
+    {
+      "clave": "faq_contrasena",
+      "respuesta": "Si olvidaste tu contraseña, pulsa \"Iniciar sesión\" y luego \"¿Olvidaste tu contraseña?\". Escribe el correo de tu cuenta y te enviaremos un enlace para crear una nueva: vence en 30 minutos y sirve una sola vez. Al cambiarla se cierran tus sesiones abiertas. Si el correo no te llega, revisa la carpeta de spam o escríbele al vendedor."
+    },
+    {
+      "clave": "faq_direccion",
+      "respuesta": "Tus direcciones se administran en \"Mi perfil\": puedes tener varias, con departamento y ciudad, y elegir la predeterminada. Al pagar eliges a cuál enviar o agregas una nueva. Si ya hiciste el pedido, en \"Mis pedidos\" puedes cambiar la dirección hasta 2 veces mientras no haya salido de la bodega."
+    },
+    {
+      "clave": "faq_eliminar_cuenta",
+      "respuesta": "Puedes eliminar tu cuenta desde \"Mi perfil\", confirmando con tu contraseña. Si tienes pedidos pendientes de pago, pagados, en preparación o enviados, primero deben entregarse o cancelarse. Al eliminarla borramos tus datos personales y cerramos tus sesiones; los pedidos se conservan sin tus datos por obligaciones contables."
+    },
+    {
+      "clave": "faq_tienda",
+      "respuesta": "SerByTek es una tienda en línea colombiana especializada en tecnología: computadores, componentes, periféricos, monitores, audio, celulares, redes, gaming y accesorios. Vendemos solo en línea, sin tienda física, y enviamos a todo Colombia en {{dias_entrega}} días hábiles."
+    },
+    {
+      "clave": "faq_seguridad",
+      "respuesta": "Sí. Nunca guardamos el número de tu tarjeta, el CVV ni la fecha de vencimiento: la pasarela de pagos los procesa directamente y SerByTek solo recibe una referencia del pago. Cada compra lleva una clave única, así que un doble clic no cobra dos veces."
+    },
+    {
+      "clave": "faq_factura",
+      "respuesta": "Con cada compra recibes un correo de confirmación con el número del pedido y el total, y el detalle queda en \"Mis pedidos\". Si necesitas la factura a nombre de una empresa, pídesela a un asesor con el número del pedido."
+    }
+  ]
+}

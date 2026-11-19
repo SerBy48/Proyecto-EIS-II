@@ -1,0 +1,42 @@
+
+
+  █ THRESHOLDS 
+
+    checks
+    ✓ 'rate>0.99' rate=100.00%
+
+    http_req_duration{endpoint:login}
+    ✓ 'p(95)<1000' p(95)=981.37ms
+
+    http_req_failed
+    ✓ 'rate<0.01' rate=0.00%
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 13786   50.98983/s
+    checks_succeeded...: 100.00% 13786 out of 13786
+    checks_failed......: 0.00%   0 out of 13786
+
+    ✓ login 200
+    ✓ emite token
+
+    HTTP
+    http_req_duration..............: avg=633.31ms min=85.13ms med=665.32ms p(90)=901.06ms p(95)=981.37ms p(99)=1.39s max=1.58s
+      { endpoint:login }...........: avg=633.31ms min=85.13ms med=665.32ms p(90)=901.06ms p(95)=981.37ms p(99)=1.39s max=1.58s
+      { expected_response:true }...: avg=633.31ms min=85.13ms med=665.32ms p(90)=901.06ms p(95)=981.37ms p(99)=1.39s max=1.58s
+    http_req_failed................: 0.00%  0 out of 6893
+    http_reqs......................: 6893   25.494915/s
+
+    EXECUTION
+    iteration_duration.............: avg=1.63s    min=1.08s   med=1.66s    p(90)=1.9s     p(95)=1.98s    p(99)=2.4s  max=2.58s
+    iterations.....................: 6893   25.494915/s
+    vus............................: 2      min=0         max=50
+    vus_max........................: 50     min=50        max=50
+
+    NETWORK
+    data_received..................: 9.7 MB 36 kB/s
+    data_sent......................: 1.3 MB 4.9 kB/s
+
+
+

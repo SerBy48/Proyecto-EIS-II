@@ -1,0 +1,6 @@
+
+> ecommerce-distribuido@1.0.0 test:openapi
+> tsx tests/openapi-cobertura.ts
+
+[90mCodigo: 84 rutas (9 servicios + gateway). Especificacion: 73 publicas + 11 internas. Rutas publicas del gateway: 11.[0m
+[32mLas 505 comprobaciones pasaron: la especificacion cubre exactamente el codigo.[0m

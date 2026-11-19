@@ -1,0 +1,12 @@
+Medicion exploratoria sin concurrencia - 2026-11-15T02:54:29.838Z - http://localhost:8080/api
+30 peticiones secuenciales por endpoint, tras 1 de calentamiento. Tiempos de extremo a extremo vistos por el cliente.
+
+GET  /catalogo/productos (sin filtro)        n=30  prom=   35.1  p50=   27.6  p95=   69.5  max=   69.5 ms  estados={"200":30}
+GET  /catalogo/productos?q=<termino>         n=30  prom=   20.6  p50=   20.5  p95=   24.4  max=   25.1 ms  estados={"200":30}
+GET  /catalogo/productos/:sku                n=30  prom=   24.7  p50=   22.8  p95=   40.8  max=   47.8 ms  estados={"200":30}
+GET  /catalogo/categorias                    n=30  prom=   22.2  p50=   22.0  p95=   31.2  max=   34.2 ms  estados={"200":30}
+POST /auth/login (bcrypt)                    n=30  prom=  274.5  p50=  264.4  p95=  391.9  max=  425.8 ms  estados={"200":30}
+GET  /pedidos (cliente)                      n=30  prom=   21.7  p50=   16.4  p95=   40.2  max=   41.1 ms  estados={"200":30}
+POST /carrito/:id/items                      n=30  prom=   25.9  p50=   24.9  p95=   35.3  max=   38.1 ms  estados={"200":30}
+GET  /carrito/:id                            n=30  prom=   17.7  p50=   17.1  p95=   22.7  max=   25.9 ms  estados={"200":30}
+POST /pedidos/checkout (saga, tok_ok)        n=30  prom=  389.0  p50=  369.6  p95=  475.7  max=  529.0 ms  estados={"201":30}

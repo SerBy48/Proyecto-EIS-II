@@ -12,9 +12,11 @@
     "@ecommerce/shared": "*",
     "dotenv": "^16.4.5",
     "express": "^4.21.1",
-    "mongodb": "^6.10.0"
+    "mongodb": "^6.10.0",
+    "nodemailer": "10.2.1"
   },
   "devDependencies": {
-    "@types/express": "^4.17.21"
+    "@types/express": "^4.17.21",
+    "@types/nodemailer": "8.0.2"
   }
 }

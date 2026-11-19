@@ -3,6 +3,7 @@ import { Response } from 'express';
 import {
   BusEventos,
   EstadoPedido,
+  crearLogger,
   PeticionAutenticada,
   errorNoEncontrado,
   errorProhibido,
@@ -11,12 +12,45 @@ import {
 } from '@ecommerce/shared';
 import { pool } from './db';
 import { ejecutarCheckout } from './saga-checkout';
-import { inventario, pagos } from './dependencias';
+import { clientes, inventario, pagos } from './dependencias';
 
 let bus: BusEventos;
+const log = crearLogger('pedidos');
+
+/**
+ * Correo y nombre del cliente para los eventos que le notifican un cambio de
+ * su pedido (hallazgo H-F5-01: sin ellos, notificaciones enviaba el correo al
+ * buzon de operaciones con un "Hola ,"). Se consulta con la identidad de quien
+ * hace el cambio: el propio cliente o el personal interno.
+ *
+ * Si clientes no responde, el evento sale sin contacto y el cambio de estado se
+ * mantiene: un correo nunca tumba la operacion principal (invariante 12).
+ */
+export const contactoDelCliente = async (
+  clienteId: number,
+  req: PeticionAutenticada
+): Promise<{ email?: string; nombre?: string }> => {
+  try {
+    const cliente = await clientes.pedir<{ nombre: string; apellido: string; email: string }>({
+      ruta: `/${clienteId}`,
+      requestId: req.requestId,
+      usuario: req.usuario!
+    });
+    return { email: cliente.email, nombre: `${cliente.nombre} ${cliente.apellido}`.trim() };
+  } catch (error) {
+    log.warn('Sin contacto del cliente para la notificacion', {
+      cliente_id: clienteId,
+      error: (error as Error).message
+    });
+    return {};
+  }
+};
 export const inyectarBus = (instancia: BusEventos): void => {
   bus = instancia;
 };
+
+/** El bus de eventos del servicio (para los modulos que publican fuera de este archivo). */
+export const busDeEventos = (): BusEventos | undefined => bus;
 
 /** Transiciones de estado permitidas (seccion 5.8 del documento). */
 const TRANSICIONES: Record<EstadoPedido, EstadoPedido[]> = {
@@ -115,7 +149,7 @@ export const obtenerPedido = async (req: PeticionAutenticada, res: Response): Pr
 
   const columnas = `id, numero, cliente_id, direccion_envio, estado, subtotal, impuestos,
                     envio, descuento, total, transaccion_pago_id, motivo_cancelacion,
-                    creado_en, actualizado_en`;
+                    cambios_direccion, creado_en, actualizado_en`;
 
   const { rows } = esId
     ? await pool.query(`SELECT ${columnas} FROM pedidos WHERE id = $1`, [Number(valor)])
@@ -151,7 +185,7 @@ export const listarPedidos = async (req: PeticionAutenticada, res: Response): Pr
   const estado = req.query.estado ? String(req.query.estado) : null;
 
   const { rows } = await pool.query(
-    `SELECT p.id, p.numero, p.cliente_id, p.estado, p.total, p.creado_en,
+    `SELECT p.id, p.numero, p.cliente_id, p.estado, p.total, p.creado_en, p.actualizado_en,
             COUNT(i.id)::INT AS cantidad_items
        FROM pedidos p LEFT JOIN pedido_items i ON i.pedido_id = p.id
       WHERE ($1::INT IS NULL OR p.cliente_id = $1)
@@ -210,7 +244,10 @@ export const cambiarEstado = async (req: PeticionAutenticada, res: Response): Pr
       total: Number(pedido.total),
       estado: nuevo,
       motivo: req.body?.motivo,
-      guia: req.body?.guia
+      guia: req.body?.guia,
+      // Cancelar por aqui no reembolsa (eso lo hace POST /:id/cancelar).
+      ...(nuevo === 'cancelado' ? { detalle_cobro: 'Si hubo un cobro, el reembolso se gestiona aparte.' } : {}),
+      ...(await contactoDelCliente(pedido.cliente_id, req))
     },
     req.requestId
   );
@@ -309,7 +346,13 @@ export const cancelarPedido = async (req: PeticionAutenticada, res: Response): P
       cliente_id: pedido.cliente_id,
       total: Number(pedido.total),
       estado: 'cancelado',
-      motivo
+      motivo,
+      detalle_cobro: compensaciones.includes('reembolso_procesado')
+        ? 'El reembolso del pago ya fue procesado.'
+        : compensaciones.includes('reembolso_pendiente')
+          ? 'El reembolso del pago esta en tramite.'
+          : 'No se realizo ningun cobro.',
+      ...(await contactoDelCliente(pedido.cliente_id, req))
     },
     req.requestId
   );

@@ -1,0 +1,6 @@
+1794813671 2026-11-16T02:21:11-05:00 inicio de la carga (checkout, perfil carga)
+1794813773 2026-11-16T02:22:53-05:00 docker stop ecom_notificaciones
+1794813835 2026-11-16T02:23:55-05:00 docker start ecom_notificaciones
+1794813947 2026-11-16T02:25:47-05:00 fin de la carga (codigo de ejecutar.sh: 0)
+1794813948 2026-11-16T02:25:48-05:00 cola notificaciones.envio vacia: 0 mensajes
+1794813949 2026-11-16T02:25:49-05:00 muestras: 106

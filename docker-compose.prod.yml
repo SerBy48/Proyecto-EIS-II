@@ -1,0 +1,135 @@
+# ============================================================================
+# Perfil de PRODUCCION (Trabajo Final, Fase 5; docs/adr/0009). Se aplica encima
+# de docker-compose.yml:
+#
+#   npm run prod:up      (docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build --wait)
+#
+# Diferencias con el laboratorio:
+#   - Solo la web publica un puerto (WEB_PUERTO, 8081 por defecto). El gateway,
+#     los diez servicios y los motores de datos quedan en la red interna: la
+#     API se alcanza por el proxy /api de nginx, en el mismo origen que la web.
+#   - NODE_ENV=production, logs en JSON y Swagger UI apagado (EXPONER_DOCS=false).
+#   - Limites de CPU y memoria por contenedor.
+#   - La web se compila en modo produccion: sin los controles de la pasarela
+#     simulada (U-08). Para los E2E de interfaz: MODO_VITE=pruebas.
+#   - Los secretos siguen siendo obligatorios (${VAR:?...} en docker-compose.yml).
+#
+#   - Cuentas reales en lugar de las de prueba (infra/postgres/07-cuentas-
+#     produccion.sh): correos y contrasenas del .env del servidor, que el
+#     repositorio no tiene. Solo al crear el volumen.
+#   - Correo por un SMTP real si se define SMTP_HOST_PROD (Gmail con una
+#     contrasena de aplicacion, docs/manuales/DESPLIEGUE.md); sin el, Mailpit.
+#
+# Excepcion deliberada: la interfaz de Mailpit en 127.0.0.1:8025, solo en el
+# propio equipo (en la nube se ve por un tunel SSH).
+#
+# Las variables *_PROD son propias del perfil: el .env del laboratorio trae
+# SMTP_HOST=localhost para npm run dev, y ese valor no sirve en un contenedor.
+# ============================================================================
+
+x-produccion: &produccion
+  NODE_ENV: production
+  LOG_LEVEL: info
+  LOG_FORMATO: json
+
+x-limites-servicio: &limites-servicio
+  deploy:
+    resources:
+      limits: { cpus: "1.0", memory: 384M }
+
+services:
+  postgres:
+    ports: !reset []
+    environment:
+      CUENTAS_PRODUCCION: "true"
+      CORREO_ADMIN: ${CORREO_ADMIN:?Defina CORREO_ADMIN en .env (cuentas de produccion)}
+      CLAVE_ADMIN: ${CLAVE_ADMIN:?Defina CLAVE_ADMIN en .env (12 caracteres o mas)}
+      CORREO_VENDEDOR: ${CORREO_VENDEDOR:?Defina CORREO_VENDEDOR en .env}
+      CLAVE_VENDEDOR: ${CLAVE_VENDEDOR:?Defina CLAVE_VENDEDOR en .env (12 caracteres o mas)}
+      CORREO_CLIENTE: ${CORREO_CLIENTE:?Defina CORREO_CLIENTE en .env}
+      CLAVE_CLIENTE: ${CLAVE_CLIENTE:?Defina CLAVE_CLIENTE en .env (12 caracteres o mas)}
+      NOMBRE_CLIENTE: ${NOMBRE_CLIENTE:?Defina NOMBRE_CLIENTE en .env}
+      APELLIDO_CLIENTE: ${APELLIDO_CLIENTE:?Defina APELLIDO_CLIENTE en .env}
+    deploy: { resources: { limits: { cpus: "2.0", memory: 1G } } }
+  mongo:
+    ports: !reset []
+    deploy: { resources: { limits: { cpus: "1.0", memory: 1G } } }
+  redis:
+    ports: !reset []
+    deploy: { resources: { limits: { cpus: "0.5", memory: 256M } } }
+  rabbitmq:
+    ports: !reset []
+    deploy: { resources: { limits: { cpus: "1.0", memory: 512M } } }
+  mailpit:
+    ports: !override
+      - "127.0.0.1:8025:8025"
+
+  # bcrypt corre en un pool de hilos (pool-hash.ts): auth es el que mas CPU usa
+  # (RENDIMIENTO.md 9.2), por eso tiene mas margen.
+  auth-service:
+    ports: !reset []
+    environment: *produccion
+    deploy: { resources: { limits: { cpus: "2.0", memory: 512M } } }
+  clientes-service:
+    ports: !reset []
+    environment: *produccion
+    <<: *limites-servicio
+  catalogo-service:
+    ports: !reset []
+    environment: *produccion
+    <<: *limites-servicio
+  inventario-service:
+    ports: !reset []
+    environment: *produccion
+    <<: *limites-servicio
+  carrito-service:
+    ports: !reset []
+    environment: *produccion
+    <<: *limites-servicio
+  pedidos-service:
+    ports: !reset []
+    environment: *produccion
+    <<: *limites-servicio
+  pagos-service:
+    ports: !reset []
+    environment: *produccion
+    <<: *limites-servicio
+  notificaciones-service:
+    ports: !reset []
+    environment:
+      <<: *produccion
+      SMTP_HOST: ${SMTP_HOST_PROD:-mailpit}
+      SMTP_PUERTO: ${SMTP_PUERTO_PROD:-1025}
+      SMTP_SEGURO: ${SMTP_SEGURO_PROD:-false}
+      SMTP_USUARIO: ${SMTP_USUARIO_PROD:-}
+      SMTP_CLAVE: ${SMTP_CLAVE_PROD:-}
+      # Con Gmail el remitente debe ser la misma cuenta de SMTP_USUARIO_PROD.
+      CORREO_REMITENTE: ${CORREO_REMITENTE_PROD:-Tienda en linea <no-responder@tienda.co>}
+      # Buzon del personal: avisos de stock minimo y consultas nuevas.
+      CORREO_OPERACIONES: ${CORREO_OPERACIONES_PROD:-operaciones@tienda.co}
+    <<: *limites-servicio
+  asistente-service:
+    ports: !reset []
+    environment: *produccion
+    <<: *limites-servicio
+
+  api-gateway:
+    ports: !reset []
+    environment:
+      <<: *produccion
+      EXPONER_DOCS: "false"
+      # Mismo origen que la web (proxy /api de nginx): CORS solo para ese origen.
+      # Variable propia: CORS_ORIGENES del .env es la del laboratorio. Con el
+      # tunel se agrega su URL: CORS_ORIGENES_PROD=http://localhost:8081,https://....
+      CORS_ORIGENES: ${CORS_ORIGENES_PROD:-http://localhost:${WEB_PUERTO:-8081}}
+      # Proxies delante del gateway: 1 = solo nginx de la web. Con Caddy o el
+      # tunel delante de nginx, 2 (docker-compose.nube.yml lo fija): asi el
+      # limite de peticiones cuenta la IP de cada persona y no la del proxy.
+      PROXIES_CONFIANZA: ${PROXIES_CONFIANZA:-1}
+    <<: *limites-servicio
+
+  web:
+    build:
+      args:
+        MODO_VITE: ${MODO_VITE:-production}
+    deploy: { resources: { limits: { cpus: "0.5", memory: 128M } } }

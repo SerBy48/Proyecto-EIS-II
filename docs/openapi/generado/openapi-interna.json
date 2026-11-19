@@ -1,0 +1,883 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Plataforma de comercio electronico - API interna de la saga",
+    "version": "1.0.0",
+    "description": "Rutas que usan los servicios entre si (la saga de pedidos y el carrito). Entre\nservicios exigen el secreto compartido **y** la cabecera `x-llamada-interna`\n(invariante 11). A traves del gateway solo las puede usar el personal interno.\n**No se publica** en Swagger UI (docs/adr/0008-openapi-centralizada-gateway.md).\n"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "interna",
+      "description": "Uso exclusivo entre servicios"
+    }
+  ],
+  "paths": {
+    "/api/clientes/{id}/validar": {
+      "get": {
+        "tags": [
+          "interna"
+        ],
+        "summary": "Validar un cliente para la compra (paso 9 de la saga)",
+        "operationId": "validarParaCompra",
+        "x-interna": true,
+        "x-roles": [
+          "administrador",
+          "vendedor"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdCliente"
+          },
+          {
+            "name": "direccion_id",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "example": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cliente activo con direccion de envio.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "valido": {
+                      "type": "boolean"
+                    },
+                    "cliente": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        },
+                        "nombre": {
+                          "type": "string",
+                          "description": "Nombre y apellido."
+                        },
+                        "email": {
+                          "type": "string"
+                        },
+                        "telefono": {
+                          "type": "string",
+                          "nullable": true
+                        }
+                      }
+                    },
+                    "direccion_envio": {
+                      "$ref": "#/components/schemas/Direccion"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/SolicitudInvalida"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      }
+    },
+    "/api/clientes/{id}/anonimizar": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdCliente"
+        }
+      ],
+      "post": {
+        "tags": [
+          "interna"
+        ],
+        "summary": "Anonimizar un perfil (al eliminar la cuenta)",
+        "description": "Solo auth-service con el secreto interno (soloLlamadaInterna); un administrador desde afuera recibe 403.",
+        "operationId": "anonimizarCliente",
+        "x-interna": true,
+        "x-roles": [
+          "administrador"
+        ],
+        "responses": {
+          "200": {
+            "description": "Datos personales eliminados.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "mensaje": {
+                      "type": "string"
+                    },
+                    "cliente_id": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      }
+    },
+    "/api/pedidos/internos/clientes/{clienteId}/pendientes": {
+      "parameters": [
+        {
+          "name": "clienteId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "example": 1
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "interna"
+        ],
+        "summary": "Pedidos en curso de un cliente",
+        "description": "auth-service lo consulta antes de eliminar una cuenta. Solo llamada interna.",
+        "operationId": "pedidosEnCurso",
+        "x-interna": true,
+        "x-roles": [
+          "administrador"
+        ],
+        "responses": {
+          "200": {
+            "description": "Pedidos creados, pagados, en preparacion o enviados.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "pendientes": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "numero": {
+                            "type": "string"
+                          },
+                          "estado": {
+                            "$ref": "#/components/schemas/EstadoPedido"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          }
+        }
+      }
+    },
+    "/api/catalogo/productos/{sku}/precio": {
+      "get": {
+        "tags": [
+          "interna"
+        ],
+        "summary": "Precio vigente de un SKU (carrito y paso 10 de la saga)",
+        "operationId": "precioVigente",
+        "x-interna": true,
+        "x-roles": [
+          "sesion"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Sku"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Precio vigente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "sku": {
+                      "type": "string"
+                    },
+                    "nombre": {
+                      "type": "string"
+                    },
+                    "precio_lista": {
+                      "type": "number"
+                    },
+                    "descuento_porcentaje": {
+                      "type": "number"
+                    },
+                    "precio_final": {
+                      "type": "number"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      }
+    },
+    "/api/carrito/{clienteId}/checkout": {
+      "get": {
+        "tags": [
+          "interna"
+        ],
+        "summary": "Carrito con precios vigentes para la saga",
+        "operationId": "carritoParaCheckout",
+        "x-interna": true,
+        "x-roles": [
+          "administrador",
+          "vendedor"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ClienteId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Items, cupon y totales.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "cliente_id": {
+                      "type": "integer"
+                    },
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ItemCarrito"
+                      }
+                    },
+                    "cupon": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "totales": {
+                      "type": "object",
+                      "additionalProperties": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/SolicitudInvalida"
+          }
+        }
+      }
+    },
+    "/api/inventario/reservas": {
+      "post": {
+        "tags": [
+          "interna"
+        ],
+        "summary": "Reservar stock (paso 11 de la saga)",
+        "description": "Descuento condicional, version y bloqueo por SKU en la funcion reservar_stock. Vigencia por defecto de 15 minutos.",
+        "operationId": "reservarStock",
+        "x-interna": true,
+        "x-roles": [
+          "administrador",
+          "vendedor"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "sku",
+                  "cantidad"
+                ],
+                "properties": {
+                  "sku": {
+                    "type": "string"
+                  },
+                  "cantidad": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "pedido_id": {
+                    "type": "integer"
+                  },
+                  "minutos_vigencia": {
+                    "type": "integer",
+                    "default": 15
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Replica idempotente."
+          },
+          "201": {
+            "description": "Reserva creada."
+          },
+          "400": {
+            "$ref": "#/components/responses/SolicitudInvalida"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflicto"
+          }
+        }
+      }
+    },
+    "/api/inventario/reservas/{id}": {
+      "get": {
+        "tags": [
+          "interna"
+        ],
+        "summary": "Consultar una reserva",
+        "operationId": "obtenerReserva",
+        "x-interna": true,
+        "x-roles": [
+          "administrador",
+          "vendedor"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdReserva"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Reserva."
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      }
+    },
+    "/api/inventario/reservas/{id}/confirmar": {
+      "post": {
+        "tags": [
+          "interna"
+        ],
+        "summary": "Confirmar una reserva tras el cobro (paso 13)",
+        "operationId": "confirmarReserva",
+        "x-interna": true,
+        "x-roles": [
+          "administrador",
+          "vendedor"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdReserva"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Reserva confirmada (o ya lo estaba)."
+          },
+          "400": {
+            "$ref": "#/components/responses/SolicitudInvalida"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      }
+    },
+    "/api/inventario/reservas/{id}/liberar": {
+      "post": {
+        "tags": [
+          "interna"
+        ],
+        "summary": "Liberar una reserva (compensacion)",
+        "operationId": "liberarReserva",
+        "x-interna": true,
+        "x-roles": [
+          "administrador",
+          "vendedor"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdReserva"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "motivo": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Reserva liberada (o ya lo estaba)."
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      }
+    },
+    "/api/pagos/cobros": {
+      "post": {
+        "tags": [
+          "interna"
+        ],
+        "summary": "Cobrar (paso 12 de la saga)",
+        "description": "Idempotente y sin reintentos. Nunca recibe el numero de tarjeta, solo el token de la pasarela.",
+        "operationId": "cobrar",
+        "x-interna": true,
+        "x-roles": [
+          "administrador",
+          "vendedor"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "pedido_id",
+                  "cliente_id",
+                  "monto",
+                  "medio_pago",
+                  "token_medio_pago"
+                ],
+                "properties": {
+                  "pedido_id": {
+                    "type": "integer"
+                  },
+                  "numero_pedido": {
+                    "type": "string"
+                  },
+                  "cliente_id": {
+                    "type": "integer"
+                  },
+                  "monto": {
+                    "type": "number"
+                  },
+                  "medio_pago": {
+                    "type": "string"
+                  },
+                  "token_medio_pago": {
+                    "type": "string"
+                  },
+                  "contacto": {
+                    "type": "object",
+                    "description": "Correo y nombre del cliente para el aviso de pago rechazado (H-F5c-02).",
+                    "properties": {
+                      "email": {
+                        "type": "string"
+                      },
+                      "nombre": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cobro rechazado o replica idempotente."
+          },
+          "201": {
+            "description": "Cobro aprobado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "aprobado": {
+                      "type": "boolean"
+                    },
+                    "transaccion": {
+                      "$ref": "#/components/schemas/Transaccion"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/SolicitudInvalida"
+          },
+          "502": {
+            "description": "Error tecnico de la pasarela."
+          }
+        }
+      }
+    },
+    "/api/pagos/transacciones/{referencia}/reembolsar": {
+      "post": {
+        "tags": [
+          "interna"
+        ],
+        "summary": "Reembolsar una transaccion (compensacion de una cancelacion)",
+        "operationId": "reembolsarTransaccion",
+        "x-interna": true,
+        "x-roles": [
+          "administrador",
+          "vendedor"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Referencia"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "motivo": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Reembolso procesado (o ya estaba reembolsada)."
+          },
+          "400": {
+            "$ref": "#/components/responses/SolicitudInvalida"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "parameters": {
+      "IdCliente": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "description": "Id del cliente. Un cliente solo puede usar el suyo (el del JWT).",
+        "schema": {
+          "type": "integer",
+          "example": 1
+        }
+      },
+      "Sku": {
+        "name": "sku",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "example": "SKU-TEC-001"
+        }
+      },
+      "ClienteId": {
+        "name": "clienteId",
+        "in": "path",
+        "required": true,
+        "description": "Id del cliente. Un cliente solo puede usar el suyo (el del JWT).",
+        "schema": {
+          "type": "integer",
+          "example": 1
+        }
+      },
+      "IdempotencyKey": {
+        "name": "Idempotency-Key",
+        "in": "header",
+        "required": true,
+        "description": "Obligatoria (invariante 4). Un reintento con la misma clave devuelve el resultado original sin repetir el efecto.",
+        "schema": {
+          "type": "string",
+          "maxLength": 100,
+          "example": "checkout-ana-0001"
+        }
+      },
+      "IdReserva": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "example": "122a73cf-9420-4139-a7ea-36d7d2802ffb"
+        }
+      },
+      "Referencia": {
+        "name": "referencia",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "example": "TRX-4B2CB23F-814"
+        }
+      }
+    },
+    "schemas": {
+      "Direccion": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "envio",
+              "facturacion"
+            ]
+          },
+          "etiqueta": {
+            "type": "string",
+            "nullable": true
+          },
+          "linea1": {
+            "type": "string"
+          },
+          "linea2": {
+            "type": "string",
+            "nullable": true
+          },
+          "ciudad": {
+            "type": "string"
+          },
+          "departamento": {
+            "type": "string",
+            "nullable": true
+          },
+          "pais": {
+            "type": "string"
+          },
+          "codigo_postal": {
+            "type": "string",
+            "nullable": true
+          },
+          "predeterminada": {
+            "type": "boolean"
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "description": "Formato uniforme del middleware central de errores (shared/src/errores.ts).",
+        "required": [
+          "mensaje",
+          "codigo"
+        ],
+        "properties": {
+          "mensaje": {
+            "type": "string",
+            "example": "Solo puede consultar su propia informacion."
+          },
+          "codigo": {
+            "type": "string",
+            "example": "PROHIBIDO"
+          },
+          "detalle": {
+            "description": "Datos adicionales segun el error (p. ej. discrepancias de precio)."
+          }
+        }
+      },
+      "EstadoPedido": {
+        "type": "string",
+        "enum": [
+          "creado",
+          "pagado",
+          "en_preparacion",
+          "enviado",
+          "entregado",
+          "cancelado"
+        ]
+      },
+      "ItemCarrito": {
+        "type": "object",
+        "properties": {
+          "sku": {
+            "type": "string"
+          },
+          "nombre": {
+            "type": "string"
+          },
+          "cantidad": {
+            "type": "integer"
+          },
+          "precio_unitario": {
+            "type": "number",
+            "description": "Precio vigente leido del catalogo (invariante 2)."
+          }
+        }
+      },
+      "Dinero": {
+        "type": "string",
+        "pattern": "^\\d+\\.\\d{2}$",
+        "description": "Valor NUMERIC(12,2) de PostgreSQL, serializado como texto.",
+        "example": "26900.00"
+      },
+      "Transaccion": {
+        "type": "object",
+        "description": "Sin numero de tarjeta, CVV ni vencimiento (invariante 9, PCI-DSS).",
+        "properties": {
+          "referencia": {
+            "type": "string",
+            "example": "TRX-4B2CB23F-814"
+          },
+          "pedido_id": {
+            "type": "integer"
+          },
+          "numero_pedido": {
+            "type": "string"
+          },
+          "monto": {
+            "$ref": "#/components/schemas/Dinero"
+          },
+          "medio_pago": {
+            "type": "string"
+          },
+          "estado": {
+            "type": "string",
+            "enum": [
+              "iniciada",
+              "aprobada",
+              "rechazada",
+              "reembolsada"
+            ]
+          },
+          "ultimos_cuatro": {
+            "type": "string",
+            "nullable": true,
+            "example": "4242"
+          },
+          "marca": {
+            "type": "string",
+            "nullable": true,
+            "example": "VISA"
+          },
+          "creado_en": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    },
+    "responses": {
+      "SolicitudInvalida": {
+        "description": "Datos faltantes o invalidos (SOLICITUD_INVALIDA, VALOR_INVALIDO, JSON_INVALIDO).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "mensaje": "Campos obligatorios: email",
+              "codigo": "SOLICITUD_INVALIDA"
+            }
+          }
+        }
+      },
+      "Prohibido": {
+        "description": "El rol no tiene permiso o el recurso es de otro cliente (PROHIBIDO).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "mensaje": "Solo puede consultar su propia informacion.",
+              "codigo": "PROHIBIDO"
+            }
+          }
+        }
+      },
+      "NoEncontrado": {
+        "description": "El recurso no existe, o no es del usuario (NO_ENCONTRADO).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "mensaje": "Pedido no encontrado.",
+              "codigo": "NO_ENCONTRADO"
+            }
+          }
+        }
+      },
+      "Conflicto": {
+        "description": "Conflicto de negocio (CONFLICTO, STOCK_INSUFICIENTE).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "mensaje": "El correo ya se encuentra registrado.",
+              "codigo": "CONFLICTO"
+            }
+          }
+        }
+      }
+    }
+  }
+}

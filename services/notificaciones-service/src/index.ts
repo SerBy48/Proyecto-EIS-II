@@ -1,6 +1,8 @@
 import 'dotenv/config';
 import { Application, Router } from 'express';
 import { BusEventos, asincrono, crearServicio, requiereRol } from '@ecommerce/shared';
+import { asegurarPlantillas, marcarLeidas, verBandeja } from './bandeja';
+import { verificarCorreo } from './canales';
 import { cliente, conectarMongo, verificarMongo } from './db';
 import {
   actualizarPlantilla,
@@ -22,6 +24,9 @@ const rutas = (app: Application): void => {
   const router = Router();
 
   router.get('/mensajes', requiereRol(), asincrono(listarMensajes));
+  // Campana de la web (RF-52): cada quien ve y marca solo lo suyo.
+  router.get('/bandeja', requiereRol(), asincrono(verBandeja));
+  router.post('/bandeja/leidas', requiereRol(), asincrono(marcarLeidas));
   router.get('/plantillas', requiereRol('administrador'), asincrono(listarPlantillas));
   router.patch('/plantillas/:clave', requiereRol('administrador'), asincrono(actualizarPlantilla));
 
@@ -34,10 +39,13 @@ void crearServicio({
   rutas,
   dependencias: [
     { nombre: 'mongo:notificaciones_db', verificar: verificarMongo },
-    { nombre: 'rabbitmq', verificar: async () => bus.conectado }
+    { nombre: 'rabbitmq', verificar: async () => bus.conectado },
+    // No critica: si el correo cae, los eventos se reintentan y esperan en la cola.
+    { nombre: 'correo', verificar: verificarCorreo, critica: false }
   ],
   alIniciar: async () => {
     await conectarMongo();
+    await asegurarPlantillas();
     await registrarSuscripciones(bus);
   },
   alDetener: async () => {

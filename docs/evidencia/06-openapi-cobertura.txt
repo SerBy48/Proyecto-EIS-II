@@ -1,0 +1,2 @@
+Codigo: 59 rutas (9 servicios + gateway). Especificacion: 50 publicas + 9 internas. Rutas publicas del gateway: 9.
+Las 355 comprobaciones pasaron: la especificacion cubre exactamente el codigo.

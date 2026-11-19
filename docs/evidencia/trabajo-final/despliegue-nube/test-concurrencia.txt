@@ -1,0 +1,73 @@
+
+> ecommerce-distribuido@1.0.0 test:concurrencia
+> tsx --env-file-if-exists=.env tests/concurrencia-stock.ts
+
+=======================================================
+ Prueba de concurrencia del servicio de inventario
+ Pregunta 5 del analisis: evitar la sobreventa
+=======================================================
+
+Escenario 1: dos compradores, una sola unidad
+---------------------------------------------
+  Stock inicial de SKU-TEC-004: 1 unidad
+  Ana y Bruno pulsan "Comprar" en el mismo instante...
+  Ana:   reservado
+  Bruno: sin_stock
+  PASA  Exactamente un comprador obtiene la unidad
+  PASA  El otro comprador recibe sin_stock
+  PASA  El stock disponible queda en 0, nunca negativo
+  PASA  Hay exactamente 1 unidad reservada
+  PASA  Se creo una sola reserva activa
+
+Escenario 2: veinte compradores, cinco unidades
+-----------------------------------------------
+  Stock inicial: 5 unidades. Compradores simultaneos: 20
+  Reservas concedidas: 5 | rechazadas: 15
+  PASA  Se conceden exactamente 5 reservas
+  PASA  El resto se rechaza por falta de stock
+  PASA  El stock disponible queda en 0
+  PASA  Quedan 5 unidades reservadas
+
+Escenario 3: idempotencia ante un reintento
+-------------------------------------------
+  Primera llamada: reservado (disponible: 7)
+  Reintento:       idempotente (disponible: 7)
+  PASA  La primera llamada reserva
+  PASA  El reintento se reconoce como idempotente
+  PASA  Devuelve la MISMA reserva, no una nueva
+  PASA  El stock se descuenta una sola vez (10 -> 7)
+  PASA  Existe una sola fila de reserva para esa clave
+
+Escenario 4: compensacion de la saga (pago rechazado)
+-----------------------------------------------------
+  Stock: 1 unidad. Ana reserva, pero su pago es rechazado.
+  PASA  Ana reserva la ultima unidad
+  PASA  Mientras paga, el producto figura agotado
+  PASA  Bruno no puede comprarla mientras esta reservada
+  Compensacion: liberada
+  PASA  La reserva se libera
+  PASA  La unidad vuelve a estar disponible
+  PASA  No queda nada reservado
+  PASA  Bruno ya puede comprar la unidad liberada
+  PASA  Liberar dos veces no devuelve stock de mas
+
+Escenario 5: confirmacion tras un pago aprobado
+-----------------------------------------------
+  PASA  Se reservan 2 de 4 unidades
+  PASA  Quedan 2 disponibles
+  PASA  Hay 2 reservadas
+  Confirmacion: confirmada
+  PASA  La reserva se confirma
+  PASA  El disponible NO cambia al confirmar (ya se habia descontado)
+  PASA  Las unidades salen de reservado: descuento definitivo
+  PASA  Se registro un movimiento de salida
+  PASA  Confirmar dos veces es idempotente
+
+Escenario 6: el stock nunca puede quedar negativo
+-------------------------------------------------
+  PASA  Una reserva mayor al stock se rechaza
+  PASA  El stock permanece intacto tras el rechazo
+  PASA  La restriccion CHECK de la base impide un stock negativo directo
+
+Todas las comprobaciones pasaron: la sobreventa es imposible.
+

@@ -43,11 +43,18 @@ export type EstadoPago = 'iniciada' | 'aprobada' | 'rechazada' | 'reembolsada';
 export const Eventos = {
   PEDIDO_CONFIRMADO: 'pedido.confirmado',
   PEDIDO_CANCELADO: 'pedido.cancelado',
+  PEDIDO_DIRECCION_CAMBIADA: 'pedido.direccion_cambiada',
   PAGO_APROBADO: 'pago.aprobado',
   PAGO_RECHAZADO: 'pago.rechazado',
   STOCK_MINIMO: 'inventario.stock_minimo',
   RESERVA_EXPIRADA: 'inventario.reserva_expirada',
-  CARRITO_ABANDONADO: 'carrito.abandonado'
+  CARRITO_ABANDONADO: 'carrito.abandonado',
+  // Consultas al vendedor desde el asistente (RF-53).
+  CONSULTA_NUEVA: 'asistente.consulta_nueva',
+  CONSULTA_MENSAJE_CLIENTE: 'asistente.consulta_mensaje',
+  CONSULTA_RESPONDIDA: 'asistente.consulta_respondida',
+  // Recuperacion de contrasena desde el inicio de sesion (RF-54).
+  RECUPERACION_SOLICITADA: 'auth.recuperacion_solicitada'
 } as const;
 
 export type NombreEvento = (typeof Eventos)[keyof typeof Eventos];

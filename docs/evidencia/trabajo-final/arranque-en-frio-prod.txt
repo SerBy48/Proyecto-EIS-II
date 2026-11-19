@@ -1,0 +1,47 @@
+== 2026-11-16T09:37:36-05:00 docker compose down -v
+ Volume ecommerce-distribuido_rabbit_datos Removed 
+ Volume ecommerce-distribuido_redis_datos Removed 
+== 2026-11-16T09:37:46-05:00 npm run prod:up (volumenes nuevos)
+ Container ecom_carrito Waiting 
+ Container ecom_pedidos Waiting 
+ Container ecom_gateway Waiting 
+ Container ecom_inventario Waiting 
+ Container ecom_asistente Waiting 
+ Container ecom_web Waiting 
+ Container ecom_notificaciones Waiting 
+ Container ecom_rabbitmq Waiting 
+ Container ecom_mongo Waiting 
+ Container ecom_auth Healthy 
+ Container ecom_gateway Healthy 
+ Container ecom_redis Healthy 
+ Container ecom_mongo Healthy 
+ Container ecom_carrito Healthy 
+ Container ecom_inventario Healthy 
+ Container ecom_clientes Healthy 
+ Container ecom_mailpit Healthy 
+ Container ecom_postgres Healthy 
+ Container ecom_pagos Healthy 
+ Container ecom_pedidos Healthy 
+ Container ecom_asistente Healthy 
+ Container ecom_catalogo Healthy 
+ Container ecom_web Healthy 
+ Container ecom_rabbitmq Healthy 
+container ecom_notificaciones is unhealthy
+codigo: 0
+== 2026-11-16T09:42:22-05:00 duracion: 276 s
+ecom_asistente Up 54 seconds (healthy) 
+ecom_auth Up About a minute (healthy) 
+ecom_carrito Up About a minute (healthy) 
+ecom_catalogo Up 54 seconds (healthy) 
+ecom_clientes Up About a minute (healthy) 
+ecom_gateway Up 53 seconds (healthy) 
+ecom_inventario Up About a minute (healthy) 
+ecom_mailpit Up About a minute (healthy) 127.0.0.1:8025->8025/tcp
+ecom_mongo Up About a minute (healthy) 27017/tcp
+ecom_notificaciones Up 54 seconds (unhealthy) 
+ecom_pagos Up About a minute (healthy) 
+ecom_pedidos Up About a minute (healthy) 
+ecom_postgres Up About a minute (healthy) 5432/tcp
+ecom_rabbitmq Up About a minute (healthy) 4369/tcp, 5671-5672/tcp, 15671-15672/tcp, 15691-15692/tcp, 25672/tcp
+ecom_redis Up About a minute (healthy) 6379/tcp
+ecom_web Up 47 seconds (healthy) 0.0.0.0:8081->8080/tcp, [::]:8081->8080/tcp

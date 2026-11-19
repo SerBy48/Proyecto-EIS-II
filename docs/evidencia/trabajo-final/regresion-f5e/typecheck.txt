@@ -1,0 +1,48 @@
+
+> ecommerce-distribuido@1.0.0 typecheck
+> npm run typecheck --workspaces --if-present
+
+
+> @ecommerce/shared@1.0.0 typecheck
+> tsc --noEmit
+
+
+> @ecommerce/api-gateway@1.0.0 typecheck
+> tsc --noEmit
+
+
+> @ecommerce/asistente-service@1.0.0 typecheck
+> tsc --noEmit
+
+
+> @ecommerce/auth-service@1.0.0 typecheck
+> tsc --noEmit
+
+
+> @ecommerce/carrito-service@1.0.0 typecheck
+> tsc --noEmit
+
+
+> @ecommerce/catalogo-service@1.0.0 typecheck
+> tsc --noEmit
+
+
+> @ecommerce/clientes-service@1.0.0 typecheck
+> tsc --noEmit
+
+
+> @ecommerce/inventario-service@1.0.0 typecheck
+> tsc --noEmit
+
+
+> @ecommerce/notificaciones-service@1.0.0 typecheck
+> tsc --noEmit
+
+
+> @ecommerce/pagos-service@1.0.0 typecheck
+> tsc --noEmit
+
+
+> @ecommerce/pedidos-service@1.0.0 typecheck
+> tsc --noEmit
+

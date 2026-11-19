@@ -1,0 +1,141 @@
+# pagos-service (/api/pagos) y notificaciones-service (/api/notificaciones).
+transacciones:
+  get:
+    tags: [pagos]
+    summary: Listar transacciones
+    description: Un cliente ve las suyas; el personal interno ve todas y puede filtrar por cliente.
+    operationId: listarTransacciones
+    x-roles: [sesion]
+    parameters: [{ $ref: '../componentes/parametros.yaml#/FiltroClienteId' }]
+    responses:
+      '200':
+        description: Transacciones, sin datos de tarjeta (PCI-DSS).
+        content:
+          application/json:
+            schema: { type: array, items: { $ref: '../componentes/esquemas.yaml#/Transaccion' } }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+
+transaccion:
+  parameters: [{ $ref: '../componentes/parametros.yaml#/Referencia' }]
+  get:
+    tags: [pagos]
+    summary: Detalle de una transaccion
+    description: Una transaccion de otro cliente responde 404, como si no existiera.
+    operationId: obtenerTransaccion
+    x-roles: [sesion]
+    responses:
+      '200':
+        description: Transaccion.
+        content:
+          application/json:
+            schema: { $ref: '../componentes/esquemas.yaml#/Transaccion' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '404': { $ref: '../componentes/respuestas.yaml#/NoEncontrado' }
+
+mensajes:
+  get:
+    tags: [notificaciones]
+    summary: Notificaciones enviadas
+    description: Un cliente ve las suyas (por su correo); el personal interno ve todas.
+    operationId: listarMensajes
+    x-roles: [sesion]
+    parameters:
+      - { name: evento, in: query, schema: { type: string, example: pedido.confirmado } }
+      - { name: estado, in: query, schema: { type: string, enum: [pendiente, enviado, fallido] } }
+      - { name: destinatario, in: query, description: Solo personal interno; para un cliente se usa su correo., schema: { type: string } }
+      - { name: limite, in: query, schema: { type: integer, minimum: 1, maximum: 200, default: 50 } }
+    responses:
+      '200':
+        description: Notificaciones, de la mas reciente a la mas antigua.
+        content:
+          application/json:
+            schema: { type: array, items: { $ref: '../componentes/esquemas.yaml#/Notificacion' } }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+
+plantillas:
+  get:
+    tags: [notificaciones]
+    summary: Plantillas de notificacion
+    operationId: listarPlantillas
+    x-roles: [administrador]
+    responses:
+      '200':
+        description: Plantillas por evento.
+        content:
+          application/json:
+            schema: { type: array, items: { $ref: '../componentes/esquemas.yaml#/Plantilla' } }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+
+plantilla:
+  patch:
+    tags: [notificaciones]
+    summary: Editar una plantilla
+    description: Los datos del usuario se escapan como HTML al renderizar en el canal de correo (hallazgo S-11).
+    operationId: actualizarPlantilla
+    x-roles: [administrador]
+    parameters:
+      - { name: clave, in: path, required: true, schema: { type: string, example: pedido.confirmado } }
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../componentes/esquemas.yaml#/CambiosPlantilla' }
+    responses:
+      '200':
+        description: Plantilla actualizada.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mensaje: { type: string, example: Plantilla actualizada. }
+                plantilla: { $ref: '../componentes/esquemas.yaml#/Plantilla' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+      '404': { $ref: '../componentes/respuestas.yaml#/NoEncontrado' }
+
+bandeja:
+  get:
+    tags: [notificaciones]
+    summary: Bandeja de la campana de la web
+    description: |
+      RF-52: las ultimas notificaciones de quien consulta y cuantas no ha leido. El personal ve ademas el
+      buzon de operaciones (alertas de reposicion y consultas de clientes); "leida" se guarda por persona.
+      La campana pide las 10 ultimas; la vista "Ver todas" pagina con pagina y filtra con solo_no_leidas.
+    operationId: verBandeja
+    x-roles: [sesion]
+    parameters:
+      - { name: limite, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 10 } }
+      - { name: pagina, in: query, schema: { type: integer, minimum: 1, maximum: 1000, default: 1 } }
+      - { name: solo_no_leidas, in: query, schema: { type: string, enum: ['true', 'false'] } }
+    responses:
+      '200':
+        description: Bandeja.
+        content:
+          application/json:
+            schema: { $ref: '../componentes/esquemas.yaml#/Bandeja' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+
+bandejaLeidas:
+  post:
+    tags: [notificaciones]
+    summary: Marcar notificaciones como leidas
+    description: Sin ids marca todas. Solo afecta las propias (y las del buzon de operaciones para el personal).
+    operationId: marcarLeidas
+    x-roles: [sesion]
+    requestBody:
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              ids: { type: array, maxItems: 100, items: { type: string, pattern: '^[a-f0-9]{24}$' } }
+    responses:
+      '200':
+        description: Cuantas se marcaron.
+        content:
+          application/json:
+            schema: { type: object, properties: { marcadas: { type: integer } } }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }

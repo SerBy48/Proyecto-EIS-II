@@ -1,0 +1,71 @@
+
+> ecommerce-distribuido@1.0.0 test:asistente
+> tsx --env-file-if-exists=.env tests/asistente/integracion.ts
+
+
+[36mAsistente virtual[0m  [90mhttp://localhost:8080[0m
+
+[36m1. Intenciones sin sesion[0m
+  [32mPASA[0m  Saludo
+  [32mPASA[0m  El saludo ofrece el menu de opciones rapidas
+  [32mPASA[0m  Devuelve un id de conversacion
+  [32mPASA[0m  Tildes, mayusculas y sinonimos: "vale el ENVIO" -> faq_envio
+  [32mPASA[0m  Las cifras salen de la configuracion (COSTO_ENVIO_BASE, UMBRAL_ENVIO_GRATIS)
+  [32mPASA[0m  FAQ del IVA con el porcentaje configurado
+  [32mPASA[0m  Busqueda de producto devuelve tarjetas del catalogo
+  [32mPASA[0m  Cada tarjeta trae SKU y precio
+  [32mPASA[0m  Entidad SKU -> precio y disponibilidad
+  [32mPASA[0m  El precio es el vigente del catalogo (invariante 2)
+  [32mPASA[0m  Sin sesion, la intencion de pedidos se reconoce
+  [32mPASA[0m  Sin sesion pide iniciar sesion y no muestra ningun pedido
+  [32mPASA[0m  Sin sesion no hay tarjetas de pedido
+  [32mPASA[0m  Frase fuera de dominio: pide reformular y ofrece el menu
+
+[36m2. Pedidos con la identidad del usuario[0m
+  [32mPASA[0m  Ana y Bruno tienen pedidos (los crea test:e2e)
+  [32mPASA[0m  Con sesion lista los pedidos recientes
+  [32mPASA[0m  Todos los pedidos listados son de Ana
+  [32mPASA[0m  Contexto de varios turnos: "el <id>" responde el pedido pedido en el turno anterior
+  [32mPASA[0m  Entidad numero de pedido: estado correcto
+
+[36m3. Aislamiento entre clientes (invariantes 1 y 11)[0m
+  [32mPASA[0m  Bruno NO ve el pedido de Ana por su numero
+  [32mPASA[0m  Bruno NO ve el pedido de Ana por su id
+  [32mPASA[0m  Tampoco por la guia de cancelacion
+  [32mPASA[0m  Con el id de la conversacion de Ana, Bruno empieza una conversacion nueva
+  [32mPASA[0m  Y solo ve sus propios pedidos
+  [32mPASA[0m  Ana consulta su conversacion
+  [32mPASA[0m  Bruno no puede leer la conversacion de Ana (404)
+  [32mPASA[0m  Sin sesion, 401
+  [32mPASA[0m  La conversacion se guarda sin el numero de tarjeta (enmascarado)
+
+[36m4. Escalamiento a un humano[0m
+  [32mPASA[0m  Registra un ticket y le da el numero al cliente
+  [32mPASA[0m  El administrador ve el ticket con el contacto
+  [32mPASA[0m  El vendedor tambien
+  [32mPASA[0m  Un cliente no (403)
+  [32mPASA[0m  Operaciones recibe el aviso por correo (evento asistente.escalamiento -> notificaciones -> Mailpit)
+
+[36m5. El administrador edita la FAQ sin desplegar[0m
+  [32mPASA[0m  PATCH /faq/:clave como administrador
+  [32mPASA[0m  El asistente responde con el texto nuevo de inmediato
+  [32mPASA[0m  Un cliente no puede editarla (403)
+  [32mPASA[0m  El administrador consulta las intenciones
+
+[36m6. Validaciones y abuso[0m
+  [32mPASA[0m  Mensaje vacio -> 400
+  [32mPASA[0m  Mensaje de mas de 500 caracteres -> 400
+  [32mPASA[0m  Texto que no es una cadena -> 400
+  [32mPASA[0m  conversacion_id con operador NoSQL se ignora: conversacion nueva
+  [32mPASA[0m  El HTML del usuario no vuelve en la respuesta
+  [32mPASA[0m  Token invalido -> 401 (no se trata como visitante)
+
+[36m7. Degradacion elegante con pedidos-service detenido[0m
+  [32mPASA[0m  El asistente lo dice en lugar de fallar
+  [32mPASA[0m  Lo demas sigue funcionando
+
+[36m8. Rate limit propio del asistente (al final: agota la cuota de este cliente)[0m
+  [32mPASA[0m  Tras 30 mensajes por minuto responde 429 LIMITE_ASISTENTE
+
+[32mLas 46 comprobaciones pasaron.[0m
+

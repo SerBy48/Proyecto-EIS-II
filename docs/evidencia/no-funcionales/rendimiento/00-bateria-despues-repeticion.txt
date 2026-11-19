@@ -1,0 +1,26 @@
+-- reponiendo stock antes de flujo-completo-estres
+== flujo-completo-estres-despues contra http://localhost:8080
+    ✗ 'rate>0.99' rate=81.41%
+    ✗ 'p(95)<1500' p(95)=3.69s
+    ✗ 'p(95)<1000' p(95)=10.68s
+    ✗ 'p(95)<500' p(95)=549.68ms
+    ✗ 'rate<0.01' rate=20.89%
+    checks_succeeded...: 81.41% 43132 out of 52979
+    ✗ login 200
+      ↳  38% — ✓ 6162 / ✗ 9847
+    http_req_duration..................: avg=1s       min=3.75ms   med=180.47ms p(90)=2.03s    p(95)=7.66s    p(99)=11.19s   max=13.8s
+    http_req_failed....................: 20.89% 9847 out of 47117
+    http_reqs..........................: 47117  79.371804/s
+    vus_max............................: 300    min=300           max=300
+== flujo-completo-estres-despues terminado: codigo k6 99 (99 = algun umbral no se cumplio), lineas 5xx en el gateway: 9847
+== bateria terminada 2026-11-15T01:13:20-05:00
+-- reponiendo stock antes de checkout-carga
+   (aviso: el poblado termino con errores)
+== checkout-carga-despues contra http://localhost:8080
+    checks_succeeded...: 100.00% 23072 out of 23072
+    http_req_duration................: avg=232.27ms min=3.76ms   med=115.85ms p(90)=556.64ms p(95)=643.96ms p(99)=847.54ms max=1.11s   
+    http_req_failed..................: 0.00%  0 out of 15448
+    http_reqs........................: 15448  56.956103/s
+    vus_max..........................: 50     min=50         max=50
+== checkout-carga-despues terminado: codigo k6 0 (99 = algun umbral no se cumplio), lineas 5xx en el gateway: 0
+== bateria terminada 2026-11-15T01:18:57-05:00

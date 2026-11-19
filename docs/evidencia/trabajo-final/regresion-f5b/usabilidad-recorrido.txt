@@ -1,0 +1,41 @@
+
+> ecommerce-distribuido@1.0.0 usabilidad:recorrido
+> tsx --env-file-if-exists=.env tests/usabilidad/recorrido.ts
+
+Recorrido de las tareas en http://localhost:4173
+  T1 ✓ Iniciar sesion como cliente
+  T2 ✓ Buscar un producto y filtrar por seccion
+  T3 ✓ Agregar dos productos y cambiar una cantidad
+  T4 ✓ Aplicar un cupon
+  T5 ✓ Finalizar la compra con pago aprobado
+  T6 ✓ Consultar el pedido y cancelarlo
+  T7 ✓ Comprar con pago rechazado e interpretar el mensaje
+  T8 ✓ Registrar stock y avanzar un pedido como administrador
+  T9 ✓ Preguntar al asistente el costo del envio y el estado del ultimo pedido
+
+Estados especiales
+  E1 Error de inicio de sesion: Mensaje: "Credenciales invalidas."
+  E2 Busqueda sin resultados: Mensaje: "No se encontraron productos con esos criterios." sin sugerencias ni opcion para limpiar los filtros
+  E3 Alcance del catalogo: Navegando se alcanzan 60 de 60 productos activos en 3 pagina(s); la ultima pagina indica "Mostrando 41–60 de 60 productos".
+  E4 Carrito vacio: Mensaje "Tu carrito está vacío." sin enlace para volver al catalogo; el boton Pagar queda deshabilitado mostrando $0.
+  E5 Cupon invalido: Mensaje "Cupon no encontrado.", mostrado arriba de la lista de productos, a 710 px del campo del cupon.
+  E6 Token expirado durante la navegacion: La sesion se renueva sola y la pagina carga sin errores.
+  E7 Sesion vencida sin posibilidad de renovar: Mensaje "Tu sesión expiró. Inicia sesión de nuevo."; se vuelve al inicio de sesion.
+  E8 Error al cancelar un pedido que ya fue despachado: Mensaje "No se pudo cancelar el pedidoEl pedido ya esta en preparacion. Contacte al servicio al cliente.": visible y completo; el boton Cancelar pedido desaparece y el detalle muestra el estado actual (enviado).
+  E11 Ingreso de una cuenta fuera de la lista de prueba (Carla): Carla entra escribiendo su correo y su contrasena; su correo aparece en la cabecera.
+  E9 Catalogo en movil (390 px): Sin desplazamiento horizontal; la grilla pasa a una columna.
+
+KLM por tarea (usuario experto + respuesta del sistema)
+  T1 ✓  17.9 s  (usuario 17.6 s + sistema 0.4 s; esperado 30 s)  3M 4P 8B 24K 4H
+  T2 ✓  10.5 s  (usuario 9.7 s + sistema 0.8 s; esperado 30 s)  3M 2P 4B 8K 2H
+  T3 ✓  11.7 s  (usuario 10.6 s + sistema 1.1 s; esperado 60 s)  4M 4P 8B 0K 0H
+  T4 ✓  11.8 s  (usuario 10.8 s + sistema 0.9 s; esperado 30 s)  3M 2P 4B 12K 2H
+  T5 ✓   5.1 s  (usuario 4 s + sistema 1.1 s; esperado 45 s)  2M 1P 2B 0K 0H
+  T6 ✓  15.3 s  (usuario 13.3 s + sistema 2 s; esperado 60 s)  6M 4P 8B 0K 0H
+  T7 ✓  21.8 s  (usuario 19.9 s + sistema 1.9 s; esperado 90 s)  8M 7P 14B 0K 0H
+  T8 ✓  44.5 s  (usuario 43.3 s + sistema 1.3 s; esperado 90 s)  11M 11P 22B 39K 8H
+  T9 ✓    43 s  (usuario 41.6 s + sistema 1.4 s; esperado 60 s)  10M 9P 18B 50K 6H
+
+axe: 14 pantallas, 0 reglas WCAG incumplidas en total
+
+Evidencia en docs\evidencia\no-funcionales\usabilidad

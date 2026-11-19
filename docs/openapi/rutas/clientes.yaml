@@ -1,0 +1,186 @@
+# clientes-service (prefijo /api/clientes). Autorizacion a nivel de dato: un
+# cliente solo accede a su propio id; vendedor y administrador, a cualquiera.
+raiz:
+  post:
+    tags: [clientes]
+    summary: Crear el perfil de cliente
+    description: Primer paso del alta; despues se crea la cuenta con /api/auth/registro y el cliente_id devuelto.
+    operationId: crearCliente
+    security: []
+    x-roles: [publica]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../componentes/esquemas.yaml#/ClienteNuevo' }
+    responses:
+      '201':
+        description: Perfil creado.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mensaje: { type: string, example: Cliente registrado. }
+                cliente: { $ref: '../componentes/esquemas.yaml#/Cliente' }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+      '409': { $ref: '../componentes/respuestas.yaml#/Conflicto' }
+
+porId:
+  parameters: [{ $ref: '../componentes/parametros.yaml#/IdCliente' }]
+  get:
+    tags: [clientes]
+    summary: Consultar un perfil
+    operationId: obtenerCliente
+    x-roles: [sesion]
+    responses:
+      '200':
+        description: Perfil.
+        content:
+          application/json:
+            schema: { $ref: '../componentes/esquemas.yaml#/Cliente' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+      '404': { $ref: '../componentes/respuestas.yaml#/NoEncontrado' }
+  patch:
+    tags: [clientes]
+    summary: Actualizar los datos personales (nombre, apellido, telefono, documento)
+    operationId: actualizarCliente
+    x-roles: [sesion]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../componentes/esquemas.yaml#/CambiosCliente' }
+    responses:
+      '200':
+        description: Perfil actualizado.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mensaje: { type: string, example: Cliente actualizado. }
+                cliente: { $ref: '../componentes/esquemas.yaml#/Cliente' }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+      '404': { $ref: '../componentes/respuestas.yaml#/NoEncontrado' }
+
+direcciones:
+  parameters: [{ $ref: '../componentes/parametros.yaml#/IdCliente' }]
+  get:
+    tags: [clientes]
+    summary: Listar direcciones
+    description: La predeterminada primero.
+    operationId: listarDirecciones
+    x-roles: [sesion]
+    responses:
+      '200':
+        description: Direcciones del cliente.
+        content:
+          application/json:
+            schema: { type: array, items: { $ref: '../componentes/esquemas.yaml#/Direccion' } }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+  post:
+    tags: [clientes]
+    summary: Agregar una direccion
+    operationId: crearDireccion
+    x-roles: [sesion]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../componentes/esquemas.yaml#/DireccionNueva' }
+    responses:
+      '201':
+        description: Direccion agregada.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mensaje: { type: string, example: Direccion agregada. }
+                direccion: { $ref: '../componentes/esquemas.yaml#/Direccion' }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+      '404': { $ref: '../componentes/respuestas.yaml#/NoEncontrado' }
+
+historial:
+  parameters: [{ $ref: '../componentes/parametros.yaml#/IdCliente' }]
+  get:
+    tags: [clientes]
+    summary: Historial de compras
+    description: Ultimas 50 compras. Es una proyeccion alimentada por eventos, con consistencia eventual.
+    operationId: historialCompras
+    x-roles: [sesion]
+    responses:
+      '200':
+        description: Compras, de la mas reciente a la mas antigua.
+        content:
+          application/json:
+            schema: { type: array, items: { $ref: '../componentes/esquemas.yaml#/CompraHistorica' } }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+
+departamentos:
+  get:
+    tags: [clientes]
+    summary: Departamentos de Colombia
+    description: Lista oficial para el selector de direcciones; el servicio valida contra ella al guardar.
+    operationId: listarDepartamentos
+    security: []
+    x-roles: [publica]
+    responses:
+      '200':
+        description: Los 32 departamentos y Bogota D.C.
+        content:
+          application/json:
+            schema: { type: array, items: { type: string }, example: [Antioquia, Bogotá D.C., Huila] }
+      '429': { $ref: '../componentes/respuestas.yaml#/LimiteExcedido' }
+
+direccion:
+  parameters:
+    - { $ref: '../componentes/parametros.yaml#/IdCliente' }
+    - { name: direccionId, in: path, required: true, schema: { type: integer, example: 3 } }
+  patch:
+    tags: [clientes]
+    summary: Editar una direccion o marcarla como predeterminada
+    operationId: actualizarDireccion
+    x-roles: [sesion]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../componentes/esquemas.yaml#/CambiosDireccion' }
+    responses:
+      '200':
+        description: Direccion actualizada.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mensaje: { type: string, example: Direccion actualizada. }
+                direccion: { $ref: '../componentes/esquemas.yaml#/Direccion' }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+      '404': { $ref: '../componentes/respuestas.yaml#/NoEncontrado' }
+  delete:
+    tags: [clientes]
+    summary: Eliminar una direccion
+    description: Si era la predeterminada, la mas antigua que quede pasa a serlo.
+    operationId: eliminarDireccion
+    x-roles: [sesion]
+    responses:
+      '200':
+        description: Direccion eliminada.
+        content:
+          application/json:
+            schema: { $ref: '../componentes/esquemas.yaml#/Mensaje' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+      '404': { $ref: '../componentes/respuestas.yaml#/NoEncontrado' }

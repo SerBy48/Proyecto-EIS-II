@@ -7,10 +7,14 @@
 #   - Ocho microservicios, cada uno con su propia base de datos
 #   - Un API Gateway como unico punto expuesto
 #
-# Los microservicios NO publican puertos hacia el host en produccion: solo el
-# gateway y el frontend son accesibles desde fuera. Aqui se publican para
-# facilitar la depuracion durante el laboratorio (ver la seccion "ports" de
-# cada uno); en un despliegue real se comentarian.
+# Solo el gateway (8080) se publica en todas las interfaces. Los servicios y
+# los motores de datos se publican SOLO en 127.0.0.1, para depurar y para las
+# pruebas desde este mismo equipo: antes estaban abiertos a la red y, con el
+# token interno por defecto, cualquiera podia saltarse el gateway
+# (docs/calidad/SEGURIDAD.md, hallazgo S-03). En un despliegue real se quitan.
+#
+# Los secretos son obligatorios y no tienen valor por defecto (hallazgo
+# S-02): docker compose se niega a arrancar si faltan en .env.
 # ============================================================================
 
 name: ecommerce-distribuido
@@ -21,10 +25,12 @@ x-servicio-base: &servicio-base
   environment: &entorno-base
     NODE_ENV: ${NODE_ENV:-development}
     LOG_LEVEL: ${LOG_LEVEL:-info}
-    JWT_SECRET: ${JWT_SECRET:-FirmaSecretaEcommerceDesarrollo}
-    JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-FirmaRenovacionEcommerceDesarrollo}
-    INTERNAL_TOKEN: ${INTERNAL_TOKEN:-secreto-interno-desarrollo}
+    JWT_SECRET: ${JWT_SECRET:?Defina JWT_SECRET en .env (openssl rand -hex 32)}
+    JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?Defina JWT_REFRESH_SECRET en .env (openssl rand -hex 32)}
+    INTERNAL_TOKEN: ${INTERNAL_TOKEN:?Defina INTERNAL_TOKEN en .env (openssl rand -hex 32)}
     RABBITMQ_URL: amqp://ecommerce:ecommerce@rabbitmq:5672
+    # Limite por cliente (RF-47): unidades que cada cliente deja para los demas.
+    STOCK_RESERVA_CLIENTE: ${STOCK_RESERVA_CLIENTE:-5}
 
 services:
   # ------------------------------------------------------------- datos ------
@@ -38,7 +44,7 @@ services:
       POSTGRES_DB: postgres
     ports:
       # Puerto del host configurable por si ya hay un PostgreSQL local en 5432.
-      - "${POSTGRES_PUERTO_HOST:-5432}:5432"
+      - "127.0.0.1:${POSTGRES_PUERTO_HOST:-5432}:5432"
     volumes:
       - pg_datos:/var/lib/postgresql/data
       # Los scripts se ejecutan en orden alfabetico la PRIMERA vez que se crea
@@ -59,10 +65,12 @@ services:
       MONGO_INITDB_ROOT_USERNAME: root
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-root}
     ports:
-      - "27017:27017"
+      - "127.0.0.1:27017:27017"
     volumes:
       - mongo_datos:/data/db
       - ./infra/mongo/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+      # Se ejecuta despues de init-mongo.js (orden alfabetico).
+      - ./infra/mongo/asistente.js:/docker-entrypoint-initdb.d/z-asistente.js:ro
     healthcheck:
       test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
       interval: 10s
@@ -80,7 +88,7 @@ services:
     # todos los clientes en cada reinicio.
     command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - redis_datos:/data
     healthcheck:
@@ -98,16 +106,37 @@ services:
       RABBITMQ_DEFAULT_USER: ecommerce
       RABBITMQ_DEFAULT_PASS: ecommerce
     ports:
-      - "5672:5672"    # protocolo AMQP
-      - "15672:15672"  # consola de administracion
+      - "127.0.0.1:5672:5672"    # protocolo AMQP
+      - "127.0.0.1:15672:15672"  # consola de administracion
     volumes:
       - rabbit_datos:/var/lib/rabbitmq
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_port_connectivity"]
+      interval: 10s
+      timeout: 15s
+      # Con un volumen nuevo, RabbitMQ puede tardar mas de 90 s en Windows; con
+      # menos margen, "compose up --wait" lo daba por caido (RENDIMIENTO.md 9.6).
+      retries: 30
+      start_period: 180s
+    networks: [interna]
+
+  # Servidor de correo de pruebas: recibe por SMTP todo lo que envia
+  # notificaciones y lo muestra en su interfaz web (http://localhost:8025).
+  # No entrega nada fuera del equipo (docs/adr/0009).
+  mailpit:
+    image: axllent/mailpit:v1.27
+    container_name: ecom_mailpit
+    restart: unless-stopped
+    environment:
+      MP_MAX_MESSAGES: 5000
+    ports:
+      - "127.0.0.1:1025:1025"    # SMTP (para npm run dev)
+      - "127.0.0.1:8025:8025"    # interfaz web y API
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
       interval: 10s
       timeout: 5s
-      retries: 10
-      start_period: 25s
+      retries: 5
     networks: [interna]
 
   # ------------------------------------------------------ microservicios ----
@@ -119,9 +148,18 @@ services:
       <<: *entorno-base
       PORT: 3001
       DATABASE_URL: postgresql://auth_user:auth_pass@postgres:5432/auth_db
-    ports: ["3001:3001"]
+      # El registro confirma con clientes que el cliente_id le pertenece (S-01).
+      URL_CLIENTES: http://clientes-service:3002
+      # Eliminar la cuenta: pedidos en curso, anonimizar el perfil y vaciar el carrito.
+      URL_PEDIDOS: http://pedidos-service:3006
+      URL_CARRITO: http://carrito-service:3005
+      # Direccion de la web a la que apunta el enlace del correo de recuperacion (RF-54).
+      URL_WEB: ${URL_WEB:-http://localhost:8081}
+    ports: ["127.0.0.1:3001:3001"]
     depends_on:
       postgres: { condition: service_healthy }
+      # El correo de recuperacion sale por el bus; BusEventos reintenta solo.
+      rabbitmq: { condition: service_started }
 
   clientes-service:
     <<: *servicio-base
@@ -131,10 +169,11 @@ services:
       <<: *entorno-base
       PORT: 3002
       DATABASE_URL: postgresql://clientes_user:clientes_pass@postgres:5432/clientes_db
-    ports: ["3002:3002"]
+    ports: ["127.0.0.1:3002:3002"]
     depends_on:
       postgres: { condition: service_healthy }
-      rabbitmq: { condition: service_healthy }
+      # El bus reintenta solo (BusEventos): basta con que el broker haya arrancado.
+      rabbitmq: { condition: service_started }
 
   catalogo-service:
     <<: *servicio-base
@@ -145,7 +184,7 @@ services:
       PORT: 3003
       MONGO_URL: mongodb://catalogo_user:catalogo_pass@mongo:27017/catalogo_db?authSource=catalogo_db
       URL_INVENTARIO: http://inventario-service:3004
-    ports: ["3003:3003"]
+    ports: ["127.0.0.1:3003:3003"]
     depends_on:
       mongo: { condition: service_healthy }
     # El catalogo concentra la mayor parte del trafico (el documento estima diez
@@ -163,10 +202,13 @@ services:
       DATABASE_URL: postgresql://inventario_user:inventario_pass@postgres:5432/inventario_db
       MINUTOS_RESERVA: ${MINUTOS_RESERVA:-15}
       INTERVALO_BARRIDO_MS: ${INTERVALO_BARRIDO_MS:-60000}
-    ports: ["3004:3004"]
+      # Para confirmar que un SKU existe antes de abrirle su primer registro de stock.
+      URL_CATALOGO: http://catalogo-service:3003
+    ports: ["127.0.0.1:3004:3004"]
     depends_on:
       postgres: { condition: service_healthy }
-      rabbitmq: { condition: service_healthy }
+      # El bus reintenta solo (BusEventos): basta con que el broker haya arrancado.
+      rabbitmq: { condition: service_started }
 
   carrito-service:
     <<: *servicio-base
@@ -178,7 +220,7 @@ services:
       REDIS_URL: redis://redis:6379
       URL_CATALOGO: http://catalogo-service:3003
       TTL_CARRITO_SEGUNDOS: ${TTL_CARRITO_SEGUNDOS:-604800}
-    ports: ["3005:3005"]
+    ports: ["127.0.0.1:3005:3005"]
     depends_on:
       redis: { condition: service_healthy }
 
@@ -195,10 +237,11 @@ services:
       URL_INVENTARIO: http://inventario-service:3004
       URL_CARRITO: http://carrito-service:3005
       URL_PAGOS: http://pagos-service:3007
-    ports: ["3006:3006"]
+    ports: ["127.0.0.1:3006:3006"]
     depends_on:
       postgres: { condition: service_healthy }
-      rabbitmq: { condition: service_healthy }
+      # El bus reintenta solo (BusEventos): basta con que el broker haya arrancado.
+      rabbitmq: { condition: service_started }
 
   pagos-service:
     <<: *servicio-base
@@ -209,10 +252,11 @@ services:
       PORT: 3007
       DATABASE_URL: postgresql://pagos_user:pagos_pass@postgres:5432/pagos_db
       PASARELA_LATENCIA_MS: ${PASARELA_LATENCIA_MS:-150}
-    ports: ["3007:3007"]
+    ports: ["127.0.0.1:3007:3007"]
     depends_on:
       postgres: { condition: service_healthy }
-      rabbitmq: { condition: service_healthy }
+      # El bus reintenta solo (BusEventos): basta con que el broker haya arrancado.
+      rabbitmq: { condition: service_started }
 
   notificaciones-service:
     <<: *servicio-base
@@ -222,10 +266,42 @@ services:
       <<: *entorno-base
       PORT: 3008
       MONGO_URL: mongodb://notificaciones_user:notificaciones_pass@mongo:27017/notificaciones_db?authSource=notificaciones_db
-    ports: ["3008:3008"]
+      CANAL_CORREO: ${CANAL_CORREO:-smtp}
+      SMTP_HOST: mailpit
+      SMTP_PUERTO: 1025
+      CORREO_REMITENTE: ${CORREO_REMITENTE:-Tienda en linea <no-responder@tienda.co>}
+    ports: ["127.0.0.1:3008:3008"]
     depends_on:
       mongo: { condition: service_healthy }
-      rabbitmq: { condition: service_healthy }
+      # El bus reintenta solo (BusEventos): basta con que el broker haya arrancado.
+      rabbitmq: { condition: service_started }
+      mailpit: { condition: service_healthy }
+
+  asistente-service:
+    <<: *servicio-base
+    build: { context: ., dockerfile: infra/Dockerfile.servicio, args: { SERVICIO: asistente-service } }
+    container_name: ecom_asistente
+    environment:
+      <<: *entorno-base
+      PORT: 3009
+      MONGO_URL: mongodb://asistente_user:asistente_pass@mongo:27017/asistente_db?authSource=asistente_db
+      URL_CATALOGO: http://catalogo-service:3003
+      URL_PEDIDOS: http://pedidos-service:3006
+      COSTO_ENVIO_BASE: ${COSTO_ENVIO_BASE:-15000}
+      UMBRAL_ENVIO_GRATIS: ${UMBRAL_ENVIO_GRATIS:-500000}
+      PORCENTAJE_IVA: ${PORCENTAJE_IVA:-19}
+      DIAS_ENTREGA: ${DIAS_ENTREGA:-2 a 5}
+      DIAS_RETRACTO: ${DIAS_RETRACTO:-5}
+      HORARIO_ATENCION: ${HORARIO_ATENCION:-de lunes a viernes de 8:00 a. m. a 6:00 p. m.}
+      # IA opcional, apagada por defecto (docs/adr/0007).
+      ASISTENTE_IA: ${ASISTENTE_IA:-desactivada}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ASISTENTE_IA_MODELO: ${ASISTENTE_IA_MODELO:-claude-opus-5-5}
+    ports: ["127.0.0.1:3009:3009"]
+    depends_on:
+      mongo: { condition: service_healthy }
+      # El bus reintenta solo (BusEventos): basta con que el broker haya arrancado.
+      rabbitmq: { condition: service_started }
 
   # ------------------------------------------------------- api gateway -----
   api-gateway:
@@ -243,7 +319,18 @@ services:
       URL_PEDIDOS: http://pedidos-service:3006
       URL_PAGOS: http://pagos-service:3007
       URL_NOTIFICACIONES: http://notificaciones-service:3008
-      CORS_ORIGENES: ${CORS_ORIGENES:-http://localhost:5173}
+      URL_ASISTENTE: http://asistente-service:3009
+      CORS_ORIGENES: ${CORS_ORIGENES:-http://localhost:5173,http://localhost:4173,http://localhost:8081}
+      # Limites del rate limiting. Mismos valores por defecto que el codigo; el
+      # perfil .env.carga los eleva para medir el sistema y no el limitador.
+      LIMITE_GENERAL: ${LIMITE_GENERAL:-300}
+      LIMITE_LOGIN: ${LIMITE_LOGIN:-10}
+      LIMITE_CHECKOUT: ${LIMITE_CHECKOUT:-10}
+      LIMITE_ASISTENTE: ${LIMITE_ASISTENTE:-30}
+      LIMITE_IMAGENES: ${LIMITE_IMAGENES:-1500}
+      LIMITE_RECUPERACION: ${LIMITE_RECUPERACION:-5}
+      PROXY_TIMEOUT_MS: ${PROXY_TIMEOUT_MS:-15000}
+      EXPONER_DOCS: ${EXPONER_DOCS:-true}
     ports:
       - "8080:8080"
     depends_on:
@@ -255,6 +342,26 @@ services:
       - pedidos-service
       - pagos-service
       - notificaciones-service
+      - asistente-service
+
+  # ------------------------------------------------------------- web -------
+  # Build de Vite servido por nginx, con proxy de /api al gateway (mismo
+  # origen, sin CORS) y las cabeceras de seguridad (clients/web/nginx.conf).
+  web:
+    build:
+      context: .
+      dockerfile: clients/web/Dockerfile
+      args:
+        # production oculta los controles de la pasarela simulada (U-08);
+        # pruebas los muestra (lo usan los E2E de interfaz).
+        MODO_VITE: ${MODO_VITE:-pruebas}
+    container_name: ecom_web
+    restart: unless-stopped
+    ports:
+      - "${WEB_PUERTO:-8081}:8080"
+    depends_on:
+      api-gateway: { condition: service_healthy }
+    networks: [interna]
 
 networks:
   interna:

@@ -1,0 +1,11 @@
+# Caddy delante de la web en la nube (docker-compose.nube.yml).
+# DOMINIO viene del .env del servidor: el dominio de Azure
+# (serbytek.<region>.cloudapp.azure.com) o <ip-con-guiones>.sslip.io.
+# Caddy pide y renueva solo el certificado (Let's Encrypt o ZeroSSL).
+{$DOMINIO} {
+	encode gzip
+	# La web (nginx) sirve la tienda y reenvia /api al gateway. Caddy agrega
+	# X-Forwarded-For con la IP de la persona; el gateway la lee con
+	# PROXIES_CONFIANZA=2.
+	reverse_proxy web:8080
+}

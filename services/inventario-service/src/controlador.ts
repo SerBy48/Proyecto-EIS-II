@@ -1,15 +1,20 @@
 import { Response } from 'express';
 import {
   BusEventos,
+  ClienteServicio,
+  ErrorApp,
   Eventos,
   PeticionAutenticada,
   crearLogger,
   errorNoEncontrado,
   errorSolicitud,
   errorStockInsuficiente,
-  exigirCampos
+  exigirCampos,
+  enTransaccion,
+  limiteDeCompra
 } from '@ecommerce/shared';
 import { pool } from './db';
+import { validarEntrada } from './proveedores';
 
 const log = crearLogger('inventario-service');
 
@@ -51,9 +56,11 @@ export const disponibilidad = async (req: PeticionAutenticada, res: Response): P
           disponible: fila.disponible,
           reservado: fila.reservado,
           hay_stock: fila.hay_stock,
-          stock_minimo: fila.stock_minimo
+          stock_minimo: fila.stock_minimo,
+          // Lo maximo que un cliente sin pedidos en curso puede llevar (RF-47).
+          maximo_por_cliente: limiteDeCompra(fila.disponible).maximo_total
         }
-      : { sku, disponible: 0, reservado: 0, hay_stock: false, stock_minimo: 0 };
+      : { sku, disponible: 0, reservado: 0, hay_stock: false, stock_minimo: 0, maximo_por_cliente: 0 };
   });
 
   res.status(200).json(respuesta);
@@ -229,39 +236,116 @@ export const obtenerReserva = async (req: PeticionAutenticada, res: Response): P
   res.status(200).json(rows[0]);
 };
 
-/** POST /stock/:sku/entrada - ingreso de mercancia (vendedor o administrador). */
+/**
+ * Cliente hacia el catalogo, usado solo para confirmar que un SKU existe antes
+ * de abrirle su primer registro de inventario. Es una operacion administrativa
+ * de bajo trafico; el circuit breaker y el timeout vienen del cliente comun.
+ */
+const catalogo = new ClienteServicio({
+  nombre: 'catalogo',
+  urlBase: process.env.URL_CATALOGO || 'http://localhost:3003',
+  timeoutMs: Number(process.env.HTTP_TIMEOUT_MS || 3000)
+});
+
+/**
+ * POST /stock/:sku/entrada - ingreso de mercancia (vendedor o administrador).
+ *
+ * Si el SKU todavia no tiene registro de inventario (un producto recien creado
+ * en el catalogo), la primera entrada lo abre. Antes no habia ninguna forma de
+ * hacerlo por la API: el producto quedaba agotado para siempre. El registro
+ * solo se abre si el catalogo confirma que el producto existe, para que un SKU
+ * mal escrito no deje filas huerfanas.
+ *
+ * Sin bodega_id, la entrada va a UNA sola bodega: la que ya tenga el SKU (la de
+ * menor id) o, si es nuevo, la primera bodega activa. Antes la actualizacion
+ * sin bodega sumaba la cantidad en todas las bodegas del SKU a la vez.
+ */
 export const registrarEntrada = async (req: PeticionAutenticada, res: Response): Promise<void> => {
-  const { cantidad, bodega_id } = req.body as { cantidad: number; bodega_id?: number };
-  if (!Number.isInteger(cantidad) || cantidad <= 0) {
-    throw errorSolicitud('La cantidad debe ser un entero positivo.');
+  const datos = validarEntrada(req.body);
+  const { cantidad, bodega_id } = datos;
+  const sku = req.params.sku;
+
+  const existente = await pool.query(
+    `SELECT 1 FROM stock WHERE sku = $1 AND ($2::INT IS NULL OR bodega_id = $2) LIMIT 1`,
+    [sku, bodega_id ?? null]
+  );
+
+  if (!existente.rowCount) {
+    try {
+      await catalogo.pedir({ ruta: `/productos/${encodeURIComponent(sku)}/precio`, requestId: req.requestId });
+    } catch (error) {
+      if (error instanceof ErrorApp && error.estado === 404) {
+        throw errorNoEncontrado(`El producto ${sku} no existe en el catalogo.`);
+      }
+      throw error;
+    }
   }
 
-  const { rows } = await pool.query(
-    `UPDATE stock
-        SET cantidad_disponible = cantidad_disponible + $2,
-            version = version + 1,
-            actualizado_en = NOW()
-      WHERE sku = $1 AND ($3::INT IS NULL OR bodega_id = $3)
-      RETURNING sku, bodega_id, cantidad_disponible, version`,
-    [req.params.sku, cantidad, bodega_id ?? null]
-  );
+  // Stock, movimiento y soporte de la entrada en una sola transaccion: no
+  // queda stock sumado sin su movimiento, ni una entrada sin su stock.
+  let resultado: { stock: { sku: string; bodega_id: number; cantidad_disponible: number; version: number }; entrada_id: number } | null;
+  try {
+    resultado = await enTransaccion(pool, async (cliente) => {
+      if (datos.proveedor_id) {
+        const proveedor = await cliente.query('SELECT 1 FROM proveedores WHERE id = $1 AND activo', [datos.proveedor_id]);
+        if (!proveedor.rowCount) throw errorSolicitud(`El proveedor ${datos.proveedor_id} no existe o esta inactivo.`);
+      }
+      const { rows } = await cliente.query(
+        `WITH destino AS (
+           SELECT COALESCE(
+                    $3::INT,
+                    (SELECT MIN(bodega_id) FROM stock WHERE sku = $1),
+                    (SELECT MIN(id) FROM bodegas WHERE activa)
+                  ) AS bodega_id
+         )
+         INSERT INTO stock (sku, bodega_id, cantidad_disponible)
+         SELECT $1, destino.bodega_id, $2 FROM destino WHERE destino.bodega_id IS NOT NULL
+         ON CONFLICT (sku, bodega_id) DO UPDATE
+            SET cantidad_disponible = stock.cantidad_disponible + EXCLUDED.cantidad_disponible,
+                version = stock.version + 1,
+                actualizado_en = NOW()
+         RETURNING sku, bodega_id, cantidad_disponible, version`,
+        [sku, cantidad, bodega_id ?? null]
+      );
+      if (!rows[0]) return null;
 
-  if (!rows[0]) throw errorNoEncontrado(`No hay registro de inventario para ${req.params.sku}.`);
+      const movimiento = await cliente.query(
+        `INSERT INTO movimientos (sku, bodega_id, tipo, cantidad, saldo_despues, referencia, request_id)
+         VALUES ($1, $2, 'entrada', $3, $4, $5, $6) RETURNING id`,
+        [
+          rows[0].sku,
+          rows[0].bodega_id,
+          cantidad,
+          rows[0].cantidad_disponible,
+          (datos.documento ? `entrada:${datos.documento}` : `entrada-manual:${req.usuario?.sub ?? 'interno'}`).slice(0, 80),
+          req.requestId ?? null
+        ]
+      );
+      const entrada = await cliente.query(
+        `INSERT INTO entradas (movimiento_id, sku, bodega_id, cantidad, proveedor_id, costo_unitario, documento, observacion, registrado_por)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
+        [
+          movimiento.rows[0].id,
+          rows[0].sku,
+          rows[0].bodega_id,
+          cantidad,
+          datos.proveedor_id ?? null,
+          datos.costo_unitario ?? null,
+          datos.documento ?? null,
+          datos.observacion ?? null,
+          req.usuario?.email ?? null
+        ]
+      );
+      return { stock: rows[0], entrada_id: Number(entrada.rows[0].id) };
+    });
+  } catch (error) {
+    // 23503: la bodega indicada no existe (violacion de la llave foranea).
+    if ((error as { code?: string }).code === '23503') throw errorSolicitud(`La bodega ${bodega_id} no existe.`);
+    throw error;
+  }
 
-  await pool.query(
-    `INSERT INTO movimientos (sku, bodega_id, tipo, cantidad, saldo_despues, referencia, request_id)
-     VALUES ($1, $2, 'entrada', $3, $4, $5, $6)`,
-    [
-      rows[0].sku,
-      rows[0].bodega_id,
-      cantidad,
-      rows[0].cantidad_disponible,
-      `entrada-manual:${req.usuario?.sub ?? 'interno'}`,
-      req.requestId ?? null
-    ]
-  );
-
-  res.status(200).json({ mensaje: 'Entrada registrada.', stock: rows[0] });
+  if (!resultado) throw errorNoEncontrado(`No hay una bodega disponible para ${sku}.`);
+  res.status(200).json({ mensaje: 'Entrada registrada.', stock: resultado.stock, entrada_id: resultado.entrada_id });
 };
 
 /** GET /movimientos/:sku - libro de movimientos. */

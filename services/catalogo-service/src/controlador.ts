@@ -6,9 +6,12 @@ import {
   errorConflicto,
   errorNoEncontrado,
   errorSolicitud,
-  exigirCampos
+  textoDeConsulta
 } from '@ecommerce/shared';
-import { coleccionProductos, coleccionPromociones } from './db';
+import { Sort } from 'mongodb';
+import { filtroTolerante } from './busqueda';
+import { coleccionCategorias, coleccionHistorialPrecios, coleccionProductos, coleccionPromociones } from './db';
+import { PREFIJO_IMAGENES, Seccion, descuentoVigente, filtroEnOferta, precioFinal, validarProducto } from './gestion';
 
 const log = crearLogger('catalogo-service');
 
@@ -37,7 +40,10 @@ interface Disponibilidad {
   sku: string;
   disponible: number;
   hay_stock: boolean;
+  maximo_por_cliente?: number;
 }
+
+const esPersonal = (req: PeticionAutenticada) => req.usuario?.rol === 'administrador' || req.usuario?.rol === 'vendedor';
 
 const consultarDisponibilidad = async (
   skus: string[],
@@ -64,74 +70,125 @@ const consultarDisponibilidad = async (
   return mapa;
 };
 
-/** Calcula el precio final aplicando el descuento vigente del producto. */
-const precioFinal = (precio: number, descuento = 0): number =>
-  Math.round(precio * (1 - descuento / 100));
+/** Las fotos de la semilla se guardaron como /productos/x.webp (F5b); hoy las sirve el catalogo. */
+const rutaImagen = (ruta: unknown): string =>
+  typeof ruta === 'string' && ruta.startsWith('/productos/') ? `${PREFIJO_IMAGENES}${ruta.slice('/productos/'.length)}` : String(ruta);
 
-const proyectar = (producto: Record<string, unknown>, disp: Disponibilidad | null) => ({
-  sku: producto.sku,
-  nombre: producto.nombre,
-  descripcion: producto.descripcion,
-  categoria: producto.categoria,
-  marca: producto.marca,
-  precio: producto.precio,
-  descuento_porcentaje: producto.descuento_porcentaje ?? 0,
-  precio_final: precioFinal(Number(producto.precio), Number(producto.descuento_porcentaje ?? 0)),
-  imagenes: producto.imagenes ?? [],
-  atributos: producto.atributos ?? {},
-  // null significa "no se pudo consultar", que es distinto de "agotado".
-  disponible: disp ? disp.disponible : null,
-  hay_stock: disp ? disp.hay_stock : null
-});
+const proyectar = (producto: Record<string, unknown>, disp: Disponibilidad | null, personal = false) => {
+  // El descuento que se muestra y se cobra es el vigente: una oferta vencida
+  // vuelve sola al precio de lista.
+  const descuento = descuentoVigente(producto);
+  return {
+    sku: producto.sku,
+    nombre: producto.nombre,
+    descripcion: producto.descripcion,
+    categoria: producto.categoria,
+    subcategoria: producto.subcategoria ?? null,
+    marca: producto.marca,
+    precio: producto.precio,
+    descuento_porcentaje: descuento,
+    oferta_hasta: descuento ? (producto.oferta_hasta ?? null) : null,
+    precio_final: precioFinal(Number(producto.precio), descuento),
+    imagenes: ((producto.imagenes ?? []) as unknown[]).map(rutaImagen),
+    atributos: producto.atributos ?? {},
+    // null significa "no se pudo consultar", que es distinto de "agotado".
+    disponible: disp ? disp.disponible : null,
+    hay_stock: disp ? disp.hay_stock : null,
+    // Lo maximo que un cliente puede llevar (RF-47); el carrito lo muestra.
+    maximo_por_cliente: disp ? (disp.maximo_por_cliente ?? null) : null,
+    // El panel necesita lo configurado aunque la oferta ya haya vencido.
+    ...(personal
+      ? {
+          activo: producto.activo !== false,
+          descuento_configurado: Number(producto.descuento_porcentaje ?? 0),
+          oferta_hasta_configurada: producto.oferta_hasta ?? null
+        }
+      : {})
+  };
+};
 
 /**
  * GET /productos
- * Busqueda y filtrado por categoria, marca, precio y texto (seccion 5.5).
+ * Busqueda y filtrado por categoria, subcategoria, marca, precio, oferta y
+ * texto (seccion 5.5). Si el indice de texto no encuentra nada, se repite con
+ * la busqueda tolerante (palabras a medio escribir, plurales, tildes).
  */
 export const listarProductos = async (req: PeticionAutenticada, res: Response): Promise<void> => {
-  const {
-    q,
-    categoria,
-    marca,
-    precio_min,
-    precio_max,
-    orden,
-    pagina = '1',
-    limite = '20'
-  } = req.query as Record<string, string>;
+  // Solo texto: un objeto como ?categoria[$ne]=x llegaria al filtro de
+  // MongoDB como operador (inyeccion NoSQL, hallazgo S-05).
+  const parametro = (nombre: string) => textoDeConsulta(req.query[nombre], nombre);
+  const q = parametro('q')?.trim();
+  const categoria = parametro('categoria');
+  const subcategoria = parametro('subcategoria');
+  const marca = parametro('marca');
+  const precio_min = parametro('precio_min');
+  const precio_max = parametro('precio_max');
+  const en_oferta = parametro('en_oferta');
+  const orden = parametro('orden');
+  const pagina = parametro('pagina') ?? '1';
+  const limite = parametro('limite') ?? '20';
 
   const porPagina = Math.min(Number(limite) || 20, 100);
   const saltar = (Math.max(Number(pagina) || 1, 1) - 1) * porPagina;
 
-  const filtro: Record<string, unknown> = { activo: true };
-  if (categoria) filtro.categoria = categoria;
-  if (marca) filtro.marca = marca;
+  // El panel de Productos ve tambien los inactivos (para volver a activarlos).
+  const personal = esPersonal(req);
+  const incluirInactivos = personal && parametro('incluir_inactivos') === 'true';
+  const base: Record<string, unknown> = incluirInactivos ? {} : { activo: true };
+  if (categoria) base.categoria = categoria;
+  if (subcategoria) base.subcategoria = subcategoria;
+  if (marca) base.marca = marca;
   if (precio_min || precio_max) {
-    filtro.precio = {
+    base.precio = {
       ...(precio_min ? { $gte: Number(precio_min) } : {}),
       ...(precio_max ? { $lte: Number(precio_max) } : {})
     };
   }
-  if (q) filtro.$text = { $search: q };
+  if (en_oferta === 'true') Object.assign(base, filtroEnOferta());
+  // ?skus=A,B: los productos de esos SKU (el panel pone nombre a las alertas
+  // de reposicion y al historial de entradas, que inventario guarda por SKU).
+  const skus = parametro('skus');
+  if (skus !== undefined) {
+    const lista = [...new Set(skus.split(',').map((s) => s.trim().toUpperCase()).filter(Boolean))];
+    if (!lista.length || lista.length > 100 || !lista.every((s) => /^SKU-[A-Z0-9-]{1,40}$/.test(s))) {
+      throw errorSolicitud('skus debe ser una lista de 1 a 100 SKU separados por comas.');
+    }
+    base.sku = { $in: lista };
+  }
 
-  const ordenamiento: Record<string, 1 | -1> =
+  const ordenFijo: Record<string, 1 | -1> | undefined =
     orden === 'precio_asc' ? { precio: 1 }
     : orden === 'precio_desc' ? { precio: -1 }
     : orden === 'nombre' ? { nombre: 1 }
-    : q ? { score: -1 } // relevancia cuando hay busqueda de texto
-    : { creado_en: -1 };
+    : orden === 'descuento' ? { descuento_porcentaje: -1, precio: 1 }
+    : undefined;
 
   const coleccion = coleccionProductos();
-  const consulta = coleccion.find(filtro);
+  const buscar = (filtro: Record<string, unknown>, porRelevancia: boolean) => {
+    const consulta = coleccion.find(filtro);
+    if (porRelevancia) consulta.project({ score: { $meta: 'textScore' } });
+    // Relevancia cuando hay busqueda de texto; si no, los mas recientes.
+    const ordenamiento = ordenFijo ?? (porRelevancia ? { score: { $meta: 'textScore' } } : { creado_en: -1 });
+    return Promise.all([
+      consulta.sort(ordenamiento as Sort).skip(saltar).limit(porPagina).toArray(),
+      coleccion.countDocuments(filtro)
+    ]);
+  };
 
-  if (q) {
-    consulta.project({ score: { $meta: 'textScore' } });
+  // Un SKU completo (SKU-TEC-004) se busca tal cual: el indice de texto lo parte en palabras.
+  const esSku = Boolean(q && /^SKU-[A-Z0-9-]+$/i.test(q));
+  let [productos, total] = esSku
+    ? await buscar({ ...base, sku: q!.toUpperCase() }, false)
+    : q ? await buscar({ ...base, $text: { $search: q } }, true) : await buscar(base, false);
+  let busqueda: 'texto' | 'tolerante' | undefined = q ? 'texto' : undefined;
+
+  if (q && !esSku && total === 0) {
+    const tolerante = filtroTolerante(q);
+    if (tolerante) {
+      [productos, total] = await buscar({ ...base, ...tolerante }, false);
+      busqueda = 'tolerante';
+    }
   }
-
-  const [productos, total] = await Promise.all([
-    consulta.sort(ordenamiento).skip(saltar).limit(porPagina).toArray(),
-    coleccion.countDocuments(filtro)
-  ]);
 
   const disponibilidad = await consultarDisponibilidad(
     productos.map((p) => String(p.sku)),
@@ -142,17 +199,19 @@ export const listarProductos = async (req: PeticionAutenticada, res: Response): 
     total,
     pagina: Number(pagina) || 1,
     por_pagina: porPagina,
-    productos: productos.map((p) => proyectar(p, disponibilidad.get(String(p.sku)) ?? null))
+    ...(busqueda ? { busqueda } : {}),
+    productos: productos.map((p) => proyectar(p, disponibilidad.get(String(p.sku)) ?? null, incluirInactivos))
   });
 };
 
-/** GET /productos/:sku */
+/** GET /productos/:sku (el personal ve tambien un producto inactivo). */
 export const obtenerProducto = async (req: PeticionAutenticada, res: Response): Promise<void> => {
-  const producto = await coleccionProductos().findOne({ sku: req.params.sku, activo: true });
+  const personal = esPersonal(req);
+  const producto = await coleccionProductos().findOne(personal ? { sku: req.params.sku } : { sku: req.params.sku, activo: true });
   if (!producto) throw errorNoEncontrado(`Producto ${req.params.sku} no encontrado.`);
 
   const disponibilidad = await consultarDisponibilidad([req.params.sku], req.requestId);
-  res.status(200).json(proyectar(producto, disponibilidad.get(req.params.sku) ?? null));
+  res.status(200).json(proyectar(producto, disponibilidad.get(req.params.sku) ?? null, personal));
 };
 
 /**
@@ -166,51 +225,171 @@ export const obtenerProducto = async (req: PeticionAutenticada, res: Response): 
 export const precioVigente = async (req: PeticionAutenticada, res: Response): Promise<void> => {
   const producto = await coleccionProductos().findOne(
     { sku: req.params.sku, activo: true },
-    { projection: { sku: 1, nombre: 1, precio: 1, descuento_porcentaje: 1 } }
+    { projection: { sku: 1, nombre: 1, precio: 1, descuento_porcentaje: 1, oferta_hasta: 1 } }
   );
   if (!producto) throw errorNoEncontrado(`Producto ${req.params.sku} no encontrado o inactivo.`);
 
+  // El mismo descuento vigente que ve el cliente: si la oferta vencio entre el
+  // carrito y el pago, el orquestador detecta el cambio de precio (paso 10).
+  const descuento = descuentoVigente(producto);
   res.status(200).json({
     sku: producto.sku,
     nombre: producto.nombre,
     precio_lista: producto.precio,
-    descuento_porcentaje: producto.descuento_porcentaje ?? 0,
-    precio_final: precioFinal(Number(producto.precio), Number(producto.descuento_porcentaje ?? 0))
+    descuento_porcentaje: descuento,
+    precio_final: precioFinal(Number(producto.precio), descuento)
   });
 };
 
-/** GET /categorias */
+interface DefinicionSubcategoria {
+  slug: string;
+  nombre: string;
+  orden?: number;
+  sinonimos?: string[];
+}
+
+interface Conteo {
+  productos: number;
+  precio_min: number;
+}
+
+/**
+ * GET /categorias
+ * Cada categoria con su conteo de productos activos y sus subcategorias, en el
+ * orden definido en catalogo_db.categorias. Los sinonimos de cada subcategoria
+ * los usa el asistente para entender "audifonos" o "laptop": una subcategoria
+ * nueva no exige tocar las reglas del asistente.
+ */
 export const listarCategorias = async (_req: PeticionAutenticada, res: Response): Promise<void> => {
-  const agregado = await coleccionProductos()
-    .aggregate([
-      { $match: { activo: true } },
-      { $group: { _id: '$categoria', productos: { $sum: 1 }, precio_min: { $min: '$precio' } } },
-      { $sort: { _id: 1 } }
-    ])
-    .toArray();
+  const [conteos, definiciones, marcas] = await Promise.all([
+    coleccionProductos()
+      .aggregate([
+        { $match: { activo: true } },
+        {
+          $group: {
+            _id: { categoria: '$categoria', subcategoria: '$subcategoria' },
+            productos: { $sum: 1 },
+            precio_min: { $min: '$precio' }
+          }
+        }
+      ])
+      .toArray(),
+    coleccionCategorias().find({}).sort({ orden: 1 }).toArray(),
+    coleccionProductos()
+      .aggregate([
+        { $match: { activo: true } },
+        { $group: { _id: { categoria: '$categoria', marca: '$marca' }, productos: { $sum: 1 } } },
+        { $sort: { '_id.marca': 1 } }
+      ])
+      .toArray()
+  ]);
+
+  const porCategoria = new Map<string, Conteo & { subs: Map<string, Conteo> }>();
+  for (const c of conteos) {
+    const clave = String(c._id.categoria);
+    const actual = porCategoria.get(clave) ?? { productos: 0, precio_min: Number.MAX_SAFE_INTEGER, subs: new Map() };
+    actual.productos += c.productos;
+    actual.precio_min = Math.min(actual.precio_min, c.precio_min);
+    if (c._id.subcategoria) actual.subs.set(String(c._id.subcategoria), { productos: c.productos, precio_min: c.precio_min });
+    porCategoria.set(clave, actual);
+  }
+
+  const definidas = new Map(definiciones.map((d) => [String(d.slug), d]));
+  // Primero las definidas (en su orden), luego las que solo existen en los productos.
+  const claves = [
+    ...definiciones.map((d) => String(d.slug)).filter((slug) => porCategoria.has(slug)),
+    ...[...porCategoria.keys()].filter((slug) => !definidas.has(slug)).sort()
+  ];
 
   res.status(200).json(
-    agregado.map((c) => ({ categoria: c._id, productos: c.productos, precio_min: c.precio_min }))
+    claves.map((slug) => {
+      const datos = porCategoria.get(slug)!;
+      const definicion = definidas.get(slug);
+      const subDefinidas = ((definicion?.subcategorias ?? []) as DefinicionSubcategoria[])
+        .slice()
+        .sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
+      const conocidas = new Set(subDefinidas.map((s) => s.slug));
+      const subcategorias = [
+        ...subDefinidas.filter((s) => datos.subs.has(s.slug)),
+        ...[...datos.subs.keys()]
+          .filter((s) => !conocidas.has(s))
+          .sort()
+          .map((s): DefinicionSubcategoria => ({ slug: s, nombre: s }))
+      ].map((s) => ({
+        slug: s.slug,
+        nombre: s.nombre,
+        productos: datos.subs.get(s.slug)!.productos,
+        precio_min: datos.subs.get(s.slug)!.precio_min,
+        sinonimos: s.sinonimos ?? []
+      }));
+      return {
+        categoria: slug,
+        // Marcas de la categoria: el asistente las reconoce sin reglas propias.
+        marcas: marcas
+          .filter((m) => String(m._id.categoria) === slug && m._id.marca)
+          .map((m) => ({ nombre: String(m._id.marca), productos: m.productos })),
+        nombre: String(definicion?.nombre ?? slug),
+        productos: datos.productos,
+        precio_min: datos.precio_min,
+        subcategorias
+      };
+    })
   );
 };
 
-/** POST /productos - alta de producto (vendedor o administrador). */
-export const crearProducto = async (req: PeticionAutenticada, res: Response): Promise<void> => {
-  const faltantes = exigirCampos(req.body, ['sku', 'nombre', 'categoria', 'precio']);
-  if (faltantes.length) throw errorSolicitud(`Campos obligatorios: ${faltantes.join(', ')}`);
+/** Secciones validas, leidas de catalogo_db.categorias. */
+const seccionesDefinidas = async (): Promise<Seccion[]> => {
+  const definiciones = await coleccionCategorias().find({}, { projection: { slug: 1, subcategorias: 1 } }).toArray();
+  return definiciones.map((d) => ({
+    categoria: String(d.slug),
+    subcategorias: ((d.subcategorias ?? []) as DefinicionSubcategoria[]).map((s) => s.slug)
+  }));
+};
 
-  const documento = {
-    sku: String(req.body.sku).toUpperCase(),
-    nombre: req.body.nombre,
-    descripcion: req.body.descripcion ?? '',
-    categoria: req.body.categoria,
-    marca: req.body.marca ?? 'Sin marca',
-    precio: Number(req.body.precio),
-    descuento_porcentaje: Number(req.body.descuento_porcentaje ?? 0),
-    imagenes: req.body.imagenes ?? [],
-    atributos: req.body.atributos ?? {},
-    activo: true,
-    creado_en: new Date()
+const CAMPOS_DE_PRECIO = ['precio', 'descuento_porcentaje', 'oferta_hasta'] as const;
+const valoresDePrecio = (p: Record<string, unknown> | null) => ({
+  precio: p ? Number(p.precio) : null,
+  descuento_porcentaje: p ? Number(p.descuento_porcentaje ?? 0) : null,
+  oferta_hasta: p?.oferta_hasta ?? null
+});
+
+/** Deja constancia de quien cambio el precio o la oferta (RF-48). */
+const registrarCambioDePrecio = async (
+  req: PeticionAutenticada,
+  sku: string,
+  antes: Record<string, unknown> | null,
+  despues: Record<string, unknown>
+): Promise<void> => {
+  const a = valoresDePrecio(antes);
+  const d = valoresDePrecio(despues);
+  const igual = (x: unknown, y: unknown) => (x instanceof Date || y instanceof Date ? String(x && new Date(String(x)).getTime()) === String(y && new Date(String(y)).getTime()) : x === y);
+  if (antes && CAMPOS_DE_PRECIO.every((c) => igual(a[c], d[c]))) return;
+  await coleccionHistorialPrecios().insertOne({
+    sku,
+    antes: antes ? a : null,
+    despues: d,
+    usuario: req.usuario?.email ?? null,
+    rol: req.usuario?.rol ?? null,
+    fecha: new Date()
+  });
+};
+
+/**
+ * POST /productos - alta de producto (vendedor o administrador).
+ * Sin foto propia, el producto muestra la de su seccion hasta que se suba una.
+ */
+export const crearProducto = async (req: PeticionAutenticada, res: Response): Promise<void> => {
+  const datos = validarProducto(req.body, { parcial: false, secciones: await seccionesDefinidas() });
+  const documento: Record<string, unknown> = {
+    descripcion: '',
+    atributos: {},
+    descuento_porcentaje: 0,
+    oferta_hasta: null,
+    ...datos,
+    imagenes: (datos.imagenes as string[] | undefined)?.length ? datos.imagenes : [`${PREFIJO_IMAGENES}${datos.subcategoria}.webp`],
+    activo: datos.activo ?? true,
+    creado_en: new Date(),
+    creado_por: req.usuario?.email ?? null
   };
 
   try {
@@ -222,28 +401,42 @@ export const crearProducto = async (req: PeticionAutenticada, res: Response): Pr
     throw error;
   }
 
-  res.status(201).json({ mensaje: 'Producto creado.', producto: documento });
+  await registrarCambioDePrecio(req, String(documento.sku), null, documento);
+  log.con({ request_id: req.requestId }).info('Producto creado', { sku: documento.sku, por: req.usuario?.email });
+  const { _id, ...producto } = documento as Record<string, unknown>;
+  void _id;
+  res.status(201).json({ mensaje: 'Producto creado.', producto });
 };
 
-/** PATCH /productos/:sku - actualiza precio, descuento o estado. */
+/** PATCH /productos/:sku - edita datos, precio, oferta (con su fecha de fin), estado o fotos. */
 export const actualizarProducto = async (req: PeticionAutenticada, res: Response): Promise<void> => {
-  const permitidos = ['nombre', 'descripcion', 'precio', 'descuento_porcentaje', 'activo', 'imagenes', 'atributos', 'marca'];
-  const cambios: Record<string, unknown> = {};
-  for (const campo of permitidos) {
-    if (req.body?.[campo] !== undefined) cambios[campo] = req.body[campo];
-  }
+  const cambios = validarProducto(req.body ?? {}, { parcial: true, secciones: await seccionesDefinidas() });
   if (!Object.keys(cambios).length) {
-    throw errorSolicitud(`Indique al menos uno de: ${permitidos.join(', ')}`);
+    throw errorSolicitud('Indique al menos uno de: nombre, descripcion, marca, subcategoria, precio, descuento_porcentaje, oferta_hasta, activo, imagenes, atributos.');
   }
 
-  const resultado = await coleccionProductos().findOneAndUpdate(
+  const anterior = await coleccionProductos().findOneAndUpdate(
     { sku: req.params.sku },
-    { $set: { ...cambios, actualizado_en: new Date() } },
-    { returnDocument: 'after' }
+    { $set: { ...cambios, actualizado_en: new Date(), actualizado_por: req.usuario?.email ?? null } },
+    { returnDocument: 'before' }
   );
+  if (!anterior) throw errorNoEncontrado(`Producto ${req.params.sku} no encontrado.`);
 
-  if (!resultado) throw errorNoEncontrado(`Producto ${req.params.sku} no encontrado.`);
-  res.status(200).json({ mensaje: 'Producto actualizado.', producto: resultado });
+  const resultado = { ...anterior, ...cambios };
+  await registrarCambioDePrecio(req, req.params.sku, anterior, resultado);
+  const { _id, ...producto } = resultado;
+  void _id;
+  res.status(200).json({ mensaje: 'Producto actualizado.', producto: proyectar(producto, null, true) });
+};
+
+/** GET /productos/:sku/historial-precios - personal interno. */
+export const historialPrecios = async (req: PeticionAutenticada, res: Response): Promise<void> => {
+  const cambios = await coleccionHistorialPrecios()
+    .find({ sku: req.params.sku }, { projection: { _id: 0 } })
+    .sort({ fecha: -1 })
+    .limit(50)
+    .toArray();
+  res.status(200).json(cambios);
 };
 
 /**

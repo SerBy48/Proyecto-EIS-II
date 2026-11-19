@@ -168,10 +168,10 @@ class ApiService {
 
   // -------------------------------------------------------------- catalogo --
 
-  static Future<List<dynamic>> productos({String? busqueda, String? categoria}) async {
+  static Future<List<dynamic>> productos({String? busqueda, String? subcategoria}) async {
     final parametros = <String, String>{};
     if (busqueda != null && busqueda.isNotEmpty) parametros['q'] = busqueda;
-    if (categoria != null && categoria.isNotEmpty) parametros['categoria'] = categoria;
+    if (subcategoria != null && subcategoria.isNotEmpty) parametros['subcategoria'] = subcategoria;
 
     final consulta = parametros.entries
         .map((e) => '${e.key}=${Uri.encodeComponent(e.value)}')
@@ -181,12 +181,27 @@ class ApiService {
     return (datos as Map<String, dynamic>)['productos'] as List<dynamic>;
   }
 
-  static Future<List<dynamic>> categorias() async =>
-      await _peticion('GET', '/catalogo/categorias', conToken: false) as List<dynamic>;
+  /// Secciones del catalogo de SerByTek: las subcategorias de cada categoria.
+  static Future<List<dynamic>> categorias() async {
+    final categorias = await _peticion('GET', '/catalogo/categorias', conToken: false) as List<dynamic>;
+    return categorias
+        .expand((c) => ((c as Map<String, dynamic>)['subcategorias'] as List<dynamic>? ?? const []))
+        .toList();
+  }
 
   // --------------------------------------------------------------- carrito --
 
   static int get _clienteId => _usuario?['cliente_id'] as int? ?? 0;
+
+  /// Cuanto puede llevar el cliente de cada producto (RF-47: deja 5 para los demas).
+  static Future<Map<String, Map<String, dynamic>>> limites(List<String> skus) async {
+    if (skus.isEmpty) return {};
+    final datos = await _peticion('GET', '/pedidos/limites?skus=${Uri.encodeComponent(skus.join(','))}') as Map<String, dynamic>;
+    return {
+      for (final l in (datos['limites'] as List<dynamic>? ?? []))
+        (l as Map<String, dynamic>)['sku'] as String: l,
+    };
+  }
 
   static Future<Map<String, dynamic>> carrito() async =>
       await _peticion('GET', '/carrito/$_clienteId') as Map<String, dynamic>;

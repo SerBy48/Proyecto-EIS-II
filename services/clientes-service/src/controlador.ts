@@ -4,12 +4,52 @@ import {
   Eventos,
   PeticionAutenticada,
   errorConflicto,
+  errorDePostgres,
   errorNoEncontrado,
   errorProhibido,
   errorSolicitud,
   exigirCampos
 } from '@ecommerce/shared';
-import { pool } from './db';
+import * as repositorio from './repositorio';
+import { CAMPOS_DIRECCION, CAMPOS_EDITABLES, CampoDireccion } from './repositorio';
+import { DEPARTAMENTOS, departamentoOficial } from './departamentos';
+
+/** Texto recortado con largo maximo; null si viene vacio y no es obligatorio. */
+const textoValido = (valor: unknown, campo: string, maximo: number, obligatorio = true): string | null => {
+  if (valor === undefined || valor === null || (typeof valor === 'string' && !valor.trim())) {
+    if (obligatorio) throw errorSolicitud(`El campo ${campo} es obligatorio.`);
+    return null;
+  }
+  if (typeof valor !== 'string') throw errorSolicitud(`El campo ${campo} debe ser un texto.`);
+  const limpio = valor.trim();
+  if (limpio.length > maximo) throw errorSolicitud(`El campo ${campo} admite hasta ${maximo} caracteres.`);
+  return limpio;
+};
+
+const validarDepartamento = (valor: unknown): string => {
+  const texto = textoValido(valor, 'departamento', 100)!;
+  const oficial = departamentoOficial(texto);
+  if (!oficial) throw errorSolicitud('El departamento no es un departamento de Colombia.');
+  return oficial;
+};
+
+const LARGOS_DIRECCION: Record<CampoDireccion, number> = {
+  etiqueta: 50, linea1: 200, linea2: 200, ciudad: 100, departamento: 100, codigo_postal: 20
+};
+const OBLIGATORIOS_DIRECCION: CampoDireccion[] = ['linea1', 'ciudad', 'departamento'];
+
+/** Valida los campos de una direccion. Con parcial, solo los que vienen. */
+const validarDireccion = (cuerpo: Record<string, unknown>, parcial: boolean): Partial<Record<CampoDireccion, string | null>> => {
+  const datos: Partial<Record<CampoDireccion, string | null>> = {};
+  for (const campo of CAMPOS_DIRECCION) {
+    if (parcial && !Object.hasOwn(cuerpo, campo)) continue;
+    datos[campo] = campo === 'departamento'
+      ? validarDepartamento(cuerpo[campo])
+      : textoValido(cuerpo[campo], campo === 'linea1' ? 'direccion' : campo, LARGOS_DIRECCION[campo], OBLIGATORIOS_DIRECCION.includes(campo));
+  }
+  if (datos.codigo_postal && !/^\d{6}$/.test(datos.codigo_postal)) throw errorSolicitud('El codigo postal tiene 6 digitos.');
+  return datos;
+};
 
 /**
  * Autorizacion a nivel de dato (principio de minimo privilegio):
@@ -33,15 +73,17 @@ export const crearCliente = async (req: PeticionAutenticada, res: Response): Pro
   const { nombre, apellido, email, telefono, documento, tipo_documento } = req.body;
 
   try {
-    const { rows } = await pool.query(
-      `INSERT INTO clientes (nombre, apellido, email, telefono, documento, tipo_documento)
-       VALUES ($1, $2, $3, $4, $5, COALESCE($6, 'CC'))
-       RETURNING id, nombre, apellido, email, telefono, documento, activo, creado_en`,
-      [nombre, apellido, String(email).toLowerCase(), telefono ?? null, documento ?? null, tipo_documento ?? null]
-    );
-    res.status(201).json({ mensaje: 'Cliente registrado.', cliente: rows[0] });
+    const cliente = await repositorio.crearCliente({
+      nombre,
+      apellido,
+      email: String(email).toLowerCase(),
+      telefono,
+      documento,
+      tipo_documento
+    });
+    res.status(201).json({ mensaje: 'Cliente registrado.', cliente });
   } catch (error) {
-    if ((error as { code?: string }).code === '23505') {
+    if (errorDePostgres(error)?.code === '23505') {
       throw errorConflicto('Ya existe un cliente con ese correo o documento.');
     }
     throw error;
@@ -53,13 +95,9 @@ export const obtenerCliente = async (req: PeticionAutenticada, res: Response): P
   const id = Number(req.params.id);
   exigirPropiedad(req, id);
 
-  const { rows } = await pool.query(
-    `SELECT id, nombre, apellido, email, telefono, documento, tipo_documento, activo, creado_en
-       FROM clientes WHERE id = $1`,
-    [id]
-  );
-  if (!rows[0]) throw errorNoEncontrado('Cliente no encontrado.');
-  res.status(200).json(rows[0]);
+  const cliente = await repositorio.obtenerCliente(id);
+  if (!cliente) throw errorNoEncontrado('Cliente no encontrado.');
+  res.status(200).json(cliente);
 };
 
 /** PATCH /:id - actualiza datos personales. */
@@ -67,21 +105,39 @@ export const actualizarCliente = async (req: PeticionAutenticada, res: Response)
   const id = Number(req.params.id);
   exigirPropiedad(req, id);
 
-  const permitidos = ['nombre', 'apellido', 'telefono'];
-  const campos = Object.keys(req.body ?? {}).filter((c) => permitidos.includes(c));
-  if (!campos.length) throw errorSolicitud(`Indique al menos uno de: ${permitidos.join(', ')}`);
+  // Lista blanca: el correo y el estado no se cambian por aqui (el correo es
+  // la identidad de la cuenta en auth-service).
+  const cuerpo = typeof req.body === 'object' && req.body !== null ? req.body : {};
+  const cambios: repositorio.CambiosCliente = {};
+  for (const campo of CAMPOS_EDITABLES) {
+    if (!Object.hasOwn(cuerpo, campo)) continue;
+    if (campo === 'nombre' || campo === 'apellido') {
+      cambios[campo] = textoValido(cuerpo[campo], campo, 100)!;
+    } else if (campo === 'telefono') {
+      const telefono = textoValido(cuerpo[campo], campo, 30, false);
+      if (telefono && !/^\+?[\d\s-]{7,20}$/.test(telefono)) throw errorSolicitud('El telefono solo admite numeros, espacios y guiones.');
+      cambios.telefono = telefono;
+    } else if (campo === 'documento') {
+      const documento = textoValido(cuerpo[campo], campo, 30, false);
+      if (documento && !/^[A-Za-z0-9-]{4,30}$/.test(documento)) throw errorSolicitud('El documento solo admite letras, numeros y guiones.');
+      cambios.documento = documento;
+    } else if (campo === 'tipo_documento') {
+      if (!['CC', 'CE', 'NIT', 'PAS'].includes(String(cuerpo[campo]))) throw errorSolicitud('El tipo de documento debe ser CC, CE, NIT o PAS.');
+      cambios.tipo_documento = String(cuerpo[campo]) as repositorio.CambiosCliente['tipo_documento'];
+    }
+  }
+  if (!Object.keys(cambios).length) {
+    throw errorSolicitud(`Indique al menos uno de: ${CAMPOS_EDITABLES.join(', ')}`);
+  }
 
-  const asignaciones = campos.map((c, i) => `${c} = $${i + 2}`).join(', ');
-  const valores = campos.map((c) => req.body[c]);
-
-  const { rows } = await pool.query(
-    `UPDATE clientes SET ${asignaciones}, actualizado_en = NOW()
-      WHERE id = $1
-      RETURNING id, nombre, apellido, email, telefono, activo`,
-    [id, ...valores]
-  );
-  if (!rows[0]) throw errorNoEncontrado('Cliente no encontrado.');
-  res.status(200).json({ mensaje: 'Cliente actualizado.', cliente: rows[0] });
+  try {
+    const cliente = await repositorio.actualizarCliente(id, cambios);
+    if (!cliente) throw errorNoEncontrado('Cliente no encontrado.');
+    res.status(200).json({ mensaje: 'Cliente actualizado.', cliente });
+  } catch (error) {
+    if (errorDePostgres(error)?.code === '23505') throw errorConflicto('Ese documento ya esta registrado en otra cuenta.');
+    throw error;
+  }
 };
 
 /**
@@ -93,15 +149,7 @@ export const actualizarCliente = async (req: PeticionAutenticada, res: Response)
 export const listarDirecciones = async (req: PeticionAutenticada, res: Response): Promise<void> => {
   const id = Number(req.params.id);
   exigirPropiedad(req, id);
-
-  const { rows } = await pool.query(
-    `SELECT id, tipo, etiqueta, linea1, linea2, ciudad, departamento, pais, codigo_postal, predeterminada
-       FROM clientes c JOIN direcciones d ON d.cliente_id = c.id
-      WHERE c.id = $1
-      ORDER BY d.predeterminada DESC, d.id`,
-    [id]
-  );
-  res.status(200).json(rows);
+  res.status(200).json(await repositorio.listarDirecciones(id));
 };
 
 /** POST /:id/direcciones - agrega una direccion. */
@@ -109,33 +157,67 @@ export const crearDireccion = async (req: PeticionAutenticada, res: Response): P
   const id = Number(req.params.id);
   exigirPropiedad(req, id);
 
-  const faltantes = exigirCampos(req.body, ['linea1', 'ciudad']);
-  if (faltantes.length) throw errorSolicitud(`Campos obligatorios: ${faltantes.join(', ')}`);
+  const cuerpo = typeof req.body === 'object' && req.body !== null ? req.body : {};
+  const datos = validarDireccion(cuerpo, false);
+  const tipo = cuerpo.tipo ?? 'envio';
+  if (tipo !== 'envio' && tipo !== 'facturacion') throw errorSolicitud("El tipo debe ser 'envio' o 'facturacion'.");
 
-  const { tipo, etiqueta, linea1, linea2, ciudad, departamento, pais, codigo_postal, predeterminada } = req.body;
+  if (!(await repositorio.existeCliente(id))) throw errorNoEncontrado('Cliente no encontrado.');
 
-  const existe = await pool.query(`SELECT 1 FROM clientes WHERE id = $1`, [id]);
-  if (!existe.rowCount) throw errorNoEncontrado('Cliente no encontrado.');
+  // La primera direccion de un tipo queda como predeterminada aunque no se pida.
+  const existentes = (await repositorio.listarDirecciones(id)).filter((d) => d.tipo === tipo);
+  const direccion = await repositorio.crearDireccion(id, {
+    tipo,
+    etiqueta: datos.etiqueta,
+    linea1: datos.linea1!,
+    linea2: datos.linea2,
+    ciudad: datos.ciudad!,
+    departamento: datos.departamento,
+    codigo_postal: datos.codigo_postal,
+    predeterminada: cuerpo.predeterminada === true || existentes.length === 0
+  });
 
-  // Si la nueva es predeterminada, se quita la marca a la anterior del mismo
-  // tipo: el indice unico parcial no admite dos predeterminadas.
-  if (predeterminada) {
-    await pool.query(
-      `UPDATE direcciones SET predeterminada = FALSE
-        WHERE cliente_id = $1 AND tipo = COALESCE($2, 'envio')`,
-      [id, tipo ?? null]
-    );
+  res.status(201).json({ mensaje: 'Direccion agregada.', direccion });
+};
+
+/** PATCH /:id/direcciones/:direccionId - edita una direccion propia o la marca como predeterminada. */
+export const actualizarDireccion = async (req: PeticionAutenticada, res: Response): Promise<void> => {
+  const id = Number(req.params.id);
+  exigirPropiedad(req, id);
+  const cuerpo = typeof req.body === 'object' && req.body !== null ? req.body : {};
+  const cambios = validarDireccion(cuerpo, true) as repositorio.CambiosDireccion;
+  const predeterminada = cuerpo.predeterminada === undefined ? undefined : cuerpo.predeterminada === true;
+  if (!Object.keys(cambios).length && predeterminada === undefined) {
+    throw errorSolicitud(`Indique al menos uno de: ${CAMPOS_DIRECCION.join(', ')}, predeterminada`);
   }
+  if (predeterminada === false) throw errorSolicitud('Para cambiar la predeterminada, marca otra direccion como predeterminada.');
+  const direccion = await repositorio.actualizarDireccion(id, Number(req.params.direccionId), cambios, predeterminada);
+  if (!direccion) throw errorNoEncontrado('Direccion no encontrada.');
+  res.status(200).json({ mensaje: 'Direccion actualizada.', direccion });
+};
 
-  const { rows } = await pool.query(
-    `INSERT INTO direcciones
-       (cliente_id, tipo, etiqueta, linea1, linea2, ciudad, departamento, pais, codigo_postal, predeterminada)
-     VALUES ($1, COALESCE($2, 'envio'), $3, $4, $5, $6, $7, COALESCE($8, 'Colombia'), $9, COALESCE($10, FALSE))
-     RETURNING *`,
-    [id, tipo ?? null, etiqueta ?? null, linea1, linea2 ?? null, ciudad, departamento ?? null, pais ?? null, codigo_postal ?? null, predeterminada ?? null]
-  );
+/** DELETE /:id/direcciones/:direccionId - elimina una direccion propia. */
+export const eliminarDireccion = async (req: PeticionAutenticada, res: Response): Promise<void> => {
+  const id = Number(req.params.id);
+  exigirPropiedad(req, id);
+  const eliminada = await repositorio.eliminarDireccion(id, Number(req.params.direccionId));
+  if (!eliminada) throw errorNoEncontrado('Direccion no encontrada.');
+  res.status(200).json({ mensaje: 'Direccion eliminada.' });
+};
 
-  res.status(201).json({ mensaje: 'Direccion agregada.', direccion: rows[0] });
+/** GET /departamentos - lista publica para el selector de la web. */
+export const listarDepartamentos = async (_req: PeticionAutenticada, res: Response): Promise<void> => {
+  res.status(200).json(DEPARTAMENTOS);
+};
+
+/**
+ * POST /:id/anonimizar - interno (auth-service, al eliminar una cuenta).
+ * Borra las direcciones, reemplaza los datos personales y desactiva el perfil.
+ */
+export const anonimizarCliente = async (req: PeticionAutenticada, res: Response): Promise<void> => {
+  const cliente = await repositorio.anonimizarCliente(Number(req.params.id));
+  if (!cliente) throw errorNoEncontrado('Cliente no encontrado.');
+  res.status(200).json({ mensaje: 'Datos personales eliminados.', cliente_id: cliente.id });
 };
 
 /**
@@ -150,27 +232,12 @@ export const validarParaCompra = async (req: PeticionAutenticada, res: Response)
   const id = Number(req.params.id);
   const direccionId = req.query.direccion_id ? Number(req.query.direccion_id) : undefined;
 
-  const { rows } = await pool.query(
-    `SELECT id, nombre, apellido, email, telefono, activo FROM clientes WHERE id = $1`,
-    [id]
-  );
-  const cliente = rows[0];
+  const cliente = await repositorio.datosParaCompra(id);
   if (!cliente) throw errorNoEncontrado('Cliente no encontrado.');
   if (!cliente.activo) throw errorProhibido('El cliente se encuentra inactivo.');
 
-  const direcciones = await pool.query(
-    `SELECT id, tipo, linea1, linea2, ciudad, departamento, pais, codigo_postal, predeterminada
-       FROM direcciones
-      WHERE cliente_id = $1 AND tipo = 'envio'
-        AND ($2::INT IS NULL OR id = $2)
-      ORDER BY predeterminada DESC, id
-      LIMIT 1`,
-    [id, direccionId ?? null]
-  );
-
-  if (!direcciones.rowCount) {
-    throw errorSolicitud('El cliente no tiene una direccion de envio registrada.');
-  }
+  const direccion = await repositorio.direccionDeEnvio(id, direccionId);
+  if (!direccion) throw errorSolicitud('El cliente no tiene una direccion de envio registrada.');
 
   res.status(200).json({
     valido: true,
@@ -180,7 +247,7 @@ export const validarParaCompra = async (req: PeticionAutenticada, res: Response)
       email: cliente.email,
       telefono: cliente.telefono
     },
-    direccion_envio: direcciones.rows[0]
+    direccion_envio: direccion
   });
 };
 
@@ -188,16 +255,7 @@ export const validarParaCompra = async (req: PeticionAutenticada, res: Response)
 export const historialCompras = async (req: PeticionAutenticada, res: Response): Promise<void> => {
   const id = Number(req.params.id);
   exigirPropiedad(req, id);
-
-  const { rows } = await pool.query(
-    `SELECT pedido_id, numero_pedido, total, estado, items, fecha
-       FROM historial_compras
-      WHERE cliente_id = $1
-      ORDER BY fecha DESC
-      LIMIT 50`,
-    [id]
-  );
-  res.status(200).json(rows);
+  res.status(200).json(await repositorio.historialDeCompras(id));
 };
 
 /**
@@ -220,12 +278,7 @@ export const registrarSuscripciones = async (bus: BusEventos): Promise<void> => 
         items?: unknown[];
       };
 
-      await pool.query(
-        `INSERT INTO historial_compras (cliente_id, pedido_id, numero_pedido, total, estado, items)
-         VALUES ($1, $2, $3, $4, $5, $6)
-         ON CONFLICT (pedido_id) DO UPDATE SET estado = EXCLUDED.estado`,
-        [d.cliente_id, d.pedido_id, d.numero, d.total, d.estado, d.items?.length ?? 0]
-      );
+      await repositorio.proyectarPedido({ ...d, items: d.items?.length ?? 0 });
     }
   );
 

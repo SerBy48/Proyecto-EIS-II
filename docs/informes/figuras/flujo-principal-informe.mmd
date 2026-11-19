@@ -1,0 +1,32 @@
+%% Variante para el informe (docs/informes/figuras/flujo-principal-informe.png, tema-informe.json) de docs/calidad/diagramas/flujo-principal.mmd.
+%% El mismo flujo en filas cortas, para que el texto se lea en una pagina
+%% vertical: el cliente arriba (pasos 1 a 6) y la saga abajo.
+flowchart TB
+    subgraph C1 ["Flujo del cliente a través del API Gateway"]
+      direction LR
+      A([Cliente]) --> L["<b>1. Login</b><br/>POST /auth/login<br/><i>bcrypt</i>"]
+      L --> B["<b>2. Búsqueda</b><br/>GET /catalogo/productos?q=<br/><i>Mongo $text + inventario</i>"]
+      B --> D["<b>3. Detalle</b><br/>GET /catalogo/productos/:sku"]
+    end
+    subgraph C2 [" "]
+      direction LR
+      C["<b>4. Carrito</b><br/>POST /carrito/:id/items<br/><i>Redis + precio del catálogo</i>"]
+      C --> K["<b>5. Checkout (saga)</b><br/>POST /pedidos/checkout"]
+      K --> M["<b>6. Mis pedidos</b><br/>GET /pedidos"]
+    end
+    subgraph S1G ["Pasos síncronos de la saga (pedidos-service)"]
+      direction LR
+      S1[clientes /validar] --> S2[carrito /checkout]
+      S2 --> S3[catálogo /precio ×N]
+      S3 --> S4["inventario /reservas ×N<br/><i>pg_advisory_xact_lock</i>"]
+    end
+    subgraph S2G [" "]
+      direction LR
+      S5["pagos /cobros<br/><i>pasarela simulada</i>"] --> S6[inventario /confirmar ×N]
+      S6 --> S7[carrito: vaciar]
+      S7 --> S8[(RabbitMQ<br/>pedido.confirmado)]
+      S8 -. evento .-> N[notificaciones<br/>clientes /historial]
+    end
+    C1 --> C2
+    C2 -. "el paso 5 orquesta" .-> S1G
+    S1G --> S2G

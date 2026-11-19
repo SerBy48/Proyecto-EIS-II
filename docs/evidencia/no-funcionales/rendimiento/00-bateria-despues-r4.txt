@@ -1,0 +1,30 @@
+-- reponiendo stock antes de checkout-carga
+   esperando a que se vacie la cola de notificaciones (4310 pendientes)
+   esperando a que se vacie la cola de notificaciones (4107 pendientes)
+   esperando a que se vacie la cola de notificaciones (3902 pendientes)
+   esperando a que se vacie la cola de notificaciones (3695 pendientes)
+   esperando a que se vacie la cola de notificaciones (3492 pendientes)
+   esperando a que se vacie la cola de notificaciones (3283 pendientes)
+   esperando a que se vacie la cola de notificaciones (3077 pendientes)
+   esperando a que se vacie la cola de notificaciones (2874 pendientes)
+   esperando a que se vacie la cola de notificaciones (2672 pendientes)
+   esperando a que se vacie la cola de notificaciones (2470 pendientes)
+   esperando a que se vacie la cola de notificaciones (2265 pendientes)
+   esperando a que se vacie la cola de notificaciones (2064 pendientes)
+   esperando a que se vacie la cola de notificaciones (1862 pendientes)
+   esperando a que se vacie la cola de notificaciones (1659 pendientes)
+   esperando a que se vacie la cola de notificaciones (1457 pendientes)
+   esperando a que se vacie la cola de notificaciones (1251 pendientes)
+   esperando a que se vacie la cola de notificaciones (1049 pendientes)
+   esperando a que se vacie la cola de notificaciones (848 pendientes)
+   esperando a que se vacie la cola de notificaciones (646 pendientes)
+   esperando a que se vacie la cola de notificaciones (444 pendientes)
+   esperando a que se vacie la cola de notificaciones (239 pendientes)
+== checkout-carga-despues-r4-saga-vacia contra http://localhost:8080
+    checks_succeeded...: 100.00% 23372 out of 23372
+    http_req_duration................: avg=222.98ms min=3.68ms   med=143.75ms p(90)=532.58ms p(95)=628.96ms p(99)=876.06ms max=1.17s   
+    http_req_failed..................: 0.00%  0 out of 15648
+    http_reqs........................: 15648  57.784417/s
+    vus_max..........................: 50     min=50         max=50
+== checkout-carga-despues-r4-saga-vacia terminado: codigo k6 0 (99 = algun umbral no se cumplio), lineas 5xx en el gateway: 0
+== bateria terminada 2026-11-15T02:09:28-05:00

@@ -1,0 +1,61 @@
+
+
+  █ THRESHOLDS 
+
+    checks
+    ✗ 'rate>0.99' rate=81.41%
+
+    http_req_duration{endpoint:catalogo_busqueda}
+    ✓ 'p(95)<500' p(95)=459.71ms
+
+    http_req_duration{endpoint:checkout}
+    ✗ 'p(95)<1500' p(95)=3.69s
+
+    http_req_duration{endpoint:login}
+    ✗ 'p(95)<1000' p(95)=10.68s
+
+    http_req_duration{endpoint:mis_pedidos}
+    ✗ 'p(95)<500' p(95)=549.68ms
+
+    http_req_failed
+    ✗ 'rate<0.01' rate=20.89%
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 52979  89.246743/s
+    checks_succeeded...: 81.41% 43132 out of 52979
+    checks_failed......: 18.58% 9847 out of 52979
+
+    ✗ login 200
+      ↳  38% — ✓ 6162 / ✗ 9847
+    ✓ catalogo 200
+    ✓ detalle 200
+    ✓ carrito 200
+    ✓ checkout 201/200
+    ✓ pedido queda pagado
+    ✓ mis pedidos 200
+
+    HTTP
+    http_req_duration..................: avg=1s       min=3.75ms   med=180.47ms p(90)=2.03s    p(95)=7.66s    p(99)=11.19s   max=13.8s
+      { endpoint:catalogo_busqueda }...: avg=114.74ms min=3.83ms   med=57.12ms  p(90)=306.06ms p(95)=459.71ms p(99)=731.32ms max=1.54s
+      { endpoint:checkout }............: avg=1.43s    min=237.99ms med=1.12s    p(90)=2.75s    p(95)=3.69s    p(99)=5.88s    max=8.12s
+      { endpoint:login }...............: avg=2.19s    min=4.97ms   med=423.27ms p(90)=8.79s    p(95)=10.68s   p(99)=12.21s   max=13.8s
+      { endpoint:mis_pedidos }.........: avg=148.24ms min=4.8ms    med=79.7ms   p(90)=381.73ms p(95)=549.68ms p(99)=829.81ms max=1.86s
+      { expected_response:true }.......: avg=1.17s    min=3.75ms   med=146.74ms p(90)=3.3s     p(95)=8.37s    p(99)=11.39s   max=13.8s
+    http_req_failed....................: 20.89% 9847 out of 47117
+    http_reqs..........................: 47117  79.371804/s
+
+    EXECUTION
+    iteration_duration.................: avg=5.88s    min=1s       med=1.57s    p(90)=17.01s   p(95)=20.08s   p(99)=22.3s    max=26.4s
+    iterations.........................: 16006  26.9632/s
+    vus................................: 9      min=1             max=300
+    vus_max............................: 300    min=300           max=300
+
+    NETWORK
+    data_received......................: 115 MB 194 kB/s
+    data_sent..........................: 13 MB  21 kB/s
+
+
+
+time="2026-11-15T01:12:37-05:00" level=error msg="thresholds on metrics 'checks, http_req_duration{endpoint:checkout}, http_req_duration{endpoint:login}, http_req_duration{endpoint:mis_pedidos}, http_req_failed' have been crossed"

@@ -1,0 +1,23 @@
+
+> ecommerce-distribuido@1.0.0 test:e2e:ui
+> tsx --env-file-if-exists=.env tests/e2e-ui/aceptacion.ts
+
+
+Aceptacion E2E de interfaz contra http://localhost:8081
+
+  PASA  CA-01 Registro de un cliente nuevo — e2e-ui-1794842021439@correo.co con sesión iniciada y dirección de envío lista para comprar
+  PASA  CA-02 Inicio de sesión (error y éxito) — error: "Credenciales invalidas."; luego entra
+  PASA  CA-03 Búsqueda y filtro — 1 productos, todos de tecnología
+  PASA  CA-04 Carrito y cupón — descuento de 314910 sobre 3149100
+  PASA  CA-05 Compra aprobada — PED-202611-001043 pagado; carrito vacío
+  PASA  CA-09 Correo de confirmación — correo de PED-202611-001043 para ana@correo.co
+  PASA  CA-08 Cancelación — PED-202611-001043 cancelado; aviso: "El pedido PED-202611-001043 fue cancelado. Si ya se había co…"
+  PASA  CA-06 Compra rechazada con compensación — stock de SKU-HOG-001: 47 antes y 47 después (devuelto)
+  PASA  CA-07 Última unidad — Ana compra SKU-ACE-997; Bruno ve "Se agoto el producto SKU-ACE-997 mientras completa…" y no se le cobra
+  PASA  CA-10 Asistente virtual — FAQ y búsqueda como visitante; Ana ve PED-202611-001046 y no ve PED-202611-001047 (de Bruno)
+  PASA  CA-11 Vendedor: entrada de stock — SKU-HOG-002: 3 -> 13
+  PASA  CA-12 Administrador: estado y bitácora de la saga — PED-202611-001048 en preparación; bitácora con 14 pasos
+
+12 de 12 criterios de aceptación pasan.
+Evidencia: docs\evidencia\trabajo-final\e2e-ui
+

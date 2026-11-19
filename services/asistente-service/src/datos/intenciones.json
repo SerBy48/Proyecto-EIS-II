@@ -1,0 +1,312 @@
+{
+  "_descripcion": "Intenciones del asistente de SerByTek. Se siembran en asistente_db.intenciones: las que faltan se agregan al arrancar y las que el administrador no ha editado (editada != true) se actualizan con esta version; las editadas con PATCH /api/asistente/intenciones/:clave se respetan. Terminos sin tildes y en minusculas (el motor normaliza el texto y acepta plural y errores de tipeo). Un termino que termina en * coincide por prefijo. Mayor prioridad gana los empates. Los nombres de productos, subcategorias y marcas NO van aqui: salen del catalogo (GET /api/catalogo/categorias).",
+  "intenciones": [
+    {
+      "clave": "saludo",
+      "descripcion": "Saludo",
+      "ejemplo": "Hola",
+      "prioridad": 1,
+      "terminos": [
+        { "texto": "hola", "peso": 3 }, { "texto": "buenas", "peso": 3 }, { "texto": "buenos dias", "peso": 3 },
+        { "texto": "buen dia", "peso": 3 }, { "texto": "buenas tardes", "peso": 3 }, { "texto": "buenas noches", "peso": 3 },
+        { "texto": "saludos", "peso": 3 }, { "texto": "hey", "peso": 2 }, { "texto": "que tal", "peso": 2 },
+        { "texto": "holi", "peso": 3 }, { "texto": "ola", "peso": 2 }
+      ]
+    },
+    {
+      "clave": "ayuda",
+      "descripcion": "Ayuda y menú de opciones",
+      "ejemplo": "¿Qué puedes hacer?",
+      "prioridad": 2,
+      "terminos": [
+        { "texto": "ayuda", "peso": 3 }, { "texto": "ayudame", "peso": 3 }, { "texto": "me puedes ayudar", "peso": 4 },
+        { "texto": "menu", "peso": 3 }, { "texto": "opciones", "peso": 2 }, { "texto": "que puedes hacer", "peso": 5 },
+        { "texto": "que haces", "peso": 3 }, { "texto": "como funciona", "peso": 2 }, { "texto": "en que me ayudas", "peso": 5 },
+        { "texto": "quien eres", "peso": 4 }, { "texto": "eres un bot", "peso": 4 }, { "texto": "eres una ia", "peso": 4 }
+      ]
+    },
+    {
+      "clave": "despedida",
+      "descripcion": "Agradecimiento o despedida",
+      "ejemplo": "Gracias",
+      "prioridad": 1,
+      "terminos": [
+        { "texto": "gracias", "peso": 3 }, { "texto": "muchas gracias", "peso": 3 }, { "texto": "adios", "peso": 3 },
+        { "texto": "chao", "peso": 3 }, { "texto": "hasta luego", "peso": 3 }, { "texto": "eso es todo", "peso": 4 },
+        { "texto": "perfecto", "peso": 2 }, { "texto": "listo", "peso": 2 }, { "texto": "ok", "peso": 2 },
+        { "texto": "vale", "peso": 1 }, { "texto": "excelente", "peso": 2 }, { "texto": "genial", "peso": 2 },
+        { "texto": "entendido", "peso": 2 }
+      ]
+    },
+    {
+      "clave": "categorias",
+      "descripcion": "Qué vende la tienda (secciones del catálogo)",
+      "ejemplo": "¿Qué productos venden?",
+      "prioridad": 4,
+      "terminos": [
+        { "texto": "categorias", "peso": 5 }, { "texto": "secciones", "peso": 4 }, { "texto": "que venden", "peso": 5 },
+        { "texto": "que productos tienen", "peso": 5 }, { "texto": "que productos venden", "peso": 5 }, { "texto": "que tienen", "peso": 3 },
+        { "texto": "que manejan", "peso": 4 }, { "texto": "catalogo", "peso": 3 }, { "texto": "que hay en la tienda", "peso": 5 },
+        { "texto": "todo lo que venden", "peso": 5 }, { "texto": "tipos de productos", "peso": 5 }
+      ]
+    },
+    {
+      "clave": "ofertas",
+      "descripcion": "Productos en oferta",
+      "ejemplo": "¿Qué productos están en oferta?",
+      "prioridad": 5,
+      "refuerzos": { "oferta": 3, "subcategoria": 1, "marca": 1 },
+      "terminos": [
+        { "texto": "oferta", "peso": 3 }, { "texto": "ofertas", "peso": 3 }, { "texto": "en oferta", "peso": 4 },
+        { "texto": "rebaja", "peso": 3 }, { "texto": "rebajas", "peso": 3 }, { "texto": "liquidacion", "peso": 3 },
+        { "texto": "promociones", "peso": 2 }, { "texto": "descuentos", "peso": 2 }, { "texto": "con descuento", "peso": 3 },
+        { "texto": "black friday", "peso": 4 }
+      ]
+    },
+    {
+      "clave": "faq_cupones",
+      "descripcion": "Cómo usar un cupón",
+      "ejemplo": "¿Cómo uso un cupón de descuento?",
+      "prioridad": 6,
+      "terminos": [
+        { "texto": "cupon", "peso": 6 }, { "texto": "cupones", "peso": 6 }, { "texto": "codigo de descuento", "peso": 6 },
+        { "texto": "codigo promocional", "peso": 6 }, { "texto": "bienvenida10", "peso": 6 }, { "texto": "enviogratis", "peso": 6 },
+        { "texto": "codigo", "peso": 3 }, { "texto": "bono", "peso": 3 }
+      ]
+    },
+    {
+      "clave": "faq_envio",
+      "descripcion": "Costo del envío",
+      "ejemplo": "¿Cuánto cuesta el envío?",
+      "prioridad": 5,
+      "terminos": [
+        { "texto": "envio", "peso": 2 }, { "texto": "envios", "peso": 2 }, { "texto": "domicilio", "peso": 2 },
+        { "texto": "flete", "peso": 3 }, { "texto": "costo de envio", "peso": 4 }, { "texto": "valor del envio", "peso": 4 },
+        { "texto": "cuanto cuesta el envio", "peso": 5 }, { "texto": "cuanto vale el envio", "peso": 5 },
+        { "texto": "cuanto cobran por el envio", "peso": 5 }, { "texto": "envian a", "peso": 3 }, { "texto": "hacen envios", "peso": 3 }
+      ]
+    },
+    {
+      "clave": "faq_envio_gratis",
+      "descripcion": "Desde cuánto el envío es gratis",
+      "ejemplo": "¿Desde cuánto el envío es gratis?",
+      "prioridad": 6,
+      "terminos": [
+        { "texto": "envio gratis", "peso": 5 }, { "texto": "envio es gratis", "peso": 5 }, { "texto": "gratis", "peso": 3 },
+        { "texto": "sin costo de envio", "peso": 5 }, { "texto": "envio sin costo", "peso": 5 }, { "texto": "no pagar envio", "peso": 4 }
+      ]
+    },
+    {
+      "clave": "faq_iva",
+      "descripcion": "Impuestos (IVA)",
+      "ejemplo": "¿Los precios incluyen IVA?",
+      "prioridad": 5,
+      "terminos": [
+        { "texto": "iva", "peso": 5 }, { "texto": "incluye iva", "peso": 5 }, { "texto": "impuesto", "peso": 4 },
+        { "texto": "impuestos", "peso": 4 }
+      ]
+    },
+    {
+      "clave": "faq_pagos",
+      "descripcion": "Medios de pago",
+      "ejemplo": "¿Cuáles son los medios de pago?",
+      "prioridad": 5,
+      "terminos": [
+        { "texto": "medios de pago", "peso": 5 }, { "texto": "metodos de pago", "peso": 5 }, { "texto": "formas de pago", "peso": 5 },
+        { "texto": "como pago", "peso": 4 }, { "texto": "puedo pagar", "peso": 3 }, { "texto": "pagar con", "peso": 3 },
+        { "texto": "pago con", "peso": 3 }, { "texto": "tarjeta", "peso": 2 }, { "texto": "credito", "peso": 2 },
+        { "texto": "debito", "peso": 2 }, { "texto": "pse", "peso": 3 }, { "texto": "efecty", "peso": 3 },
+        { "texto": "nequi", "peso": 3 }, { "texto": "contraentrega", "peso": 3 }, { "texto": "cuotas", "peso": 3 }
+      ]
+    },
+    {
+      "clave": "faq_entrega",
+      "descripcion": "Tiempos de entrega",
+      "ejemplo": "¿Cuánto tarda en llegar un pedido?",
+      "prioridad": 4,
+      "terminos": [
+        { "texto": "tiempo de entrega", "peso": 5 }, { "texto": "tiempos de entrega", "peso": 5 }, { "texto": "cuanto tarda", "peso": 4 },
+        { "texto": "cuanto se demora", "peso": 4 }, { "texto": "cuanto demora", "peso": 4 }, { "texto": "demora", "peso": 3 },
+        { "texto": "cuando llega", "peso": 4 }, { "texto": "en cuanto llega", "peso": 4 }, { "texto": "dias habiles", "peso": 3 },
+        { "texto": "entrega", "peso": 2 }, { "texto": "tarda en llegar", "peso": 4 }
+      ]
+    },
+    {
+      "clave": "faq_devoluciones",
+      "descripcion": "Devoluciones, garantía y retracto",
+      "ejemplo": "¿Cómo hago una devolución?",
+      "prioridad": 5,
+      "terminos": [
+        { "texto": "devolucion", "peso": 4 }, { "texto": "devoluciones", "peso": 4 }, { "texto": "devolver", "peso": 4 },
+        { "texto": "garantia", "peso": 4 }, { "texto": "retracto", "peso": 4 }, { "texto": "retractar", "peso": 4 },
+        { "texto": "reembolso", "peso": 3 }, { "texto": "cambio", "peso": 2 }, { "texto": "cambiar un producto", "peso": 4 },
+        { "texto": "llego danado", "peso": 4 }, { "texto": "defectuoso", "peso": 4 }, { "texto": "no funciona", "peso": 3 }
+      ]
+    },
+    {
+      "clave": "faq_horario",
+      "descripcion": "Horario de atención",
+      "ejemplo": "¿Cuál es el horario de atención?",
+      "prioridad": 5,
+      "terminos": [
+        { "texto": "horario", "peso": 4 }, { "texto": "horarios", "peso": 4 }, { "texto": "a que hora", "peso": 3 },
+        { "texto": "atienden", "peso": 3 }, { "texto": "atencion al cliente", "peso": 3 }, { "texto": "abren", "peso": 3 },
+        { "texto": "cierran", "peso": 3 }
+      ]
+    },
+    {
+      "clave": "faq_cuenta",
+      "descripcion": "Crear una cuenta",
+      "ejemplo": "¿Cómo creo una cuenta?",
+      "prioridad": 5,
+      "terminos": [
+        { "texto": "crear una cuenta", "peso": 6 }, { "texto": "crear cuenta", "peso": 6 }, { "texto": "creo una cuenta", "peso": 6 },
+        { "texto": "abrir una cuenta", "peso": 6 }, { "texto": "registrarme", "peso": 6 }, { "texto": "registro", "peso": 4 },
+        { "texto": "registrarse", "peso": 6 }, { "texto": "me registro", "peso": 6 }, { "texto": "inscribirme", "peso": 5 },
+        { "texto": "nueva cuenta", "peso": 5 }
+      ]
+    },
+    {
+      "clave": "faq_contrasena",
+      "descripcion": "Contraseña e inicio de sesión",
+      "ejemplo": "Olvidé mi contraseña",
+      "prioridad": 6,
+      "terminos": [
+        { "texto": "contrasena", "peso": 6 }, { "texto": "clave", "peso": 4 }, { "texto": "password", "peso": 6 },
+        { "texto": "olvide", "peso": 3 }, { "texto": "no puedo entrar", "peso": 6 }, { "texto": "no puedo ingresar", "peso": 6 },
+        { "texto": "no puedo iniciar sesion", "peso": 6 }, { "texto": "iniciar sesion", "peso": 3 }, { "texto": "credenciales", "peso": 4 },
+        { "texto": "bloqueada", "peso": 3 }
+      ]
+    },
+    {
+      "clave": "faq_direccion",
+      "descripcion": "Cambiar la dirección de envío",
+      "ejemplo": "¿Cómo cambio mi dirección de envío?",
+      "prioridad": 6,
+      "terminos": [
+        { "texto": "direccion", "peso": 4 }, { "texto": "direcciones", "peso": 4 }, { "texto": "cambiar la direccion", "peso": 6 },
+        { "texto": "cambio mi direccion", "peso": 6 }, { "texto": "cambiar mi direccion", "peso": 6 }, { "texto": "otra direccion", "peso": 5 },
+        { "texto": "me equivoque en la direccion", "peso": 6 }, { "texto": "direccion de envio", "peso": 5 },
+        { "texto": "mis datos", "peso": 3 }, { "texto": "mi perfil", "peso": 4 }, { "texto": "actualizar mis datos", "peso": 5 },
+        { "texto": "departamento", "peso": 3 }, { "texto": "ciudad", "peso": 2 }
+      ]
+    },
+    {
+      "clave": "faq_eliminar_cuenta",
+      "descripcion": "Eliminar la cuenta",
+      "ejemplo": "Quiero eliminar mi cuenta",
+      "prioridad": 7,
+      "terminos": [
+        { "texto": "eliminar mi cuenta", "peso": 7 }, { "texto": "eliminar la cuenta", "peso": 7 }, { "texto": "borrar mi cuenta", "peso": 7 },
+        { "texto": "cerrar mi cuenta", "peso": 7 }, { "texto": "dar de baja", "peso": 6 }, { "texto": "elimino mis datos", "peso": 7 },
+        { "texto": "borrar mis datos", "peso": 7 }, { "texto": "eliminar mis datos", "peso": 7 }, { "texto": "habeas data", "peso": 6 },
+        { "texto": "eliminar cuenta", "peso": 7 }, { "texto": "borrar cuenta", "peso": 7 }
+      ]
+    },
+    {
+      "clave": "faq_tienda",
+      "descripcion": "Sobre SerByTek",
+      "ejemplo": "¿Quiénes son SerByTek?",
+      "prioridad": 4,
+      "terminos": [
+        { "texto": "serbytek", "peso": 4 }, { "texto": "quienes son", "peso": 5 }, { "texto": "quienes somos", "peso": 5 },
+        { "texto": "tienda fisica", "peso": 6 }, { "texto": "donde estan ubicados", "peso": 6 }, { "texto": "ubicacion", "peso": 4 },
+        { "texto": "direccion de la tienda", "peso": 7 }, { "texto": "puedo recoger", "peso": 5 }, { "texto": "son confiables", "peso": 5 },
+        { "texto": "sede", "peso": 3 }, { "texto": "local", "peso": 2 }
+      ]
+    },
+    {
+      "clave": "faq_seguridad",
+      "descripcion": "Seguridad de los pagos y los datos",
+      "ejemplo": "¿Es seguro pagar en la tienda?",
+      "prioridad": 6,
+      "terminos": [
+        { "texto": "es seguro", "peso": 6 }, { "texto": "seguridad", "peso": 5 }, { "texto": "seguro pagar", "peso": 6 },
+        { "texto": "guardan mi tarjeta", "peso": 6 }, { "texto": "guardan los datos", "peso": 6 }, { "texto": "fraude", "peso": 5 },
+        { "texto": "protegen mis datos", "peso": 6 }, { "texto": "confiable", "peso": 3 }
+      ]
+    },
+    {
+      "clave": "faq_factura",
+      "descripcion": "Factura y comprobante de compra",
+      "ejemplo": "¿Me dan factura?",
+      "prioridad": 5,
+      "terminos": [
+        { "texto": "factura", "peso": 6 }, { "texto": "facturacion", "peso": 5 }, { "texto": "facturar", "peso": 5 },
+        { "texto": "comprobante", "peso": 5 }, { "texto": "recibo", "peso": 4 }, { "texto": "rut", "peso": 3 }
+      ]
+    },
+    {
+      "clave": "buscar_producto",
+      "descripcion": "Buscar productos en el catálogo",
+      "ejemplo": "Quiero buscar un producto",
+      "prioridad": 3,
+      "refuerzos": { "subcategoria": 2, "marca": 2, "precio": 2, "economico": 1 },
+      "terminos": [
+        { "texto": "tienen", "peso": 2 }, { "texto": "tienes", "peso": 2 }, { "texto": "venden", "peso": 3 },
+        { "texto": "manejan", "peso": 2 }, { "texto": "busco", "peso": 3 }, { "texto": "buscar", "peso": 2 },
+        { "texto": "estoy buscando", "peso": 3 }, { "texto": "quiero comprar", "peso": 3 }, { "texto": "necesito", "peso": 2 },
+        { "texto": "muestrame", "peso": 3 }, { "texto": "recomiendame", "peso": 3 }, { "texto": "recomiendas", "peso": 3 },
+        { "texto": "me recomiendas", "peso": 3 }, { "texto": "que me recomiendas", "peso": 4 }, { "texto": "cual es mejor", "peso": 3 },
+        { "texto": "quiero ver", "peso": 2 }, { "texto": "quiero un", "peso": 1 }, { "texto": "quiero una", "peso": 1 },
+        { "texto": "me interesa", "peso": 2 }, { "texto": "productos", "peso": 1 }
+      ]
+    },
+    {
+      "clave": "precio_disponibilidad",
+      "descripcion": "Precio y disponibilidad de un producto",
+      "ejemplo": "¿Cuánto cuesta el portátil Aurora?",
+      "prioridad": 4,
+      "refuerzos": { "sku": 4 },
+      "terminos": [
+        { "texto": "precio", "peso": 4 }, { "texto": "cuanto cuesta", "peso": 3 }, { "texto": "cuanto vale", "peso": 3 },
+        { "texto": "cuanto valen", "peso": 3 }, { "texto": "cuanto cuestan", "peso": 3 },
+        { "texto": "disponible", "peso": 3 }, { "texto": "disponibilidad", "peso": 4 }, { "texto": "stock", "peso": 4 },
+        { "texto": "quedan", "peso": 3 }, { "texto": "hay unidades", "peso": 4 }, { "texto": "existencias", "peso": 4 },
+        { "texto": "agotado", "peso": 3 }, { "texto": "en existencia", "peso": 4 }
+      ]
+    },
+    {
+      "clave": "estado_pedido",
+      "descripcion": "Estado de mis pedidos",
+      "ejemplo": "¿Cuál es el estado de mis pedidos?",
+      "prioridad": 6,
+      "requiere_sesion": true,
+      "refuerzos": { "pedido": 4 },
+      "terminos": [
+        { "texto": "pedido", "peso": 2 }, { "texto": "pedidos", "peso": 2 }, { "texto": "mi pedido", "peso": 3 },
+        { "texto": "mis pedidos", "peso": 4 }, { "texto": "mi compra", "peso": 3 }, { "texto": "mis compras", "peso": 3 },
+        { "texto": "estado", "peso": 2 }, { "texto": "donde esta", "peso": 3 }, { "texto": "seguimiento", "peso": 4 },
+        { "texto": "rastrear", "peso": 4 }, { "texto": "ya salio", "peso": 3 }, { "texto": "cuando llega mi pedido", "peso": 5 },
+        { "texto": "no me ha llegado", "peso": 5 }, { "texto": "no ha llegado", "peso": 5 }
+      ]
+    },
+    {
+      "clave": "cancelar_pedido",
+      "descripcion": "Cómo cancelar un pedido",
+      "ejemplo": "Quiero cancelar un pedido",
+      "prioridad": 7,
+      "requiere_sesion": true,
+      "refuerzos": { "pedido": 4 },
+      "terminos": [
+        { "texto": "cancelar", "peso": 6 }, { "texto": "cancelo", "peso": 5 }, { "texto": "cancelacion", "peso": 6 },
+        { "texto": "anular", "peso": 6 }, { "texto": "ya no lo quiero", "peso": 5 }
+      ]
+    },
+    {
+      "clave": "humano",
+      "descripcion": "Hablar con una persona (escalamiento)",
+      "ejemplo": "Quiero hablar con un asesor",
+      "prioridad": 8,
+      "terminos": [
+        { "texto": "humano", "peso": 5 }, { "texto": "asesor", "peso": 5 }, { "texto": "agente", "peso": 4 },
+        { "texto": "operador", "peso": 4 }, { "texto": "persona", "peso": 3 }, { "texto": "hablar con alguien", "peso": 5 },
+        { "texto": "hablar con una persona", "peso": 6 }, { "texto": "queja", "peso": 3 }, { "texto": "reclamo", "peso": 3 },
+        { "texto": "soporte", "peso": 4 }, { "texto": "servicio al cliente", "peso": 5 },
+        { "texto": "vendedor", "peso": 6 }, { "texto": "contactar", "peso": 5 }, { "texto": "contacten", "peso": 5 },
+        { "texto": "comunico", "peso": 5 }, { "texto": "comunicarme", "peso": 5 }, { "texto": "escribirle", "peso": 5 },
+        { "texto": "mensaje a la tienda", "peso": 6 }, { "texto": "pregunta al vendedor", "peso": 6 }, { "texto": "duda", "peso": 3 }
+      ]
+    }
+  ]
+}

@@ -11,6 +11,7 @@
   "dependencies": {
     "@ecommerce/shared": "*",
     "dotenv": "^16.4.5",
+    "drizzle-orm": "0.45.4",
     "express": "^4.21.1",
     "pg": "^8.13.1"
   },

@@ -1,0 +1,33 @@
+openapi: 3.0.3
+info:
+  title: Plataforma de comercio electronico - API interna de la saga
+  version: 1.0.0
+  description: |
+    Rutas que usan los servicios entre si (la saga de pedidos y el carrito). Entre
+    servicios exigen el secreto compartido **y** la cabecera `x-llamada-interna`
+    (invariante 11). A traves del gateway solo las puede usar el personal interno.
+    **No se publica** en Swagger UI (docs/adr/0008-openapi-centralizada-gateway.md).
+servers:
+  - url: http://localhost:8080
+security:
+  - bearerAuth: []
+tags:
+  - { name: interna, description: Uso exclusivo entre servicios }
+paths:
+  /api/clientes/{id}/validar: { $ref: 'rutas/internas.yaml#/validar' }
+  /api/clientes/{id}/anonimizar: { $ref: 'rutas/internas.yaml#/anonimizar' }
+  /api/pedidos/internos/clientes/{clienteId}/pendientes: { $ref: 'rutas/internas.yaml#/pendientes' }
+  /api/catalogo/productos/{sku}/precio: { $ref: 'rutas/internas.yaml#/precio' }
+  /api/carrito/{clienteId}/checkout: { $ref: 'rutas/internas.yaml#/carritoCheckout' }
+  /api/inventario/reservas: { $ref: 'rutas/internas.yaml#/reservas' }
+  /api/inventario/reservas/{id}: { $ref: 'rutas/internas.yaml#/reserva' }
+  /api/inventario/reservas/{id}/confirmar: { $ref: 'rutas/internas.yaml#/confirmarReserva' }
+  /api/inventario/reservas/{id}/liberar: { $ref: 'rutas/internas.yaml#/liberarReserva' }
+  /api/pagos/cobros: { $ref: 'rutas/internas.yaml#/cobros' }
+  /api/pagos/transacciones/{referencia}/reembolsar: { $ref: 'rutas/internas.yaml#/reembolsar' }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

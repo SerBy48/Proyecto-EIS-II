@@ -1,0 +1,227 @@
+# pedidos-service (prefijo /api/pedidos). Orquestador de la saga de compra.
+checkout:
+  post:
+    tags: [pedidos]
+    summary: Comprar el carrito (saga de checkout)
+    description: |
+      Saga orquestada: validar cliente, leer carrito, verificar precios, reservar stock,
+      crear pedido, cobrar y confirmar la reserva. Si el pago falla, libera el stock y
+      cancela el pedido. La clave de idempotencia es obligatoria: repetirla devuelve 200
+      con `idempotente: true` y no cobra otra vez. El gateway limita a 10 checkouts por
+      minuto. Tokens de la pasarela simulada: `tok_ok_*` (aprobado), `tok_rechazo_*`
+      (402), `tok_error_*` (502), `tok_lento_*` (aprobado tras 5 s).
+    operationId: checkout
+    x-roles: [cliente, administrador, vendedor]
+    parameters: [{ $ref: '../componentes/parametros.yaml#/IdempotencyKey' }]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../componentes/esquemas.yaml#/SolicitudCheckout' }
+    responses:
+      '201':
+        description: Compra confirmada y pagada.
+        content:
+          application/json:
+            schema: { $ref: '../componentes/esquemas.yaml#/ResultadoCheckout' }
+      '200':
+        description: Replica idempotente de una compra ya hecha con la misma clave.
+        content:
+          application/json:
+            schema: { $ref: '../componentes/esquemas.yaml#/ResultadoCheckout' }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '402':
+        description: Pago rechazado (PAGO_RECHAZADO); el stock se devolvio y el pedido quedo cancelado.
+        content:
+          application/json:
+            schema: { $ref: '../componentes/esquemas.yaml#/Error' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+      '409': { $ref: '../componentes/respuestas.yaml#/Conflicto' }
+      '429': { $ref: '../componentes/respuestas.yaml#/LimiteExcedido' }
+      '502':
+        description: Error tecnico de la pasarela; la saga compenso.
+        content:
+          application/json:
+            schema: { $ref: '../componentes/esquemas.yaml#/Error' }
+      '503': { $ref: '../componentes/respuestas.yaml#/NoDisponible' }
+
+pedidos:
+  get:
+    tags: [pedidos]
+    summary: Listar pedidos
+    description: Un cliente ve los suyos; el personal interno ve todos y puede filtrar por cliente.
+    operationId: listarPedidos
+    x-roles: [sesion]
+    parameters:
+      - { $ref: '../componentes/parametros.yaml#/FiltroClienteId' }
+      - { name: estado, in: query, schema: { $ref: '../componentes/esquemas.yaml#/EstadoPedido' } }
+    responses:
+      '200':
+        description: Pedidos, del mas reciente al mas antiguo (maximo 100).
+        content:
+          application/json:
+            schema: { type: array, items: { $ref: '../componentes/esquemas.yaml#/PedidoResumen' } }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+
+pedido:
+  parameters: [{ $ref: '../componentes/parametros.yaml#/IdPedido' }]
+  get:
+    tags: [pedidos]
+    summary: Detalle de un pedido
+    description: Con sus items y su historial de estados. Un pedido ajeno responde como si no existiera.
+    operationId: obtenerPedido
+    x-roles: [sesion]
+    responses:
+      '200':
+        description: Pedido.
+        content:
+          application/json:
+            schema: { $ref: '../componentes/esquemas.yaml#/Pedido' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+      '404': { $ref: '../componentes/respuestas.yaml#/NoEncontrado' }
+
+saga:
+  parameters: [{ $ref: '../componentes/parametros.yaml#/IdPedido' }]
+  get:
+    tags: [pedidos]
+    summary: Bitacora de la saga de un pedido
+    operationId: bitacoraSaga
+    x-roles: [administrador]
+    responses:
+      '200':
+        description: Pasos en orden, con sus compensaciones.
+        content:
+          application/json:
+            schema: { type: array, items: { $ref: '../componentes/esquemas.yaml#/PasoSaga' } }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+      '404': { $ref: '../componentes/respuestas.yaml#/NoEncontrado' }
+
+cancelar:
+  parameters: [{ $ref: '../componentes/parametros.yaml#/IdPedido' }]
+  post:
+    tags: [pedidos]
+    summary: Cancelar un pedido
+    description: |
+      El cliente solo puede cancelar los suyos en estado `creado` o `pagado`. Si estaba
+      pagado, se reembolsa y se devuelve el stock. Cancelar de nuevo responde 200 con
+      `idempotente: true`.
+    operationId: cancelarPedido
+    x-roles: [sesion]
+    requestBody:
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              motivo: { type: string, maxLength: 200, example: Ya no lo necesito }
+    responses:
+      '200':
+        description: Pedido cancelado, con las compensaciones aplicadas.
+        content:
+          application/json:
+            schema: { $ref: '../componentes/esquemas.yaml#/ResultadoCancelacion' }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+      '404': { $ref: '../componentes/respuestas.yaml#/NoEncontrado' }
+
+estado:
+  parameters: [{ $ref: '../componentes/parametros.yaml#/IdPedido' }]
+  patch:
+    tags: [pedidos]
+    summary: Cambiar el estado de un pedido
+    description: 'Transiciones permitidas: creado → pagado | cancelado; pagado → en_preparacion | cancelado; en_preparacion → enviado | cancelado; enviado → entregado.'
+    operationId: cambiarEstado
+    x-roles: [administrador, vendedor]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [estado]
+            properties:
+              estado: { $ref: '../componentes/esquemas.yaml#/EstadoPedido' }
+              motivo: { type: string }
+    responses:
+      '200':
+        description: Estado cambiado; se publica el evento para notificar al cliente.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mensaje: { type: string, example: "Pedido actualizado a 'enviado'." }
+                pedido: { type: object, additionalProperties: true }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+      '404': { $ref: '../componentes/respuestas.yaml#/NoEncontrado' }
+
+direccion:
+  parameters:
+    - { name: id, in: path, required: true, description: Id numerico del pedido., schema: { type: integer, example: 12 } }
+  patch:
+    tags: [pedidos]
+    summary: Cambiar la direccion de envio de un pedido
+    description: |
+      Solo el cliente dueno, como maximo 2 veces y mientras el pedido este creado, pagado o en
+      preparacion. El limite se aplica en una sola sentencia condicional (dos clics simultaneos no lo
+      superan). Envia un correo con la direccion nueva.
+    operationId: cambiarDireccionPedido
+    x-roles: [cliente]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../componentes/esquemas.yaml#/CambioDireccionPedido' }
+    responses:
+      '200':
+        description: Direccion actualizada.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mensaje: { type: string }
+                pedido: { type: object, additionalProperties: true }
+                cambios_restantes: { type: integer, example: 1 }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }
+      '404': { $ref: '../componentes/respuestas.yaml#/NoEncontrado' }
+      '409':
+        description: El pedido ya salio (DIRECCION_NO_EDITABLE) o ya se hicieron los 2 cambios (LIMITE_CAMBIOS_DIRECCION).
+        content:
+          application/json:
+            schema: { $ref: '../componentes/esquemas.yaml#/Error' }
+
+limites:
+  get:
+    tags: [pedidos]
+    summary: Cuanto puede llevar el cliente de cada producto
+    description: |
+      RF-47: un cliente debe dejar al menos 5 unidades para los demas (STOCK_RESERVA_CLIENTE), minimo 1,
+      contando lo que ya tiene en pedidos en curso. El checkout lo verifica antes de reservar y responde
+      409 LIMITE_POR_CLIENTE. Un cliente consulta los suyos (cliente_id del token); el personal indica cliente_id.
+    operationId: consultarLimites
+    x-roles: [cliente, administrador, vendedor]
+    parameters:
+      - { name: skus, in: query, required: true, description: 'De 1 a 50 SKU separados por coma.', schema: { type: string, example: 'SKU-TEC-001,SKU-TEC-004' } }
+      - { name: cliente_id, in: query, description: Solo personal interno., schema: { type: integer } }
+    responses:
+      '200':
+        description: Limite por SKU.
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reserva_por_cliente: { type: integer, example: 5 }
+                limites: { type: array, items: { $ref: '../componentes/esquemas.yaml#/LimiteCompra' } }
+      '400': { $ref: '../componentes/respuestas.yaml#/SolicitudInvalida' }
+      '401': { $ref: '../componentes/respuestas.yaml#/NoAutenticado' }
+      '403': { $ref: '../componentes/respuestas.yaml#/Prohibido' }

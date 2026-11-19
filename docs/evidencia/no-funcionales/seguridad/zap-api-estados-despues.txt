@@ -1,0 +1,12 @@
+Estados HTTP del gateway durante los dos escaneos activos del despues (desde 2026-11-15T20:21:48Z)
+   4992 "estado":403
+   2684 "estado":400
+   1963 "estado":409
+   1182 "estado":404
+    780 "estado":500
+    609 "estado":401
+    116 "estado":429
+
+Circuitos abiertos en carrito y pedidos:
+ecom_carrito: 0
+ecom_pedidos: 0

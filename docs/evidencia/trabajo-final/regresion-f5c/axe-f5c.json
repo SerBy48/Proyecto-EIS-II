@@ -1,0 +1,108 @@
+{
+  "fecha": "2026-11-18T08:08:37.381Z",
+  "web": "http://localhost:8081",
+  "estandar": "WCAG 2.2 A y AA",
+  "total": 0,
+  "resultados": [
+    {
+      "tema": "claro",
+      "pantalla": "Productos (lista)",
+      "violaciones": []
+    },
+    {
+      "tema": "claro",
+      "pantalla": "Productos (editar)",
+      "violaciones": []
+    },
+    {
+      "tema": "claro",
+      "pantalla": "Productos (nuevo)",
+      "violaciones": []
+    },
+    {
+      "tema": "claro",
+      "pantalla": "Inventario (entrada, historial y proveedores)",
+      "violaciones": []
+    },
+    {
+      "tema": "claro",
+      "pantalla": "Consultas (personal)",
+      "violaciones": []
+    },
+    {
+      "tema": "claro",
+      "pantalla": "Campana abierta (personal)",
+      "violaciones": []
+    },
+    {
+      "tema": "claro",
+      "pantalla": "Catálogo con disponibles y máximo por cliente",
+      "violaciones": []
+    },
+    {
+      "tema": "claro",
+      "pantalla": "Carrito con límite por cliente",
+      "violaciones": []
+    },
+    {
+      "tema": "claro",
+      "pantalla": "Mi perfil > Mis consultas",
+      "violaciones": []
+    },
+    {
+      "tema": "claro",
+      "pantalla": "Asistente: formulario de consulta",
+      "violaciones": []
+    },
+    {
+      "tema": "oscuro",
+      "pantalla": "Productos (lista)",
+      "violaciones": []
+    },
+    {
+      "tema": "oscuro",
+      "pantalla": "Productos (editar)",
+      "violaciones": []
+    },
+    {
+      "tema": "oscuro",
+      "pantalla": "Productos (nuevo)",
+      "violaciones": []
+    },
+    {
+      "tema": "oscuro",
+      "pantalla": "Inventario (entrada, historial y proveedores)",
+      "violaciones": []
+    },
+    {
+      "tema": "oscuro",
+      "pantalla": "Consultas (personal)",
+      "violaciones": []
+    },
+    {
+      "tema": "oscuro",
+      "pantalla": "Campana abierta (personal)",
+      "violaciones": []
+    },
+    {
+      "tema": "oscuro",
+      "pantalla": "Catálogo con disponibles y máximo por cliente",
+      "violaciones": []
+    },
+    {
+      "tema": "oscuro",
+      "pantalla": "Carrito con límite por cliente",
+      "violaciones": []
+    },
+    {
+      "tema": "oscuro",
+      "pantalla": "Mi perfil > Mis consultas",
+      "violaciones": []
+    },
+    {
+      "tema": "oscuro",
+      "pantalla": "Asistente: formulario de consulta",
+      "violaciones": []
+    }
+  ]
+}

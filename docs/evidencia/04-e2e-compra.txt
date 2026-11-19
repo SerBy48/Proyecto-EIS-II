@@ -1,12 +1,8 @@
-
-> ecommerce-distribuido@1.0.0 test:e2e
-> tsx --env-file-if-exists=.env tests/e2e-compra.ts
-
 ==============================================================
  Prueba de integracion extremo a extremo
  Gateway: http://localhost:8080
 ==============================================================
-Los nueve servicios responden correctamente.
+Todos los servicios responden correctamente.
 
 Escenario A: compra exitosa (los 15 pasos del flujo)
 ====================================================
@@ -17,7 +13,7 @@ Escenario A: compra exitosa (los 15 pasos del flujo)
   PASA  El catalogo responde
   PASA  Hay al menos un producto con existencias
   PASA  La disponibilidad viene del servicio de inventario, no del catalogo
-  Paso 7: se agrega SKU-TEC-001 al carrito
+  Paso 7: se agrega SKU-TEC-120 al carrito
   PASA  El producto se agrega al carrito
   PASA  El precio lo pone el catalogo, no el cliente
   PASA  El carrito calcula los impuestos
@@ -26,7 +22,7 @@ Escenario A: compra exitosa (los 15 pasos del flujo)
   PASA  El pedido queda en estado pagado
   PASA  Se genera un numero de pedido
   PASA  Se registra la referencia del pago
-  PASA  El inventario se descuenta definitivamente (50 -> 49)
+  PASA  El inventario se descuenta definitivamente (200 -> 199)
   El carrito queda vacio tras la compra
   PASA  El carrito se vacia
   El pedido aparece en el historial del cliente
@@ -39,15 +35,18 @@ Escenario A: compra exitosa (los 15 pasos del flujo)
   PASA  Registra la confirmacion de la reserva
   El evento asincrono genera la notificacion
   PASA  El servicio de notificaciones reacciono al evento
+  El correo de confirmacion llega al buzon (SMTP real, Mailpit)
+  PASA  Llega un correo con el numero PED-202611-001062
+  PASA  El correo va dirigido al cliente que compro
 
 Escenario B: pago rechazado (compensacion de la saga)
 =====================================================
-  Stock de SKU-HOG-001 antes de intentar la compra: 40
+  Stock de SKU-EV-INV-001 antes de intentar la compra: 3
   Se paga con una tarjeta que la pasarela rechaza
   PASA  La API responde 402 (pago requerido)
   PASA  El codigo de error es explicito
   PASA  El pedido existe y se puede consultar
-  PASA  COMPENSACION: el stock vuelve a su valor original (40 -> 40)
+  PASA  COMPENSACION: el stock vuelve a su valor original (3 -> 3)
   PASA  El pedido queda cancelado, no pagado
   El carrito se conserva para que el cliente reintente
   PASA  El carrito NO se vacia tras un pago rechazado
@@ -72,15 +71,15 @@ Escenario D: idempotencia del checkout (doble clic)
   PASA  La segunda devuelve 200, no crea otro pedido
   PASA  La respuesta se marca como idempotente
   PASA  Ambas respuestas refieren al MISMO pedido
-  PASA  El stock se descuenta UNA sola vez (8 -> 7)
+  PASA  El stock se descuenta UNA sola vez (200 -> 199)
 
 Escenario E: cancelacion de un pedido pagado
 ============================================
-  Pedido PED-202610-001038 creado. Stock: 39
+  Pedido PED-202611-001066 creado. Stock: 2
   PASA  El pedido se cancela
   PASA  Se ejecuta el reembolso
   PASA  Se devuelve el inventario
-  PASA  El stock vuelve a subir (39 -> 40)
+  PASA  El stock vuelve a subir (2 -> 3)
   Cancelar de nuevo es idempotente
   PASA  La segunda cancelacion no repite las compensaciones
 
@@ -94,5 +93,5 @@ Escenario F: controles de seguridad
   PASA  El catalogo es publico: 200 sin token
 
 --------------------------------------------------------------
-Las 49 comprobaciones pasaron.
+Las 51 comprobaciones pasaron.
 

@@ -1,15 +1,16 @@
 # Contexto del repositorio
 
-Plataforma de comercio electrónico con arquitectura de microservicios
-(Práctica de Laboratorio 2). Monorepo con npm workspaces.
+**SerByTek**: tienda en línea de tecnología (una sola tienda; el "vendedor" es
+personal interno) con arquitectura de microservicios (Práctica de Laboratorio 2
+y Trabajo Final). Monorepo con npm workspaces.
 
 ---
 
 ## Estructura
 
 ```
-packages/shared/        Librería transversal. La usan los nueve servicios.
-services/               9 servicios: api-gateway + 8 microservicios
+packages/shared/        Librería transversal. La usan los diez servicios.
+services/               10 servicios: api-gateway + 9 microservicios (incluido el asistente)
 clients/web/            React + Vite + Tailwind (tienda y panel admin)
 clients/mobile/         Flutter. SOLO lib/ y pubspec.yaml
 infra/postgres/         Esquemas SQL, se ejecutan por orden alfabético
@@ -33,7 +34,9 @@ docs/                   Arquitectura, flujo, comunicación, análisis, api.http
 | pedidos-service | 3006 | PostgreSQL `pedidos_db` |
 | pagos-service | 3007 | PostgreSQL `pagos_db` |
 | notificaciones-service | 3008 | MongoDB `notificaciones_db` |
-| web | 5173 | — |
+| asistente-service | 3009 | MongoDB `asistente_db` |
+| web | 5173 (`dev:web`); 8081 en contenedor (nginx, proxy `/api`) | — |
+| Mailpit (correo de pruebas) | 8025 (web y API), 1025 (SMTP) | — |
 
 Infraestructura: PostgreSQL 5432 (o `POSTGRES_PUERTO_HOST`), MongoDB 27017, Redis 6379,
 RabbitMQ 5672 (consola 15672).
@@ -45,14 +48,31 @@ RabbitMQ 5672 (consola 15672).
 ```bash
 npm install                 # instala todos los workspaces de una vez
 npm run infra:up            # motores de datos en Docker
-npm run dev                 # los nueve servicios con recarga
+npm run dev                 # los diez servicios con recarga
 npm run dev:pedidos         # uno solo
 npm run dev:web             # cliente web
 npm run typecheck           # tipos de todos los paquetes
-npm run test:salud          # los nueve servicios responden
+npm run test:salud          # todos los servicios responden
 npm run test:concurrencia   # no hay sobreventa
-npm run test:e2e            # flujo de compra completo
+npm run test:e2e            # flujo de compra completo (incluye el correo en Mailpit)
+npm run test:e2e:ui         # 29 criterios de aceptacion en la web (Playwright, 8081, modo pruebas; GRABAR_VIDEO=1)
+npm run prod:up             # perfil de produccion: solo la web publica puerto (prod:down, prod:logs)
+npm run nube:up             # prod + Caddy (HTTPS) para la VM de la nube (nube:down, nube:logs; docs/manuales/DESPLIEGUE.md)
+npm run tunel               # Cloudflare Quick Tunnel hacia la web (plan B de la defensa)
+npm run test:unit           # pruebas unitarias con Vitest (sin Docker); :cobertura para el reporte
+npm run test:openapi        # la especificacion OpenAPI cubre exactamente las rutas del codigo
+npm run docs:openapi        # valida (Redocly) y empaqueta docs/openapi para el gateway
+npm run test:asistente      # asistente contra el gateway (ASISTENTE_PROBAR_DEGRADACION=1: detiene pedidos)
+npm run asistente:metricas  # tasa de acierto de intenciones y matriz de confusion (-- --guardar)
+npm run infra:asistente     # crea asistente_db en un volumen de Mongo que ya existe (idempotente)
 npm run infra:reset         # borra volúmenes y recrea desde cero
+npm run test:seguridad      # 27 verificaciones de seguridad, 5 del asistente (ver docs/calidad/SEGURIDAD.md)
+npm run auditar:dependencias # npm audit de produccion con los avisos aceptados y su fecha de revision (CI)
+npm run usabilidad:recorrido # 9 tareas en Chromium: KLM, capturas y axe (vite preview en 4173 de build:web:pruebas)
+npm run build:web:pruebas   # build con los controles de la pasarela simulada (U-08); build:web los oculta
+npm run usabilidad:sus      # puntaje SUS; falla si no hay respuestas reales
+npm run informe:estrategias # informe .docx (libreria docx) y su indice actualizado con Word
+npm run docs:c4             # renderiza docs/c4/*.puml a PNG (Docker plantuml/plantuml)
 ```
 
 ---
@@ -74,6 +94,20 @@ servicios.
 extiende `tsconfig.base.json`, y `src/index.ts` que llama a `crearServicio()`.
 Hay que registrarlo además en la tabla `DESTINOS` del gateway, en
 `docker-compose.yml` y en los scripts `dev:*` de la raíz.
+
+**Acceso a datos.** auth y clientes usan Drizzle ORM a traves de
+`src/repositorio.ts`; inventario, pedidos y pagos usan SQL nativo parametrizado
+(ADR-0006). El esquema lo definen SOLO los scripts de `infra/postgres`:
+`esquema.ts` los refleja y no se usa `drizzle-kit push`. Si cambias un
+`CREATE TABLE`, cambia tambien `esquema.ts` (`test:unit` detecta la diferencia).
+Para leer el codigo de PostgreSQL de un error usa `errorDePostgres()`: Drizzle
+envuelve el error del driver.
+
+**Documentacion de la API.** Se escribe en `docs/openapi/` (dividida por
+servicio; las rutas de la saga en `openapi-interna.yaml`) y `npm run
+docs:openapi` la empaqueta en `services/api-gateway/especificacion/openapi.json`,
+que el gateway sirve en `/api/docs`. Una ruta nueva sin documentar, o con
+`x-roles` distinto de su `requiereRol()`, hace fallar `test:openapi`.
 
 **Controladores.** Se envuelven siempre en `asincrono()` al montarlos en el
 router; sin eso, una promesa rechazada no llega al middleware de errores y la
@@ -131,7 +165,47 @@ petición queda colgada. Para los errores se usan los constructores de
     control de rol.
 
 12. **Publicar un evento nunca debe tumbar la operación principal.**
-    `bus.publicar()` registra el fallo y devuelve `false`.
+    `bus.publicar()` registra el fallo y devuelve `false`. Del lado del
+    consumidor, un fallo de envío (SMTP caído) se relanza: el bus lo reintenta
+    en la propia cola y, al tercer intento, lo deja en la DLQ. Nunca se pierde.
+
+13. **Los secretos no tienen valor por defecto.** `JWT_SECRET`,
+    `JWT_REFRESH_SECRET` e `INTERNAL_TOKEN` se definen en `.env` (generados con
+    `openssl rand -hex 32`). Sin ellos, o con menos de 32 caracteres, o con un
+    valor que estuvo publicado, ningún servicio arranca (`verificarSecretos()`).
+    Antes había un valor de respaldo publicado, y con él se podía forjar un
+    token de administrador.
+
+14. **Un circuit breaker cuenta solo errores de red, 5xx y timeouts**
+    (`esFalloDelServicio()`). Si contara los 4xx, un cliente con seis SKU
+    inexistentes abriría el circuito para todos. En semiabierto deja pasar
+    **una** llamada de prueba a la vez; las demás reciben la alternativa al
+    instante (hallazgo R7: con todas pasando, el catálogo daba ráfagas de 6 s).
+
+15. **El asistente consulta pedidos con el token del usuario, nunca como
+    llamada interna.** `ClienteServicio` con la opción `autorizacion` reenvía
+    el `Authorization` sin `x-llamada-interna`, y pedidos-service aplica su
+    RBAC y su autorización por dato. Con una llamada interna, cualquiera vería
+    por el chat los pedidos de otro cliente (`test:asistente` lo verifica).
+
+16. **Las rutas internas que borran o exponen datos de un cliente llevan
+    `soloLlamadaInterna` después de `requiereRol()`** (anonimizar el perfil,
+    pedidos en curso). Con solo `requiereRol('administrador')`, un administrador
+    con su token borraría los datos de un cliente sin su contraseña (V-22).
+
+17. **El enlace de recuperación de contraseña solo existe en el correo.** auth
+    guarda su hash SHA-256 y lo publica en `auth.recuperacion_solicitada` con
+    `secretos: ['enlace']`; notificaciones lo envía pero guarda `[enlace enviado
+    solo al correo]` en el texto, el registro de envíos y `datos_evento`.
+    `POST /recuperar` responde lo mismo exista o no la cuenta (V-27).
+
+18. **Las cuentas y los correos de producción no están en el repositorio**
+    (es público). `infra/postgres/07-cuentas-produccion.sh` los lee del `.env`
+    del servidor y solo actúa con `CUENTAS_PRODUCCION=true` (perfil prod); en
+    el laboratorio no hace nada, porque las suites usan las cuentas de prueba.
+    `PROXIES_CONFIANZA` debe coincidir con los proxies reales (2 con Caddy o el
+    túnel): con menos, todos comparten el límite de peticiones; con más, el
+    cliente elige su IP por `X-Forwarded-For`.
 
 ---
 
@@ -149,6 +223,34 @@ petición queda colgada. Para los errores se usan los constructores de
 | Enrutamiento, rate limiting y saneamiento | `services/api-gateway/src/index.ts` |
 | Pasarela de pagos simulada | `services/pagos-service/src/pasarela.ts` |
 | Timeouts por dependencia | `services/pedidos-service/src/dependencias.ts` |
+| Repositorios con Drizzle | `services/{auth,clientes}-service/src/repositorio.ts` y `esquema.ts` |
+| Canales de envío (SMTP / registro) | `services/notificaciones-service/src/canales.ts` |
+| Swagger UI | `services/api-gateway/src/documentacion.ts` → `/api/docs` |
+| Totales del carrito (IVA, envío, cupón) | `services/carrito-service/src/totales.ts` |
+| Scripts de base de datos | `infra/README.md` |
+| Asistente: motor, diálogo, intenciones y FAQ | `services/asistente-service/src/{motor,dialogo}.ts`, `src/datos/*.json` |
+| Chat de la web | `clients/web/src/componentes/Asistente.jsx` |
+| Busqueda tolerante del catalogo | `services/catalogo-service/src/busqueda.ts` |
+| Cambio de direccion del pedido y pedidos en curso | `services/pedidos-service/src/direccion-pedido.ts` |
+| Eliminar la cuenta y administrar usuarios | `services/auth-service/src/controlador.ts` (`eliminarCuenta`, `actualizarUsuario`) |
+| Fotos de los productos (una por producto, Unsplash) y su subida | `services/catalogo-service/imagenes/` (`CREDITOS.md`), `src/imagenes.ts` (GridFS) |
+| Perfil, direcciones y tema oscuro de la web | `clients/web/src/paginas/Perfil.jsx`, `componentes/FormularioDireccion.jsx`, `src/index.css` (variables de color) |
+| Límite de compra por cliente (deja 5 unidades) | `packages/shared/src/limites.ts`; lo aplica `services/pedidos-service/src/limites-compra.ts` (paso 10b de la saga) |
+| Precio, oferta con fecha de fin y validación del panel | `services/catalogo-service/src/gestion.ts` |
+| Subida y entrega de fotos (GridFS) | `services/catalogo-service/src/imagenes.ts` |
+| Proveedores y entradas de mercancía | `services/inventario-service/src/proveedores.ts` |
+| Campana (bandeja de notificaciones) | `services/notificaciones-service/src/bandeja.ts`, `clients/web/src/componentes/Campana.jsx` |
+| Consultas al vendedor | `services/asistente-service/src/consultas.ts`, `clients/web/src/componentes/Consultas.jsx` |
+| Pestañas Productos e Inventario del panel | `clients/web/src/paginas/admin/` |
+| Recuperación de contraseña (enlace por correo) | `services/auth-service/src/recuperacion.ts`; web: `RecuperarContrasena` y `RestablecerContrasena` en `clients/web/src/App.jsx` |
+| Vista completa de notificaciones | `clients/web/src/componentes/Notificaciones.jsx` (Mi perfil y pestaña del panel); `bandeja.ts` pagina |
+| Salud del sistema (solo administrador) con medidas | `clients/web/src/paginas/admin/Salud.jsx` |
+| Especificación, C4 y ADR del Trabajo Final | `docs/especificacion/`, `docs/c4/`, `docs/adr/` |
+| Web en contenedor y perfil prod | `clients/web/{Dockerfile,nginx.conf}`, `docker-compose.prod.yml` |
+| Criterios de aceptación, trazabilidad y E2E de interfaz | `docs/aceptacion/`, `tests/e2e-ui/aceptacion.ts` |
+| Manuales y guion de la defensa | `docs/manuales/`, `docs/defensa/GUION.md` |
+| Despliegue en la nube (VM, Caddy, cuentas y correo de producción) | `docs/manuales/DESPLIEGUE.md`, `docker-compose.nube.yml`, `infra/caddy/Caddyfile`, `infra/postgres/07-cuentas-produccion.sh`, ADR-0010 |
+| Validación de formularios en la web (mismas reglas que el backend) | `clients/web/src/servicios/reglas.js`, `validaciones.jsx`; paridad en `clients/web/test/reglas.test.ts` |
 
 ---
 
@@ -158,9 +260,13 @@ Contraseña `Password123` en todas las cuentas:
 `admin@tienda.co` (administrador), `vendedor@tienda.co` (vendedor),
 `ana@correo.co`, `bruno@correo.co`, `carla@correo.co` (clientes 1, 2 y 3).
 
-**`SKU-TEC-004` tiene una sola unidad** a propósito: es el producto con el que se
-prueba la disputa por la última unidad. **`SKU-HOG-002`** está bajo el mínimo
-para disparar la alerta de reposición.
+Catálogo: 60 productos de tecnología de marcas reales con precios de referencia
+(`SKU-TEC-001` a `060`) en 10 subcategorías, definidas con sus sinónimos en
+`infra/mongo/init-mongo.js`. El asistente lee del catálogo las secciones, los
+sinónimos y las marcas: un producto o una marca nueva no exige tocar sus reglas. Cada cliente debe dejar 5 unidades de cada producto para los demás (mínimo 1; `STOCK_RESERVA_CLIENTE`): con stock de 6 o menos, cada cliente lleva una. **`SKU-TEC-004` tiene una sola unidad** a propósito: es el producto
+con el que se prueba la disputa por la última unidad. **`SKU-TEC-007`** está bajo
+el mínimo para disparar la alerta de reposición. `test:unit` verifica que cada
+producto tenga stock en `06-datos-prueba.sql` y viceversa.
 
 Tokens de la pasarela simulada (resultado determinista):
 
@@ -176,15 +282,20 @@ Tokens de la pasarela simulada (resultado determinista):
 ## Estado y pendientes conocidos
 
 **Verificado y funcionando** (ver `docs/PRUEBAS.md` para el detalle y la
-evidencia, ejecución del 2026-10-01 con la infraestructura completa): 142 casos
-ejecutados, 142 pasan. Los nueve servicios compilan y arrancan sanos; la prueba
+evidencia; última ejecución el 2026-11-18, segunda revisión manual (F5e), desde
+volúmenes vacíos; repetida para el despliegue en la nube): 216 casos de integración y 187 unitarios, todos pasan, y los 29
+criterios de aceptación de `test:e2e:ui`; `test:openapi` pasa sus 517 comprobaciones y
+`test:asistente` sus 57. El asistente acierta 50/50 frases de SerByTek,
+27/27 de marcas y 13/15 de la validación de contactar al vendedor (`asistente:metricas`), y axe no encuentra reglas WCAG incumplidas en los temas claro
+y oscuro. `npm audit` reporta un aviso de `picomatch` sin corrección que no aplica al gateway: riesgo aceptado S-13 hasta el 2027-01-31 (`docs/calidad/SEGURIDAD.md` 11.2). Los diez servicios compilan y arrancan sanos; la prueba
 de concurrencia pasa sus 33 comprobaciones (20 compradores simultáneos por 5
-unidades → exactamente 5 ganan); `test:http` pasa sus 60 casos sobre
+unidades → exactamente 5 ganan); `test:http` pasa sus 73 casos sobre
 autenticación, RBAC, aislamiento entre clientes, idempotencia, los cuatro
 desenlaces de la pasarela, el ciclo de vida de los pedidos, rate limiting,
-PCI-DSS y aislamiento de las bases; `test:e2e` pasa sus 49 comprobaciones
+PCI-DSS y aislamiento de las bases; `test:e2e` pasa sus 53 comprobaciones
 (compra, pago rechazado con compensación, última unidad, doble clic, cancelación
-y seguridad), incluido el consumo de eventos por notificaciones. El cliente web
+y seguridad), incluido el consumo de eventos por notificaciones y el correo real
+en Mailpit. El cliente web
 compila y `flutter analyze` no reporta problemas.
 
 **Puerto de PostgreSQL en el host:** `POSTGRES_PUERTO_HOST` en `.env` (5432 por
@@ -192,20 +303,59 @@ defecto; en este equipo 5434 porque hay un PostgreSQL nativo en 5432). Compose,
 los servicios y las pruebas lo respetan. Los scripts `dev` y `test:*` cargan el
 `.env` raíz con `--env-file-if-exists` (requiere Node ≥ 22.9).
 
-**Arranque:** `npm run infra:up` usa `docker compose up --wait`. `BusEventos` no
-reintenta si el **primer** intento de conexión falla, así que si los servicios
-arrancan antes que RabbitMQ, notificaciones queda caído hasta reiniciar
-`npm run dev`.
+**Arranque:** `BusEventos` reconecta con espera exponencial (también si el
+primer intento falla) y vuelve a declarar sus consumidores; por eso los
+servicios dependen de RabbitMQ con `service_started`, no `service_healthy`. Si
+`alIniciar` falla, `crearServicio` termina el proceso y Docker lo reinicia.
+Arranque en frío del perfil prod: 16/16 contenedores sanos en 276 s.
+
+**Despliegue (Fase 5, ADR-0009):** `docker-compose.prod.yml` sobre el de
+laboratorio (`npm run prod:up`): sin puertos salvo la web (8081) y Mailpit en
+127.0.0.1:8025, `EXPONER_DOCS=false`, límites de recursos. La web se compila con
+`MODO_VITE` (`pruebas` muestra el selector de la pasarela; `production` lo
+oculta). nginx quita el `Origin` cuando coincide con el `Host` (mismo origen,
+también por el túnel); los orígenes ajenos los rechaza el gateway
+(`CORS_ORIGENES`, o `CORS_ORIGENES_PROD` en prod). CI en
+`.github/workflows/ci.yml`. `test:seguridad` no falla por los riesgos aceptados
+(`RIESGOS_ACEPTADOS`: V-13 = S-09). El paso de dependencias del CI corre `auditar:dependencias`, con sus propios avisos aceptados y fecha de revisión (S-13).
+
+**Nube (ADR-0010, `docs/manuales/DESPLIEGUE.md`):** una VM (Azure for Students u
+Oracle Always Free) con `npm run nube:up` = prod + `docker-compose.nube.yml`
+(Caddy en 80/443 con HTTPS para `DOMINIO`, web solo en 127.0.0.1,
+`PROXIES_CONFIANZA=2`, CORS `https://DOMINIO`). El perfil prod exige las
+variables de las cuentas (`CORREO_*`, `CLAVE_*`, `NOMBRE_CLIENTE`,
+`APELLIDO_CLIENTE`) incluso para `down`; el correo real va por `SMTP_*_PROD`
+(Gmail, contraseña de aplicación). Verificado en local con `DOMINIO=localhost`
+(`docs/evidencia/trabajo-final/despliegue-nube/verificacion-local.txt`).
 
 **Defectos ya corregidos**, cada uno con su caso de prueba (sección 4 de
 `docs/PRUEBAS.md`): escalada de privilegios por el token interno, error 500 al
 consultar un pedido por su número, código 201 en una réplica idempotente, la
 suite que no era re-ejecutable, y la cancelación repetida por el cliente que
-devolvía 403.
+devolvía 403. Bajo carga (4.10 a 4.12): bcrypt en el hilo principal de auth
+(ahora un pool de hilos con cola acotada, `pool-hash.ts`), el gateway sin
+keep-alive y el gateway que cortaba con EOF en lugar de responder 504. De
+seguridad (4.13 a 4.16): secretos por defecto, registro con el `cliente_id` de
+otra persona, circuit breaker abierto por 404 y correo sin validar. Segunda
+tanda (4.17 a 4.22): inyección NoSQL, 500 ante entradas inválidas
+(`traducirErrorDeEntrada()`), CORS que respondía 500, cabeceras de la web
+(`clients/web/cabeceras-seguridad.js`), correos sin escapar y CORS sin el
+origen del build (4173). De usabilidad (4.23 a 4.25): inicio de sesion real
+(antes, un desplegable de cuentas de prueba), paginacion del catalogo y
+cancelacion con confirmacion y error visible dentro del dialogo.
+
+**Pruebas de carga:** `tests/rendimiento/` (k6). Corren con `npm run infra:carga`
+(límites altos del gateway) y `CLIENTES_CARGA=300 npm run sembrar:carga`. Ojo:
+`test:http` borra los pedidos, y la cola `notificaciones.envio` se drena a solo
+~10 mensajes/s (`prefetch(1)` y 100 ms por envío). `bateria.sh` espera a que esa
+cola se vacíe antes de cada corrida.
 
 **Pendientes, en orden de valor:**
 
-- Pruebas unitarias con Jest o Vitest. Solo hay pruebas de integración.
+- **S-09 (riesgo aceptado, ver `docs/calidad/SEGURIDAD.md` 9.4):** refresh token
+  en cookie `HttpOnly` para la web, almacenamiento seguro en la app móvil y
+  protección CSRF. Hoy el token vive en `localStorage`, mitigado por la CSP.
+
 - Caché del catálogo en Redis (el motor ya está desplegado para el carrito).
 - Métricas para Prometheus y trazas distribuidas. Hoy hay `request_id` propagado
   y `/health` agregado, que es el mínimo.

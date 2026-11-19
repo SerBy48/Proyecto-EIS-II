@@ -1,0 +1,6332 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Plataforma de comercio electronico - API publica",
+    "version": "1.0.0",
+    "description": "API publica del **API Gateway**, la unica puerta de entrada de la plataforma\n(docs/adr/0008-openapi-centralizada-gateway.md).\n\n- **Autenticacion:** `Authorization: Bearer <jwt>` en todas las rutas salvo las\n  marcadas sin candado. El JWT dura 15 minutos; se renueva con `/api/auth/renovar`.\n- **Roles:** la extension `x-roles` de cada operacion dice quien puede usarla:\n  `publica`, `sesion` (cualquier usuario autenticado, con autorizacion a nivel de\n  dato) o los roles concretos. `npm run test:openapi` la contrasta con el codigo.\n- **Errores:** siempre `{ mensaje, codigo }`.\n- **Limites:** 300 peticiones/min por usuario o IP, 10 logins cada 15 min y 10\n  checkouts por minuto.\n- **Cuentas de prueba:** `ana@correo.co` (cliente 1), `vendedor@tienda.co`,\n  `admin@tienda.co`; contrasena `Password123`.\n\nLas rutas internas de la saga estan en `openapi-interna.yaml`, que no se publica.\n",
+    "contact": {
+      "name": "Repositorio del proyecto",
+      "url": "https://github.com/SerBy48/Proyecto-EIS-II"
+    }
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "El mismo gateway que sirve esta documentacion"
+    },
+    {
+      "url": "http://localhost:8080",
+      "description": "Gateway local"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "plataforma",
+      "description": "Salud agregada"
+    },
+    {
+      "name": "auth",
+      "description": "Cuentas, sesiones y usuarios internos"
+    },
+    {
+      "name": "clientes",
+      "description": "Perfiles, direcciones e historial"
+    },
+    {
+      "name": "catalogo",
+      "description": "Productos, categorias y cupones"
+    },
+    {
+      "name": "inventario",
+      "description": "Stock, movimientos y alertas"
+    },
+    {
+      "name": "carrito",
+      "description": "Carrito con TTL y cupones"
+    },
+    {
+      "name": "pedidos",
+      "description": "Checkout (saga) y ciclo de vida del pedido"
+    },
+    {
+      "name": "pagos",
+      "description": "Transacciones sin datos de tarjeta"
+    },
+    {
+      "name": "notificaciones",
+      "description": "Avisos enviados y plantillas"
+    },
+    {
+      "name": "asistente",
+      "description": "Asistente virtual: chat, tickets y edicion de intenciones y FAQ"
+    }
+  ],
+  "paths": {
+    "/api/health": {
+      "get": {
+        "tags": [
+          "plataforma"
+        ],
+        "summary": "Salud agregada de todos los servicios",
+        "description": "Consulta el /health de cada servicio en paralelo (2 s de espera por servicio).",
+        "operationId": "saludAgregada",
+        "security": [],
+        "x-roles": [
+          "publica"
+        ],
+        "responses": {
+          "200": {
+            "description": "Estado de cada servicio y de sus dependencias.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Salud"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/LimiteExcedido"
+          },
+          "503": {
+            "description": "Algun servicio esta caido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Salud"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/registro": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Registrar una cuenta de cliente",
+        "description": "El rol `cliente` es el unico que se puede autoasignar. Si se envia `cliente_id`,\nclientes-service confirma que existe, que su correo es el mismo y que no tiene\nya una cuenta (hallazgo S-01).\n",
+        "operationId": "registrar",
+        "security": [],
+        "x-roles": [
+          "publica"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Registro"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Cuenta creada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "mensaje": {
+                      "type": "string",
+                      "example": "Usuario registrado."
+                    },
+                    "usuario": {
+                      "$ref": "#/components/schemas/Usuario"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/SolicitudInvalida"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflicto"
+          },
+          "503": {
+            "$ref": "#/components/responses/NoDisponible"
+          }
+        }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Iniciar sesion",
+        "description": "Devuelve un JWT de 15 minutos y un refresh token rotatorio de 7 dias. El mensaje de\nerror es el mismo para un correo inexistente y una contrasena incorrecta (evita\nenumerar cuentas). Tras 5 intentos fallidos la cuenta se bloquea 15 minutos. El\ngateway limita a 10 intentos cada 15 minutos por IP.\n",
+        "operationId": "iniciarSesion",
+        "security": [],
+        "x-roles": [
+          "publica"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Credenciales"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Sesion iniciada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Sesion"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/SolicitudInvalida"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "429": {
+            "$ref": "#/components/responses/LimiteExcedido"
+          },
+          "503": {
+            "$ref": "#/components/responses/NoDisponible"
+          }
+        }
+      }
+    },
+    "/api/auth/renovar": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Renovar la sesion con el refresh token",
+        "description": "El refresh usado queda revocado y se emite otro (rotacion); reutilizarlo responde 401.",
+        "operationId": "renovarSesion",
+        "security": [],
+        "x-roles": [
+          "publica"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "refresh_token"
+                ],
+                "properties": {
+                  "refresh_token": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Nuevo par de tokens.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Renovacion"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/SolicitudInvalida"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          }
+        }
+      }
+    },
+    "/api/auth/recuperar": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Pedir un enlace para restablecer la contrasena (RF-54)",
+        "description": "Si el correo es de una cuenta activa, crea un enlace de un solo uso que vence en 30 minutos y lo envia por correo (evento auth.recuperacion_solicitada). La respuesta es la misma exista o no la cuenta, para no permitir enumerar correos. Limite de 5 solicitudes por IP cada 15 minutos (gateway) y 3 por cuenta.",
+        "operationId": "solicitarRecuperacion",
+        "security": [],
+        "x-roles": [
+          "publica"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "maxLength": 150
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Solicitud recibida (mismo mensaje exista o no la cuenta).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "mensaje": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/SolicitudInvalida"
+          },
+          "429": {
+            "$ref": "#/components/responses/LimiteExcedido"
+          }
+        }
+      }
+    },
+    "/api/auth/restablecer": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Crear la contrasena nueva con el enlace del correo (RF-54)",
+        "description": "Consume el enlace (una sola vez), cambia la contrasena, desbloquea la cuenta y revoca todas sus sesiones. Un enlace usado, vencido o inexistente responde 400 ENLACE_INVALIDO.",
+        "operationId": "restablecerContrasena",
+        "security": [],
+        "x-roles": [
+          "publica"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "token",
+                  "password"
+                ],
+                "properties": {
+                  "token": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$",
+                    "description": "El que trae el enlace (#restablecer=...)."
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Contrasena actualizada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "mensaje": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/SolicitudInvalida"
+          },
+          "429": {
+            "$ref": "#/components/responses/LimiteExcedido"
+          }
+        }
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Cerrar sesion",
+        "description": "Revoca todos los refresh tokens del usuario. El JWT de acceso vale hasta que expire (15 min).",
+        "operationId": "cerrarSesion",
+        "x-roles": [
+          "sesion"
+        ],
+        "responses": {
+          "200": {
+            "description": "Sesion cerrada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "mensaje": {
+                      "type": "string",
+                      "example": "Sesion cerrada."
+                    },
+                    "tokens_revocados": {
+                      "type": "integer",
+                      "example": 1
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          }
+        }
+      }
+    },
+    "/api/auth/perfil": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Perfil del usuario autenticado",
+        "operationId": "obtenerPerfil",
+        "x-roles": [
+          "sesion"
+        ],
+        "responses": {
+          "200": {
+            "description": "Datos de la cuenta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Perfil"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          }
+        }
+      }
+    },
+    "/api/auth/verificar": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Verificar el token actual",
+        "description": "Devuelve los claims del JWT. Permite a otros sistemas validar un token sin conocer el secreto.",
+        "operationId": "verificarToken",
+        "x-roles": [
+          "sesion"
+        ],
+        "responses": {
+          "200": {
+            "description": "Token valido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "valido": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "usuario": {
+                      "type": "object",
+                      "additionalProperties": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          }
+        }
+      }
+    },
+    "/api/auth/usuarios": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Listar usuarios",
+        "description": "Para el panel de administracion. Hasta 200, del mas reciente al mas antiguo.",
+        "operationId": "listarUsuarios",
+        "x-roles": [
+          "administrador"
+        ],
+        "parameters": [
+          {
+            "name": "rol",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/Rol"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Usuarios (sin el hash de la contrasena).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UsuarioAdministrado"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/SolicitudInvalida"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Crear un usuario interno",
+        "description": "Alta de vendedores y administradores.",
+        "operationId": "crearUsuarioInterno",
+        "x-roles": [
+          "administrador"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UsuarioInterno"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Usuario creado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "mensaje": {
+                      "type": "string",
+                      "example": "Usuario creado."
+                    },
+                    "usuario": {
+                      "$ref": "#/components/schemas/Usuario"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/SolicitudInvalida"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflicto"
+          }
+        }
+      }
+    },
+    "/api/auth/usuarios/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "example": 2
+          }
+        }
+      ],
+      "patch": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Cambiar el rol o desactivar un usuario",
+        "operationId": "actualizarUsuario",
+        "x-roles": [
+          "administrador"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CambiosUsuario"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Usuario actualizado y sus sesiones revocadas.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "mensaje": {
+                      "type": "string",
+                      "example": "Usuario actualizado."
+                    },
+                    "usuario": {
+                      "$ref": "#/components/schemas/UsuarioAdministrado"
+                    },
+                    "sesiones_cerradas": {
+                      "type": "integer",
+                      "example": 1
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/SolicitudInvalida"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflicto"
+          }
+        }
+      }
+    },
+    "/api/auth/cuenta": {
+      "delete": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Eliminar la propia cuenta",
+        "description": "Solo cuentas de cliente, confirmando con la contrasena. Se rechaza con 409 si hay pedidos\ncreados, pagados, en preparacion o enviados. Si procede, se ANONIMIZA: el perfil pierde sus\ndatos personales y direcciones, la cuenta queda inactiva y se cierran sus sesiones. Los\npedidos se conservan sin datos personales (obligaciones contables).\n",
+        "operationId": "eliminarCuenta",
+        "x-roles": [
+          "cliente"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "password"
+                ],
+                "properties": {
+                  "password": {
+                    "type": "string",
+                    "format": "password"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cuenta eliminada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "mensaje": {
+                      "type": "string",
+                      "example": "Tu cuenta fue eliminada."
+                    },
+                    "sesiones_cerradas": {
+                      "type": "integer",
+                      "example": 1
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/SolicitudInvalida"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "description": "Contrasena incorrecta (CONTRASENA_INCORRECTA) o la cuenta no es de cliente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Hay pedidos en curso (PEDIDOS_EN_CURSO); detalle.pendientes los lista.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/clientes": {
+      "post": {
+        "tags": [
+          "clientes"
+        ],
+        "summary": "Crear el perfil de cliente",
+        "description": "Primer paso del alta; despues se crea la cuenta con /api/auth/registro y el cliente_id devuelto.",
+        "operationId": "crearCliente",
+        "security": [],
+        "x-roles": [
+          "publica"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClienteNuevo"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Perfil creado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "mensaje": {
+                      "type": "string",
+                      "example": "Cliente registrado."
+                    },
+                    "cliente": {
+                      "$ref": "#/components/schemas/Cliente"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/SolicitudInvalida"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflicto"
+          }
+        }
+      }
+    },
+    "/api/clientes/{id}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdCliente"
+        }
+      ],
+      "get": {
+        "tags": [
+          "clientes"
+        ],
+        "summary": "Consultar un perfil",
+        "operationId": "obtenerCliente",
+        "x-roles": [
+          "sesion"
+        ],
+        "responses": {
+          "200": {
+            "description": "Perfil.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Cliente"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "clientes"
+        ],
+        "summary": "Actualizar los datos personales (nombre, apellido, telefono, documento)",
+        "operationId": "actualizarCliente",
+        "x-roles": [
+          "sesion"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CambiosCliente"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Perfil actualizado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "mensaje": {
+                      "type": "string",
+                      "example": "Cliente actualizado."
+                    },
+                    "cliente": {
+                      "$ref": "#/components/schemas/Cliente"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/SolicitudInvalida"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      }
+    },
+    "/api/clientes/departamentos": {
+      "get": {
+        "tags": [
+          "clientes"
+        ],
+        "summary": "Departamentos de Colombia",
+        "description": "Lista oficial para el selector de direcciones; el servicio valida contra ella al guardar.",
+        "operationId": "listarDepartamentos",
+        "security": [],
+        "x-roles": [
+          "publica"
+        ],
+        "responses": {
+          "200": {
+            "description": "Los 32 departamentos y Bogota D.C.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "example": [
+                    "Antioquia",
+                    "Bogotá D.C.",
+                    "Huila"
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/LimiteExcedido"
+          }
+        }
+      }
+    },
+    "/api/clientes/{id}/direcciones": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdCliente"
+        }
+      ],
+      "get": {
+        "tags": [
+          "clientes"
+        ],
+        "summary": "Listar direcciones",
+        "description": "La predeterminada primero.",
+        "operationId": "listarDirecciones",
+        "x-roles": [
+          "sesion"
+        ],
+        "responses": {
+          "200": {
+            "description": "Direcciones del cliente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Direccion"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "clientes"
+        ],
+        "summary": "Agregar una direccion",
+        "operationId": "crearDireccion",
+        "x-roles": [
+          "sesion"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DireccionNueva"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Direccion agregada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "mensaje": {
+                      "type": "string",
+                      "example": "Direccion agregada."
+                    },
+                    "direccion": {
+                      "$ref": "#/components/schemas/Direccion"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/SolicitudInvalida"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      }
+    },
+    "/api/clientes/{id}/direcciones/{direccionId}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdCliente"
+        },
+        {
+          "name": "direccionId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "example": 3
+          }
+        }
+      ],
+      "patch": {
+        "tags": [
+          "clientes"
+        ],
+        "summary": "Editar una direccion o marcarla como predeterminada",
+        "operationId": "actualizarDireccion",
+        "x-roles": [
+          "sesion"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CambiosDireccion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Direccion actualizada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "mensaje": {
+                      "type": "string",
+                      "example": "Direccion actualizada."
+                    },
+                    "direccion": {
+                      "$ref": "#/components/schemas/Direccion"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/SolicitudInvalida"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "clientes"
+        ],
+        "summary": "Eliminar una direccion",
+        "description": "Si era la predeterminada, la mas antigua que quede pasa a serlo.",
+        "operationId": "eliminarDireccion",
+        "x-roles": [
+          "sesion"
+        ],
+        "responses": {
+          "200": {
+            "description": "Direccion eliminada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Mensaje"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      }
+    },
+    "/api/clientes/{id}/historial": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdCliente"
+        }
+      ],
+      "get": {
+        "tags": [
+          "clientes"
+        ],
+        "summary": "Historial de compras",
+        "description": "Ultimas 50 compras. Es una proyeccion alimentada por eventos, con consistencia eventual.",
+        "operationId": "historialCompras",
+        "x-roles": [
+          "sesion"
+        ],
+        "responses": {
+          "200": {
+            "description": "Compras, de la mas reciente a la mas antigua.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CompraHistorica"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          }
+        }
+      }
+    },
+    "/api/catalogo/productos": {
+      "get": {
+        "tags": [
+          "catalogo"
+        ],
+        "summary": "Buscar y filtrar productos",
+        "description": "Solo productos activos, con su disponibilidad. Si inventario no responde, el circuit\nbreaker lo aisla y los productos se devuelven igual con `disponible: null`\n(degradacion elegante).\n",
+        "operationId": "listarProductos",
+        "security": [],
+        "x-roles": [
+          "publica"
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "description": "Busqueda de texto (nombre, marca, subcategoria, descripcion). Si el indice no encuentra nada, se repite con una busqueda tolerante: palabras incompletas, plural y tildes (busqueda = tolerante).",
+            "schema": {
+              "type": "string",
+              "example": "portatil"
+            }
+          },
+          {
+            "name": "categoria",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "example": "tecnologia"
+            }
+          },
+          {
+            "name": "subcategoria",
+            "in": "query",
+            "description": "Seccion de GET /api/catalogo/categorias.",
+            "schema": {
+              "type": "string",
+              "example": "audio"
+            }
+          },
+          {
+            "name": "en_oferta",
+            "in": "query",
+            "description": "true: solo productos con descuento.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true"
+              ]
+            }
+          },
+          {
+            "name": "marca",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "example": "Aurora"
+            }
+          },
+          {
+            "name": "precio_min",
+            "in": "query",
+            "schema": {
+              "type": "number",
+              "example": 100000
+            }
+          },
+          {
+            "name": "precio_max",
+            "in": "query",
+            "schema": {
+              "type": "number",
+              "example": 5000000
+            }
+          },
+          {
+            "name": "orden",
+            "in": "query",
+            "description": "Sin orden, por relevancia si hay q o por los mas nuevos.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "precio_asc",
+                "precio_desc",
+                "nombre",
+                "descuento"
+              ]
+            }
+          },
+          {
+            "name": "pagina",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          },
+          {
+            "name": "limite",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "incluir_inactivos",
+            "in": "query",
+            "description": "Solo personal interno (con token): incluye los productos inactivos y lo configurado de la oferta (panel Productos). Para los demas se ignora.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true"
+              ]
+            }
+          },
+          {
+            "name": "skus",
+            "in": "query",
+            "description": "Lista de 1 a 100 SKU separados por comas: solo esos productos (el panel pone nombre a las alertas de reposicion y al historial de entradas).",
+            "schema": {
+              "type": "string",
+              "example": "SKU-TEC-004,SKU-TEC-007"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pagina de resultados.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginaProductos"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/SolicitudInvalida"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "catalogo"
+        ],
+        "summary": "Crear un producto",
+        "operationId": "crearProducto",
+        "x-roles": [
+          "administrador",
+          "vendedor"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductoNuevo"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Producto creado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "mensaje": {
+                      "type": "string",
+                      "example": "Producto creado."
+                    },
+                    "producto": {
+                      "$ref": "#/components/schemas/Producto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/SolicitudInvalida"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflicto"
+          }
+        }
+      }
+    },
+    "/api/catalogo/productos/{sku}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Sku"
+        }
+      ],
+      "get": {
+        "tags": [
+          "catalogo"
+        ],
+        "summary": "Detalle de un producto",
+        "operationId": "obtenerProducto",
+        "security": [],
+        "x-roles": [
+          "publica"
+        ],
+        "responses": {
+          "200": {
+            "description": "Producto con su disponibilidad.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Producto"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "catalogo"
+        ],
+        "summary": "Actualizar un producto",
+        "description": "El precio que cuenta en el carrito y en el checkout es siempre el vigente aqui (invariante 2).\nValida rangos (precio de 1.000 a 100.000.000, descuento de 0 a 90 %, fecha de fin futura, seccion existente)\ny deja cada cambio de precio u oferta en el historial (RF-48).\n",
+        "operationId": "actualizarProducto",
+        "x-roles": [
+          "administrador",
+          "vendedor"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CambiosProducto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Producto actualizado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "mensaje": {
+                      "type": "string",
+                      "example": "Producto actualizado."
+                    },
+                    "producto": {
+                      "$ref": "#/components/schemas/Producto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/SolicitudInvalida"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      }
+    },
+    "/api/catalogo/categorias": {
+      "get": {
+        "tags": [
+          "catalogo"
+        ],
+        "summary": "Categorias con su conteo y precio minimo",
+        "operationId": "listarCategorias",
+        "security": [],
+        "x-roles": [
+          "publica"
+        ],
+        "responses": {
+          "200": {
+            "description": "Categorias.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Categoria"
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/LimiteExcedido"
+          }
+        }
+      }
+    },
+    "/api/catalogo/promociones/{codigo}": {
+      "get": {
+        "tags": [
+          "catalogo"
+        ],
+        "summary": "Consultar un cupon",
+        "operationId": "validarPromocion",
+        "x-roles": [
+          "sesion"
+        ],
+        "parameters": [
+          {
+            "name": "codigo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "BIENVENIDA10"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cupon vigente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Promocion"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      }
+    },
+    "/api/catalogo/productos/{sku}/historial-precios": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Sku"
+        }
+      ],
+      "get": {
+        "tags": [
+          "catalogo"
+        ],
+        "summary": "Historial de cambios de precio y oferta de un producto",
+        "operationId": "historialPrecios",
+        "x-roles": [
+          "administrador",
+          "vendedor"
+        ],
+        "responses": {
+          "200": {
+            "description": "Ultimos 50 cambios, del mas reciente al mas antiguo.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CambioPrecio"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          }
+        }
+      }
+    },
+    "/api/catalogo/productos/{sku}/imagenes": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Sku"
+        }
+      ],
+      "post": {
+        "tags": [
+          "catalogo"
+        ],
+        "summary": "Subir una foto del producto",
+        "description": "El archivo va crudo en el cuerpo (sin multipart), maximo 2 MB. El tipo se verifica por el contenido\n(JPEG, PNG o WebP): un HTML o SVG renombrado se rechaza (V-24). La primera foto subida reemplaza la\nde la semilla; maximo 6 por producto (RF-50).\n",
+        "operationId": "subirImagen",
+        "x-roles": [
+          "administrador",
+          "vendedor"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "image/jpeg": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            },
+            "image/png": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            },
+            "image/webp": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Foto guardada en GridFS; la ruta publica queda en imagenes del producto.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "mensaje": {
+                      "type": "string",
+                      "example": "Imagen subida."
+                    },
+                    "imagen": {
+                      "type": "string",
+                      "example": "/api/catalogo/imagenes/6740f1a2b3c4d5e6f7a8b9c0"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/SolicitudInvalida"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflicto"
+          },
+          "413": {
+            "description": "La foto supera 2 MB."
+          }
+        }
+      }
+    },
+    "/api/catalogo/productos/{sku}/imagenes/{id}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Sku"
+        },
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "description": "Identificador de la foto subida (24 hexadecimales).",
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{24}$"
+          }
+        }
+      ],
+      "delete": {
+        "tags": [
+          "catalogo"
+        ],
+        "summary": "Quitar una foto subida",
+        "description": "Sin fotos propias, el producto vuelve a la foto de su seccion.",
+        "operationId": "eliminarImagen",
+        "x-roles": [
+          "administrador",
+          "vendedor"
+        ],
+        "responses": {
+          "200": {
+            "description": "Foto eliminada."
+          },
+          "400": {
+            "$ref": "#/components/responses/SolicitudInvalida"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      }
+    },
+    "/api/catalogo/imagenes/{nombre}": {
+      "parameters": [
+        {
+          "name": "nombre",
+          "in": "path",
+          "required": true,
+          "description": "Foto de la semilla (sku-tec-001.webp, audio.webp) o id de una foto subida.",
+          "schema": {
+            "type": "string",
+            "example": "sku-tec-001.webp"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "catalogo"
+        ],
+        "summary": "Foto de un producto",
+        "description": "Publica (la cargan la web y la app movil). Responde con nosniff y una CSP sin scripts.",
+        "operationId": "servirImagen",
+        "security": [],
+        "x-roles": [
+          "publica"
+        ],
+        "responses": {
+          "200": {
+            "description": "La imagen.",
+            "content": {
+              "image/webp": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/jpeg": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      }
+    },
+    "/api/inventario/disponibilidad": {
+      "get": {
+        "tags": [
+          "inventario"
+        ],
+        "summary": "Disponibilidad de varios SKU",
+        "operationId": "consultarDisponibilidad",
+        "x-roles": [
+          "sesion"
+        ],
+        "parameters": [
+          {
+            "name": "skus",
+            "in": "query",
+            "required": true,
+            "description": "SKU separados por coma.",
+            "schema": {
+              "type": "string",
+              "example": "SKU-TEC-001,SKU-TEC-004"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Disponibilidad agregada de todas las bodegas.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Disponibilidad"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/SolicitudInvalida"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          }
+        }
+      }
+    },
+    "/api/inventario/stock/{sku}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Sku"
+        }
+      ],
+      "get": {
+        "tags": [
+          "inventario"
+        ],
+        "summary": "Stock de un SKU por bodega",
+        "operationId": "consultarStock",
+        "x-roles": [
+          "sesion"
+        ],
+        "responses": {
+          "200": {
+            "description": "Una fila por bodega.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/StockBodega"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          }
+        }
+      }
+    },
+    "/api/inventario/stock/{sku}/entrada": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Sku"
+        }
+      ],
+      "post": {
+        "tags": [
+          "inventario"
+        ],
+        "summary": "Registrar una entrada de mercancia",
+        "description": "Suma unidades y deja el movimiento en el libro, con su soporte (proveedor, costo unitario, factura o\nremision y observacion; RF-51), todo en una transaccion. Si el SKU no tenia stock en la bodega, crea la fila.\n",
+        "operationId": "registrarEntrada",
+        "x-roles": [
+          "administrador",
+          "vendedor"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EntradaStock"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Entrada registrada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "mensaje": {
+                      "type": "string",
+                      "example": "Entrada registrada."
+                    },
+                    "stock": {
+                      "type": "object",
+                      "additionalProperties": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/SolicitudInvalida"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          }
+        }
+      }
+    },
+    "/api/inventario/movimientos/{sku}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Sku"
+        }
+      ],
+      "get": {
+        "tags": [
+          "inventario"
+        ],
+        "summary": "Libro de movimientos de un SKU",
+        "operationId": "listarMovimientos",
+        "x-roles": [
+          "administrador",
+          "vendedor"
+        ],
+        "responses": {
+          "200": {
+            "description": "Movimientos, del mas reciente al mas antiguo.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Movimiento"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          }
+        }
+      }
+    },
+    "/api/inventario/alertas": {
+      "get": {
+        "tags": [
+          "inventario"
+        ],
+        "summary": "SKU por debajo del stock minimo",
+        "operationId": "listarAlertas",
+        "x-roles": [
+          "administrador",
+          "vendedor"
+        ],
+        "responses": {
+          "200": {
+            "description": "Alertas de reposicion.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AlertaStock"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          }
+        }
+      }
+    },
+    "/api/inventario/entradas": {
+      "get": {
+        "tags": [
+          "inventario"
+        ],
+        "summary": "Historial de entradas de mercancia",
+        "operationId": "listarEntradas",
+        "x-roles": [
+          "administrador",
+          "vendedor"
+        ],
+        "parameters": [
+          {
+            "name": "sku",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "example": "SKU-TEC-004"
+            }
+          },
+          {
+            "name": "proveedor_id",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ultimas 100 entradas con su proveedor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Entrada"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          }
+        }
+      }
+    },
+    "/api/inventario/proveedores": {
+      "get": {
+        "tags": [
+          "inventario"
+        ],
+        "summary": "Proveedores",
+        "operationId": "listarProveedores",
+        "x-roles": [
+          "administrador",
+          "vendedor"
+        ],
+        "parameters": [
+          {
+            "name": "todos",
+            "in": "query",
+            "description": "true incluye los inactivos.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Proveedores por nombre.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Proveedor"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "inventario"
+        ],
+        "summary": "Crear un proveedor",
+        "operationId": "crearProveedor",
+        "x-roles": [
+          "administrador",
+          "vendedor"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProveedorNuevo"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Proveedor creado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Proveedor"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/SolicitudInvalida"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflicto"
+          }
+        }
+      }
+    },
+    "/api/inventario/proveedores/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer"
+          }
+        }
+      ],
+      "patch": {
+        "tags": [
+          "inventario"
+        ],
+        "summary": "Editar o desactivar un proveedor",
+        "description": "No se borra (tiene entradas registradas); se desactiva con activo false.",
+        "operationId": "actualizarProveedor",
+        "x-roles": [
+          "administrador",
+          "vendedor"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CambiosProveedor"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Proveedor actualizado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Proveedor"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/SolicitudInvalida"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflicto"
+          }
+        }
+      }
+    },
+    "/api/carrito/{clienteId}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ClienteId"
+        }
+      ],
+      "get": {
+        "tags": [
+          "carrito"
+        ],
+        "summary": "Ver el carrito con sus totales",
+        "operationId": "obtenerCarrito",
+        "x-roles": [
+          "sesion"
+        ],
+        "responses": {
+          "200": {
+            "description": "Carrito (vacio si no existe o expiro tras 7 dias sin cambios).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Carrito"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "carrito"
+        ],
+        "summary": "Vaciar el carrito",
+        "operationId": "vaciarCarrito",
+        "x-roles": [
+          "sesion"
+        ],
+        "responses": {
+          "200": {
+            "description": "Carrito vaciado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "mensaje": {
+                      "type": "string",
+                      "example": "Carrito vaciado."
+                    },
+                    "cliente_id": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          }
+        }
+      }
+    },
+    "/api/carrito/{clienteId}/items": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ClienteId"
+        }
+      ],
+      "post": {
+        "tags": [
+          "carrito"
+        ],
+        "summary": "Agregar un producto",
+        "description": "El precio no se acepta del cliente; se lee del catalogo (invariante 2). Si el SKU ya estaba, suma la cantidad.",
+        "operationId": "agregarItem",
+        "x-roles": [
+          "sesion"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "sku",
+                  "cantidad"
+                ],
+                "properties": {
+                  "sku": {
+                    "type": "string",
+                    "example": "SKU-HOG-001"
+                  },
+                  "cantidad": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "example": 1
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Carrito actualizado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Carrito"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/SolicitudInvalida"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          },
+          "503": {
+            "$ref": "#/components/responses/NoDisponible"
+          }
+        }
+      }
+    },
+    "/api/carrito/{clienteId}/items/{sku}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ClienteId"
+        },
+        {
+          "$ref": "#/components/parameters/Sku"
+        }
+      ],
+      "patch": {
+        "tags": [
+          "carrito"
+        ],
+        "summary": "Cambiar la cantidad de un producto",
+        "operationId": "cambiarCantidad",
+        "x-roles": [
+          "sesion"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "cantidad"
+                ],
+                "properties": {
+                  "cantidad": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "0 quita el producto.",
+                    "example": 2
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Carrito actualizado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Carrito"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/SolicitudInvalida"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "carrito"
+        ],
+        "summary": "Quitar un producto",
+        "operationId": "quitarItem",
+        "x-roles": [
+          "sesion"
+        ],
+        "responses": {
+          "200": {
+            "description": "Carrito actualizado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Carrito"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          }
+        }
+      }
+    },
+    "/api/carrito/{clienteId}/cupon": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ClienteId"
+        }
+      ],
+      "post": {
+        "tags": [
+          "carrito"
+        ],
+        "summary": "Aplicar un cupon",
+        "description": "El catalogo valida el cupon. El descuento se aplica antes del IVA.",
+        "operationId": "aplicarCupon",
+        "x-roles": [
+          "sesion"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "codigo"
+                ],
+                "properties": {
+                  "codigo": {
+                    "type": "string",
+                    "example": "BIENVENIDA10"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Carrito con el cupon aplicado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Carrito"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/SolicitudInvalida"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "carrito"
+        ],
+        "summary": "Quitar el cupon",
+        "operationId": "quitarCupon",
+        "x-roles": [
+          "sesion"
+        ],
+        "responses": {
+          "200": {
+            "description": "Carrito sin cupon.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Carrito"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          }
+        }
+      }
+    },
+    "/api/pedidos/checkout": {
+      "post": {
+        "tags": [
+          "pedidos"
+        ],
+        "summary": "Comprar el carrito (saga de checkout)",
+        "description": "Saga orquestada: validar cliente, leer carrito, verificar precios, reservar stock,\ncrear pedido, cobrar y confirmar la reserva. Si el pago falla, libera el stock y\ncancela el pedido. La clave de idempotencia es obligatoria: repetirla devuelve 200\ncon `idempotente: true` y no cobra otra vez. El gateway limita a 10 checkouts por\nminuto. Tokens de la pasarela simulada: `tok_ok_*` (aprobado), `tok_rechazo_*`\n(402), `tok_error_*` (502), `tok_lento_*` (aprobado tras 5 s).\n",
+        "operationId": "checkout",
+        "x-roles": [
+          "cliente",
+          "administrador",
+          "vendedor"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SolicitudCheckout"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Replica idempotente de una compra ya hecha con la misma clave.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultadoCheckout"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Compra confirmada y pagada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultadoCheckout"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/SolicitudInvalida"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "402": {
+            "description": "Pago rechazado (PAGO_RECHAZADO); el stock se devolvio y el pedido quedo cancelado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflicto"
+          },
+          "429": {
+            "$ref": "#/components/responses/LimiteExcedido"
+          },
+          "502": {
+            "description": "Error tecnico de la pasarela; la saga compenso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "$ref": "#/components/responses/NoDisponible"
+          }
+        }
+      }
+    },
+    "/api/pedidos": {
+      "get": {
+        "tags": [
+          "pedidos"
+        ],
+        "summary": "Listar pedidos",
+        "description": "Un cliente ve los suyos; el personal interno ve todos y puede filtrar por cliente.",
+        "operationId": "listarPedidos",
+        "x-roles": [
+          "sesion"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/FiltroClienteId"
+          },
+          {
+            "name": "estado",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/EstadoPedido"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pedidos, del mas reciente al mas antiguo (maximo 100).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PedidoResumen"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          }
+        }
+      }
+    },
+    "/api/pedidos/limites": {
+      "get": {
+        "tags": [
+          "pedidos"
+        ],
+        "summary": "Cuanto puede llevar el cliente de cada producto",
+        "description": "RF-47: un cliente debe dejar al menos 5 unidades para los demas (STOCK_RESERVA_CLIENTE), minimo 1,\ncontando lo que ya tiene en pedidos en curso. El checkout lo verifica antes de reservar y responde\n409 LIMITE_POR_CLIENTE. Un cliente consulta los suyos (cliente_id del token); el personal indica cliente_id.\n",
+        "operationId": "consultarLimites",
+        "x-roles": [
+          "cliente",
+          "administrador",
+          "vendedor"
+        ],
+        "parameters": [
+          {
+            "name": "skus",
+            "in": "query",
+            "required": true,
+            "description": "De 1 a 50 SKU separados por coma.",
+            "schema": {
+              "type": "string",
+              "example": "SKU-TEC-001,SKU-TEC-004"
+            }
+          },
+          {
+            "name": "cliente_id",
+            "in": "query",
+            "description": "Solo personal interno.",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Limite por SKU.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "reserva_por_cliente": {
+                      "type": "integer",
+                      "example": 5
+                    },
+                    "limites": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/LimiteCompra"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/SolicitudInvalida"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          }
+        }
+      }
+    },
+    "/api/pedidos/{id}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPedido"
+        }
+      ],
+      "get": {
+        "tags": [
+          "pedidos"
+        ],
+        "summary": "Detalle de un pedido",
+        "description": "Con sus items y su historial de estados. Un pedido ajeno responde como si no existiera.",
+        "operationId": "obtenerPedido",
+        "x-roles": [
+          "sesion"
+        ],
+        "responses": {
+          "200": {
+            "description": "Pedido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Pedido"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      }
+    },
+    "/api/pedidos/{id}/saga": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPedido"
+        }
+      ],
+      "get": {
+        "tags": [
+          "pedidos"
+        ],
+        "summary": "Bitacora de la saga de un pedido",
+        "operationId": "bitacoraSaga",
+        "x-roles": [
+          "administrador"
+        ],
+        "responses": {
+          "200": {
+            "description": "Pasos en orden, con sus compensaciones.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PasoSaga"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      }
+    },
+    "/api/pedidos/{id}/cancelar": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPedido"
+        }
+      ],
+      "post": {
+        "tags": [
+          "pedidos"
+        ],
+        "summary": "Cancelar un pedido",
+        "description": "El cliente solo puede cancelar los suyos en estado `creado` o `pagado`. Si estaba\npagado, se reembolsa y se devuelve el stock. Cancelar de nuevo responde 200 con\n`idempotente: true`.\n",
+        "operationId": "cancelarPedido",
+        "x-roles": [
+          "sesion"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "motivo": {
+                    "type": "string",
+                    "maxLength": 200,
+                    "example": "Ya no lo necesito"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Pedido cancelado, con las compensaciones aplicadas.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultadoCancelacion"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/SolicitudInvalida"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      }
+    },
+    "/api/pedidos/{id}/estado": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPedido"
+        }
+      ],
+      "patch": {
+        "tags": [
+          "pedidos"
+        ],
+        "summary": "Cambiar el estado de un pedido",
+        "description": "Transiciones permitidas: creado → pagado | cancelado; pagado → en_preparacion | cancelado; en_preparacion → enviado | cancelado; enviado → entregado.",
+        "operationId": "cambiarEstado",
+        "x-roles": [
+          "administrador",
+          "vendedor"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "estado"
+                ],
+                "properties": {
+                  "estado": {
+                    "$ref": "#/components/schemas/EstadoPedido"
+                  },
+                  "motivo": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Estado cambiado; se publica el evento para notificar al cliente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "mensaje": {
+                      "type": "string",
+                      "example": "Pedido actualizado a 'enviado'."
+                    },
+                    "pedido": {
+                      "type": "object",
+                      "additionalProperties": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/SolicitudInvalida"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      }
+    },
+    "/api/pedidos/{id}/direccion": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "description": "Id numerico del pedido.",
+          "schema": {
+            "type": "integer",
+            "example": 12
+          }
+        }
+      ],
+      "patch": {
+        "tags": [
+          "pedidos"
+        ],
+        "summary": "Cambiar la direccion de envio de un pedido",
+        "description": "Solo el cliente dueno, como maximo 2 veces y mientras el pedido este creado, pagado o en\npreparacion. El limite se aplica en una sola sentencia condicional (dos clics simultaneos no lo\nsuperan). Envia un correo con la direccion nueva.\n",
+        "operationId": "cambiarDireccionPedido",
+        "x-roles": [
+          "cliente"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CambioDireccionPedido"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Direccion actualizada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "mensaje": {
+                      "type": "string"
+                    },
+                    "pedido": {
+                      "type": "object",
+                      "additionalProperties": true
+                    },
+                    "cambios_restantes": {
+                      "type": "integer",
+                      "example": 1
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/SolicitudInvalida"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          },
+          "409": {
+            "description": "El pedido ya salio (DIRECCION_NO_EDITABLE) o ya se hicieron los 2 cambios (LIMITE_CAMBIOS_DIRECCION).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/pagos/transacciones": {
+      "get": {
+        "tags": [
+          "pagos"
+        ],
+        "summary": "Listar transacciones",
+        "description": "Un cliente ve las suyas; el personal interno ve todas y puede filtrar por cliente.",
+        "operationId": "listarTransacciones",
+        "x-roles": [
+          "sesion"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/FiltroClienteId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Transacciones, sin datos de tarjeta (PCI-DSS).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Transaccion"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          }
+        }
+      }
+    },
+    "/api/pagos/transacciones/{referencia}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Referencia"
+        }
+      ],
+      "get": {
+        "tags": [
+          "pagos"
+        ],
+        "summary": "Detalle de una transaccion",
+        "description": "Una transaccion de otro cliente responde 404, como si no existiera.",
+        "operationId": "obtenerTransaccion",
+        "x-roles": [
+          "sesion"
+        ],
+        "responses": {
+          "200": {
+            "description": "Transaccion.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Transaccion"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      }
+    },
+    "/api/notificaciones/mensajes": {
+      "get": {
+        "tags": [
+          "notificaciones"
+        ],
+        "summary": "Notificaciones enviadas",
+        "description": "Un cliente ve las suyas (por su correo); el personal interno ve todas.",
+        "operationId": "listarMensajes",
+        "x-roles": [
+          "sesion"
+        ],
+        "parameters": [
+          {
+            "name": "evento",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "example": "pedido.confirmado"
+            }
+          },
+          {
+            "name": "estado",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pendiente",
+                "enviado",
+                "fallido"
+              ]
+            }
+          },
+          {
+            "name": "destinatario",
+            "in": "query",
+            "description": "Solo personal interno; para un cliente se usa su correo.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limite",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Notificaciones, de la mas reciente a la mas antigua.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Notificacion"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          }
+        }
+      }
+    },
+    "/api/notificaciones/bandeja": {
+      "get": {
+        "tags": [
+          "notificaciones"
+        ],
+        "summary": "Bandeja de la campana de la web",
+        "description": "RF-52: las ultimas notificaciones de quien consulta y cuantas no ha leido. El personal ve ademas el\nbuzon de operaciones (alertas de reposicion y consultas de clientes); \"leida\" se guarda por persona.\nLa campana pide las 10 ultimas; la vista \"Ver todas\" pagina con pagina y filtra con solo_no_leidas.\n",
+        "operationId": "verBandeja",
+        "x-roles": [
+          "sesion"
+        ],
+        "parameters": [
+          {
+            "name": "limite",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 10
+            }
+          },
+          {
+            "name": "pagina",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000,
+              "default": 1
+            }
+          },
+          {
+            "name": "solo_no_leidas",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bandeja.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Bandeja"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          }
+        }
+      }
+    },
+    "/api/notificaciones/bandeja/leidas": {
+      "post": {
+        "tags": [
+          "notificaciones"
+        ],
+        "summary": "Marcar notificaciones como leidas",
+        "description": "Sin ids marca todas. Solo afecta las propias (y las del buzon de operaciones para el personal).",
+        "operationId": "marcarLeidas",
+        "x-roles": [
+          "sesion"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ids": {
+                    "type": "array",
+                    "maxItems": 100,
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[a-f0-9]{24}$"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cuantas se marcaron.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "marcadas": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/SolicitudInvalida"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          }
+        }
+      }
+    },
+    "/api/notificaciones/plantillas": {
+      "get": {
+        "tags": [
+          "notificaciones"
+        ],
+        "summary": "Plantillas de notificacion",
+        "operationId": "listarPlantillas",
+        "x-roles": [
+          "administrador"
+        ],
+        "responses": {
+          "200": {
+            "description": "Plantillas por evento.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Plantilla"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          }
+        }
+      }
+    },
+    "/api/notificaciones/plantillas/{clave}": {
+      "patch": {
+        "tags": [
+          "notificaciones"
+        ],
+        "summary": "Editar una plantilla",
+        "description": "Los datos del usuario se escapan como HTML al renderizar en el canal de correo (hallazgo S-11).",
+        "operationId": "actualizarPlantilla",
+        "x-roles": [
+          "administrador"
+        ],
+        "parameters": [
+          {
+            "name": "clave",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "pedido.confirmado"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CambiosPlantilla"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Plantilla actualizada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "mensaje": {
+                      "type": "string",
+                      "example": "Plantilla actualizada."
+                    },
+                    "plantilla": {
+                      "$ref": "#/components/schemas/Plantilla"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      }
+    },
+    "/api/asistente/mensajes": {
+      "post": {
+        "tags": [
+          "asistente"
+        ],
+        "summary": "Enviar un mensaje al asistente",
+        "description": "Publica: atiende a visitantes y a usuarios con sesion. Con un token valido, las\nconsultas de pedidos se hacen con la identidad del usuario (pedidos-service aplica\nsu autorizacion por dato: un pedido ajeno responde \"no encontrado\"). Un token\nvencido o invalido responde 401, no se degrada a visitante.\n\nLimite propio en el gateway: 30 mensajes por minuto (`LIMITE_ASISTENTE`).\nLas respuestas son datos para pintar como texto, nunca HTML.\n",
+        "operationId": "enviarMensajeAsistente",
+        "security": [],
+        "x-roles": [
+          "publica"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MensajeAsistente"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Respuestas del asistente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaAsistente"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/SolicitudInvalida"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "429": {
+            "$ref": "#/components/responses/LimiteExcedido"
+          }
+        }
+      }
+    },
+    "/api/asistente/conversaciones/{id}": {
+      "get": {
+        "tags": [
+          "asistente"
+        ],
+        "summary": "Consultar una conversacion",
+        "description": "Solo su dueno o un administrador; cualquier otro recibe 404. Los textos estan enmascarados.",
+        "operationId": "obtenerConversacion",
+        "x-roles": [
+          "sesion"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Conversacion.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      }
+    },
+    "/api/asistente/tickets": {
+      "get": {
+        "tags": [
+          "asistente"
+        ],
+        "summary": "Tickets de las consultas al vendedor (desde F5e el visitante no crea tickets, primero inicia sesion)",
+        "operationId": "listarTickets",
+        "x-roles": [
+          "administrador",
+          "vendedor"
+        ],
+        "parameters": [
+          {
+            "name": "estado",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "example": "abierto"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ultimos 100 tickets.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TicketAsistente"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          }
+        }
+      }
+    },
+    "/api/asistente/consultas": {
+      "post": {
+        "tags": [
+          "asistente"
+        ],
+        "summary": "Enviar una consulta al vendedor",
+        "description": "RF-53: el formulario del chat (respuesta formulario_consulta de la intencion humano). Crea un hilo y\npublica asistente.consulta_nueva: al personal le llega a la campana y al correo de operaciones.\n",
+        "operationId": "crearConsulta",
+        "x-roles": [
+          "cliente"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConsultaNueva"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Consulta creada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "mensaje": {
+                      "type": "string"
+                    },
+                    "consulta": {
+                      "type": "object",
+                      "additionalProperties": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/SolicitudInvalida"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "asistente"
+        ],
+        "summary": "Consultas al vendedor",
+        "description": "El cliente ve las suyas; el personal, todas.",
+        "operationId": "listarConsultas",
+        "x-roles": [
+          "cliente",
+          "administrador",
+          "vendedor"
+        ],
+        "parameters": [
+          {
+            "name": "estado",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "abierta",
+                "respondida",
+                "cerrada"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ultimas 100, por actividad.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Consulta"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          }
+        }
+      }
+    },
+    "/api/asistente/consultas/{numero}": {
+      "parameters": [
+        {
+          "name": "numero",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "example": "TCK-MBX1Z2A3F4E5"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "asistente"
+        ],
+        "summary": "Una consulta con su hilo",
+        "description": "La de otro cliente responde 404 (no se confirma que existe).",
+        "operationId": "obtenerConsulta",
+        "x-roles": [
+          "cliente",
+          "administrador",
+          "vendedor"
+        ],
+        "responses": {
+          "200": {
+            "description": "Consulta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Consulta"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "asistente"
+        ],
+        "summary": "Cerrar o reabrir una consulta",
+        "operationId": "cambiarEstadoConsulta",
+        "x-roles": [
+          "administrador",
+          "vendedor"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "estado"
+                ],
+                "properties": {
+                  "estado": {
+                    "type": "string",
+                    "enum": [
+                      "cerrada",
+                      "abierta"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Consulta actualizada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Consulta"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/SolicitudInvalida"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      }
+    },
+    "/api/asistente/consultas/{numero}/mensajes": {
+      "parameters": [
+        {
+          "name": "numero",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "example": "TCK-MBX1Z2A3F4E5"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "asistente"
+        ],
+        "summary": "Responder en el hilo de una consulta",
+        "description": "El personal responde (pasa a respondida y publica asistente.consulta_respondida: al cliente le llega a\nla campana y al correo); el cliente contesta (vuelve a abierta y le llega al personal).\n",
+        "operationId": "responderConsulta",
+        "x-roles": [
+          "cliente",
+          "administrador",
+          "vendedor"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "texto"
+                ],
+                "properties": {
+                  "texto": {
+                    "type": "string",
+                    "minLength": 5,
+                    "maxLength": 1000
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Consulta con el mensaje nuevo.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Consulta"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/SolicitudInvalida"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflicto"
+          }
+        }
+      }
+    },
+    "/api/asistente/intenciones": {
+      "get": {
+        "tags": [
+          "asistente"
+        ],
+        "summary": "Intenciones del motor de reglas",
+        "operationId": "listarIntenciones",
+        "x-roles": [
+          "administrador"
+        ],
+        "responses": {
+          "200": {
+            "description": "Intenciones con sus terminos y pesos.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/IntencionAsistente"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          }
+        }
+      }
+    },
+    "/api/asistente/intenciones/{clave}": {
+      "patch": {
+        "tags": [
+          "asistente"
+        ],
+        "summary": "Editar una intencion (sin desplegar)",
+        "operationId": "actualizarIntencion",
+        "x-roles": [
+          "administrador"
+        ],
+        "parameters": [
+          {
+            "name": "clave",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "faq_envio"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "minProperties": 1,
+                "properties": {
+                  "terminos": {
+                    "type": "array",
+                    "maxItems": 100,
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "texto",
+                        "peso"
+                      ],
+                      "properties": {
+                        "texto": {
+                          "type": "string",
+                          "maxLength": 60,
+                          "description": "Sin tildes; con * al final coincide por prefijo."
+                        },
+                        "peso": {
+                          "type": "number",
+                          "minimum": 1,
+                          "maximum": 10
+                        }
+                      }
+                    }
+                  },
+                  "prioridad": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "descripcion": {
+                    "type": "string",
+                    "maxLength": 120
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Intencion actualizada."
+          },
+          "400": {
+            "$ref": "#/components/responses/SolicitudInvalida"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      }
+    },
+    "/api/asistente/faq": {
+      "get": {
+        "tags": [
+          "asistente"
+        ],
+        "summary": "Respuestas a preguntas frecuentes",
+        "operationId": "listarFaq",
+        "x-roles": [
+          "administrador"
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuestas con sus {{variables}} de configuracion.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "clave": {
+                        "type": "string",
+                        "example": "faq_envio"
+                      },
+                      "respuesta": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          }
+        }
+      }
+    },
+    "/api/asistente/faq/{clave}": {
+      "patch": {
+        "tags": [
+          "asistente"
+        ],
+        "summary": "Editar una respuesta frecuente (sin desplegar)",
+        "description": "Las cifras se escriben como variables: {{costo_envio}}, {{umbral_envio_gratis}}, {{porcentaje_iva}}, {{dias_entrega}}, {{dias_retracto}}, {{horario_atencion}}.",
+        "operationId": "actualizarFaq",
+        "x-roles": [
+          "administrador"
+        ],
+        "parameters": [
+          {
+            "name": "clave",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "faq_horario"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "respuesta"
+                ],
+                "properties": {
+                  "respuesta": {
+                    "type": "string",
+                    "maxLength": 1000
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Respuesta actualizada."
+          },
+          "400": {
+            "$ref": "#/components/responses/SolicitudInvalida"
+          },
+          "401": {
+            "$ref": "#/components/responses/NoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/Prohibido"
+          },
+          "404": {
+            "$ref": "#/components/responses/NoEncontrado"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "JWT de /api/auth/login (15 min)."
+      }
+    },
+    "schemas": {
+      "Salud": {
+        "type": "object",
+        "properties": {
+          "gateway": {
+            "type": "string",
+            "example": "ok"
+          },
+          "hora": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "servicios_caidos": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "servicios": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "servicio": {
+                  "type": "string",
+                  "example": "auth"
+                },
+                "ok": {
+                  "type": "boolean"
+                },
+                "estado": {
+                  "type": "string",
+                  "example": "ok"
+                },
+                "dependencias": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "nombre": {
+                        "type": "string",
+                        "example": "postgres:auth_db"
+                      },
+                      "ok": {
+                        "type": "boolean"
+                      },
+                      "critica": {
+                        "type": "boolean"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "description": "Formato uniforme del middleware central de errores (shared/src/errores.ts).",
+        "required": [
+          "mensaje",
+          "codigo"
+        ],
+        "properties": {
+          "mensaje": {
+            "type": "string",
+            "example": "Solo puede consultar su propia informacion."
+          },
+          "codigo": {
+            "type": "string",
+            "example": "PROHIBIDO"
+          },
+          "detalle": {
+            "description": "Datos adicionales segun el error (p. ej. discrepancias de precio)."
+          }
+        }
+      },
+      "Registro": {
+        "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 150,
+            "example": "nuevo@correo.co"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8,
+            "example": "Password123"
+          },
+          "cliente_id": {
+            "type": "integer",
+            "description": "Perfil de clientes-service. Debe existir, tener el mismo correo y no tener cuenta (hallazgo S-01).",
+            "example": 4
+          }
+        }
+      },
+      "Rol": {
+        "type": "string",
+        "enum": [
+          "cliente",
+          "vendedor",
+          "administrador"
+        ]
+      },
+      "Usuario": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 3
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "ana@correo.co"
+          },
+          "rol": {
+            "$ref": "#/components/schemas/Rol"
+          },
+          "cliente_id": {
+            "type": "integer",
+            "nullable": true,
+            "example": 1
+          },
+          "activo": {
+            "type": "boolean",
+            "example": true
+          }
+        }
+      },
+      "Credenciales": {
+        "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 150,
+            "example": "ana@correo.co"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8,
+            "example": "Password123"
+          }
+        }
+      },
+      "Sesion": {
+        "type": "object",
+        "properties": {
+          "mensaje": {
+            "type": "string",
+            "example": "Autenticacion exitosa."
+          },
+          "token": {
+            "type": "string",
+            "description": "JWT de acceso (15 min)."
+          },
+          "refresh_token": {
+            "type": "string",
+            "description": "Refresh token rotatorio (7 dias): \"<jwt>.<aleatorio>\"."
+          },
+          "expira_en": {
+            "type": "string",
+            "example": "15m"
+          },
+          "usuario": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "email": {
+                "type": "string"
+              },
+              "rol": {
+                "$ref": "#/components/schemas/Rol"
+              },
+              "cliente_id": {
+                "type": "integer",
+                "nullable": true
+              }
+            }
+          }
+        }
+      },
+      "Renovacion": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string"
+          },
+          "refresh_token": {
+            "type": "string"
+          },
+          "expira_en": {
+            "type": "string",
+            "example": "15m"
+          }
+        }
+      },
+      "Perfil": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Usuario"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "ultimo_acceso": {
+                "type": "string",
+                "nullable": true,
+                "format": "date-time"
+              },
+              "creado_en": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          }
+        ]
+      },
+      "UsuarioAdministrado": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 2
+          },
+          "email": {
+            "type": "string",
+            "example": "vendedor@tienda.co"
+          },
+          "rol": {
+            "$ref": "#/components/schemas/Rol"
+          },
+          "activo": {
+            "type": "boolean"
+          },
+          "cliente_id": {
+            "type": "integer",
+            "nullable": true
+          },
+          "ultimo_acceso": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "creado_en": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "UsuarioInterno": {
+        "type": "object",
+        "required": [
+          "email",
+          "password",
+          "rol"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "vendedor2@tienda.co"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8,
+            "example": "Password123"
+          },
+          "rol": {
+            "$ref": "#/components/schemas/Rol"
+          }
+        }
+      },
+      "CambiosUsuario": {
+        "type": "object",
+        "minProperties": 1,
+        "description": "Solo las cuentas internas cambian de rol. Nadie se cambia el rol ni se desactiva a si mismo. Revoca las sesiones del usuario.",
+        "properties": {
+          "rol": {
+            "type": "string",
+            "enum": [
+              "vendedor",
+              "administrador"
+            ]
+          },
+          "activo": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ClienteNuevo": {
+        "type": "object",
+        "required": [
+          "nombre",
+          "apellido",
+          "email"
+        ],
+        "properties": {
+          "nombre": {
+            "type": "string",
+            "maxLength": 100,
+            "example": "Diana"
+          },
+          "apellido": {
+            "type": "string",
+            "maxLength": 100,
+            "example": "Perdomo"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 150,
+            "example": "diana@correo.co"
+          },
+          "telefono": {
+            "type": "string",
+            "maxLength": 30,
+            "example": "3005556677"
+          },
+          "documento": {
+            "type": "string",
+            "maxLength": 30,
+            "example": "1075000111"
+          },
+          "tipo_documento": {
+            "type": "string",
+            "enum": [
+              "CC",
+              "CE",
+              "NIT",
+              "PAS"
+            ],
+            "default": "CC"
+          }
+        }
+      },
+      "Cliente": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "nombre": {
+            "type": "string",
+            "example": "Ana"
+          },
+          "apellido": {
+            "type": "string",
+            "example": "Restrepo"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "telefono": {
+            "type": "string",
+            "nullable": true
+          },
+          "documento": {
+            "type": "string",
+            "nullable": true
+          },
+          "tipo_documento": {
+            "type": "string",
+            "enum": [
+              "CC",
+              "CE",
+              "NIT",
+              "PAS"
+            ]
+          },
+          "activo": {
+            "type": "boolean"
+          },
+          "creado_en": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "CambiosCliente": {
+        "type": "object",
+        "description": "Al menos uno. El correo no se cambia por esta via (es la identidad de la cuenta).",
+        "minProperties": 1,
+        "properties": {
+          "nombre": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "apellido": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "telefono": {
+            "type": "string",
+            "maxLength": 30,
+            "nullable": true,
+            "example": "300 123 4567"
+          },
+          "tipo_documento": {
+            "type": "string",
+            "enum": [
+              "CC",
+              "CE",
+              "NIT",
+              "PAS"
+            ]
+          },
+          "documento": {
+            "type": "string",
+            "maxLength": 30,
+            "nullable": true,
+            "description": "Letras, numeros y guiones; unico (409 si ya lo usa otra cuenta)."
+          }
+        }
+      },
+      "Direccion": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "envio",
+              "facturacion"
+            ]
+          },
+          "etiqueta": {
+            "type": "string",
+            "nullable": true
+          },
+          "linea1": {
+            "type": "string"
+          },
+          "linea2": {
+            "type": "string",
+            "nullable": true
+          },
+          "ciudad": {
+            "type": "string"
+          },
+          "departamento": {
+            "type": "string",
+            "nullable": true
+          },
+          "pais": {
+            "type": "string"
+          },
+          "codigo_postal": {
+            "type": "string",
+            "nullable": true
+          },
+          "predeterminada": {
+            "type": "boolean"
+          }
+        }
+      },
+      "DireccionNueva": {
+        "type": "object",
+        "description": "La primera direccion de envio del cliente queda como predeterminada aunque no se pida.",
+        "required": [
+          "linea1",
+          "ciudad",
+          "departamento"
+        ],
+        "properties": {
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "envio",
+              "facturacion"
+            ],
+            "default": "envio"
+          },
+          "etiqueta": {
+            "type": "string",
+            "maxLength": 50,
+            "example": "Casa"
+          },
+          "linea1": {
+            "type": "string",
+            "maxLength": 200,
+            "example": "Calle 10 # 5-20"
+          },
+          "linea2": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "ciudad": {
+            "type": "string",
+            "maxLength": 100,
+            "example": "Neiva"
+          },
+          "departamento": {
+            "type": "string",
+            "maxLength": 100,
+            "example": "Huila",
+            "description": "Uno de GET /api/clientes/departamentos; se acepta sin tildes y se guarda el nombre oficial."
+          },
+          "codigo_postal": {
+            "type": "string",
+            "pattern": "^[0-9]{6}$",
+            "example": "410001"
+          },
+          "predeterminada": {
+            "type": "boolean",
+            "default": false,
+            "description": "Si es true, quita la marca a la anterior del mismo tipo."
+          }
+        }
+      },
+      "Mensaje": {
+        "type": "object",
+        "properties": {
+          "mensaje": {
+            "type": "string"
+          }
+        }
+      },
+      "CambiosDireccion": {
+        "type": "object",
+        "minProperties": 1,
+        "description": "Al menos un campo. predeterminada solo admite true (para cambiarla se marca otra).",
+        "properties": {
+          "etiqueta": {
+            "type": "string",
+            "maxLength": 50,
+            "nullable": true
+          },
+          "linea1": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "linea2": {
+            "type": "string",
+            "maxLength": 200,
+            "nullable": true
+          },
+          "ciudad": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "departamento": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "codigo_postal": {
+            "type": "string",
+            "nullable": true,
+            "example": "110231"
+          },
+          "predeterminada": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          }
+        }
+      },
+      "Dinero": {
+        "type": "string",
+        "pattern": "^\\d+\\.\\d{2}$",
+        "description": "Valor NUMERIC(12,2) de PostgreSQL, serializado como texto.",
+        "example": "26900.00"
+      },
+      "CompraHistorica": {
+        "type": "object",
+        "description": "Proyeccion alimentada por los eventos pedido.confirmado y pedido.cancelado (consistencia eventual).",
+        "properties": {
+          "pedido_id": {
+            "type": "integer"
+          },
+          "numero_pedido": {
+            "type": "string",
+            "example": "PED-202611-001105"
+          },
+          "total": {
+            "$ref": "#/components/schemas/Dinero"
+          },
+          "estado": {
+            "type": "string"
+          },
+          "items": {
+            "type": "integer"
+          },
+          "fecha": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Producto": {
+        "type": "object",
+        "properties": {
+          "sku": {
+            "type": "string",
+            "example": "SKU-TEC-001"
+          },
+          "nombre": {
+            "type": "string",
+            "example": "Portatil Aurora 14 pulgadas"
+          },
+          "descripcion": {
+            "type": "string"
+          },
+          "categoria": {
+            "type": "string",
+            "example": "tecnologia"
+          },
+          "subcategoria": {
+            "type": "string",
+            "nullable": true,
+            "example": "computadores"
+          },
+          "marca": {
+            "type": "string",
+            "example": "Aurora"
+          },
+          "precio": {
+            "type": "number",
+            "example": 3499000
+          },
+          "descuento_porcentaje": {
+            "type": "number",
+            "example": 10,
+            "description": "Descuento vigente (0 si la oferta ya vencio)."
+          },
+          "oferta_hasta": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "Fin de la oferta; null sin fecha de fin."
+          },
+          "precio_final": {
+            "type": "number",
+            "example": 3149100
+          },
+          "imagenes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "atributos": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "disponible": {
+            "type": "integer",
+            "nullable": true,
+            "description": "Unidades disponibles segun inventario; null si inventario no responde (degradacion elegante).",
+            "example": 50
+          },
+          "hay_stock": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "maximo_por_cliente": {
+            "type": "integer",
+            "nullable": true,
+            "description": "Lo maximo que un cliente sin pedidos en curso puede llevar (RF-47).",
+            "example": 45
+          },
+          "activo": {
+            "type": "boolean",
+            "description": "Solo para el personal (incluir_inactivos)."
+          },
+          "descuento_configurado": {
+            "type": "number",
+            "description": "Solo para el personal; el descuento aunque la oferta haya vencido."
+          },
+          "oferta_hasta_configurada": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "Solo para el personal."
+          }
+        }
+      },
+      "PaginaProductos": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "integer",
+            "example": 71
+          },
+          "pagina": {
+            "type": "integer",
+            "example": 1
+          },
+          "por_pagina": {
+            "type": "integer",
+            "example": 20
+          },
+          "busqueda": {
+            "type": "string",
+            "enum": [
+              "texto",
+              "tolerante"
+            ],
+            "description": "Solo con q: como se encontraron los resultados."
+          },
+          "productos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Producto"
+            }
+          }
+        }
+      },
+      "ProductoNuevo": {
+        "type": "object",
+        "required": [
+          "sku",
+          "nombre",
+          "subcategoria",
+          "precio"
+        ],
+        "properties": {
+          "sku": {
+            "type": "string",
+            "pattern": "^[A-Z0-9][A-Z0-9-]{2,39}$",
+            "example": "SKU-TEC-099"
+          },
+          "nombre": {
+            "type": "string",
+            "example": "Monitor Andino 27"
+          },
+          "descripcion": {
+            "type": "string"
+          },
+          "categoria": {
+            "type": "string",
+            "example": "tecnologia"
+          },
+          "subcategoria": {
+            "type": "string",
+            "description": "Seccion de catalogo_db.categorias.",
+            "example": "monitores"
+          },
+          "marca": {
+            "type": "string",
+            "example": "Andina",
+            "description": "Sin marca si no se indica."
+          },
+          "precio": {
+            "type": "integer",
+            "minimum": 1000,
+            "maximum": 100000000,
+            "example": 1200000
+          },
+          "descuento_porcentaje": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 90,
+            "example": 0
+          },
+          "oferta_hasta": {
+            "type": "string",
+            "nullable": true,
+            "description": "AAAA-MM-DD (vale hasta el final de ese dia, hora de Colombia) o ISO 8601; futura.",
+            "example": "2026-12-15"
+          },
+          "imagenes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "atributos": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "CambiosProducto": {
+        "type": "object",
+        "minProperties": 1,
+        "properties": {
+          "nombre": {
+            "type": "string"
+          },
+          "marca": {
+            "type": "string"
+          },
+          "descripcion": {
+            "type": "string"
+          },
+          "subcategoria": {
+            "type": "string"
+          },
+          "precio": {
+            "type": "integer",
+            "minimum": 1000,
+            "maximum": 100000000
+          },
+          "descuento_porcentaje": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 90
+          },
+          "oferta_hasta": {
+            "type": "string",
+            "nullable": true,
+            "description": "Fecha de fin de la oferta; null la quita. Con descuento 0 se borra sola."
+          },
+          "imagenes": {
+            "type": "array",
+            "maxItems": 6,
+            "items": {
+              "type": "string",
+              "pattern": "^/api/catalogo/imagenes/"
+            },
+            "description": "Reordenar o quitar fotos ya subidas."
+          },
+          "atributos": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "activo": {
+            "type": "boolean"
+          }
+        }
+      },
+      "Categoria": {
+        "type": "object",
+        "properties": {
+          "categoria": {
+            "type": "string",
+            "example": "tecnologia"
+          },
+          "nombre": {
+            "type": "string",
+            "example": "Tecnología"
+          },
+          "productos": {
+            "type": "integer",
+            "example": 60
+          },
+          "precio_min": {
+            "type": "number",
+            "example": 59000
+          },
+          "marcas": {
+            "type": "array",
+            "description": "Marcas de la categoria; el asistente las reconoce sin reglas propias.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "nombre": {
+                  "type": "string",
+                  "example": "Logitech"
+                },
+                "productos": {
+                  "type": "integer",
+                  "example": 5
+                }
+              }
+            }
+          },
+          "subcategorias": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "slug": {
+                  "type": "string",
+                  "example": "audio"
+                },
+                "nombre": {
+                  "type": "string",
+                  "example": "Audio"
+                },
+                "productos": {
+                  "type": "integer",
+                  "example": 6
+                },
+                "precio_min": {
+                  "type": "number",
+                  "example": 249000
+                },
+                "sinonimos": {
+                  "type": "array",
+                  "description": "El asistente los usa para reconocer la seccion (audifonos, parlante...).",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "Promocion": {
+        "type": "object",
+        "properties": {
+          "codigo": {
+            "type": "string",
+            "example": "BIENVENIDA10"
+          },
+          "descripcion": {
+            "type": "string"
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "porcentaje",
+              "monto_fijo",
+              "envio_gratis"
+            ]
+          },
+          "valor": {
+            "type": "number",
+            "example": 10
+          },
+          "minimo_compra": {
+            "type": "number",
+            "example": 100000
+          },
+          "vigente_hasta": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "CambioPrecio": {
+        "type": "object",
+        "properties": {
+          "sku": {
+            "type": "string"
+          },
+          "antes": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "precio": {
+                "type": "number"
+              },
+              "descuento_porcentaje": {
+                "type": "number"
+              },
+              "oferta_hasta": {
+                "type": "string",
+                "nullable": true
+              }
+            }
+          },
+          "despues": {
+            "type": "object",
+            "properties": {
+              "precio": {
+                "type": "number"
+              },
+              "descuento_porcentaje": {
+                "type": "number"
+              },
+              "oferta_hasta": {
+                "type": "string",
+                "nullable": true
+              }
+            }
+          },
+          "usuario": {
+            "type": "string",
+            "example": "vendedor@tienda.co"
+          },
+          "rol": {
+            "type": "string"
+          },
+          "fecha": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Disponibilidad": {
+        "type": "object",
+        "properties": {
+          "sku": {
+            "type": "string"
+          },
+          "disponible": {
+            "type": "integer"
+          },
+          "reservado": {
+            "type": "integer"
+          },
+          "hay_stock": {
+            "type": "boolean"
+          },
+          "stock_minimo": {
+            "type": "integer"
+          },
+          "maximo_por_cliente": {
+            "type": "integer",
+            "description": "RF-47: max(1, disponible - 5); 0 si no hay stock."
+          }
+        }
+      },
+      "StockBodega": {
+        "type": "object",
+        "properties": {
+          "sku": {
+            "type": "string"
+          },
+          "bodega": {
+            "type": "string",
+            "example": "BOG-01"
+          },
+          "ciudad": {
+            "type": "string",
+            "example": "Bogota"
+          },
+          "cantidad_disponible": {
+            "type": "integer"
+          },
+          "cantidad_reservada": {
+            "type": "integer"
+          },
+          "stock_minimo": {
+            "type": "integer"
+          },
+          "version": {
+            "type": "integer",
+            "description": "Version para el bloqueo optimista."
+          },
+          "actualizado_en": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "EntradaStock": {
+        "type": "object",
+        "required": [
+          "cantidad"
+        ],
+        "properties": {
+          "cantidad": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100000,
+            "example": 10
+          },
+          "bodega_id": {
+            "type": "integer",
+            "example": 1
+          },
+          "proveedor_id": {
+            "type": "integer",
+            "example": 1
+          },
+          "costo_unitario": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 180000
+          },
+          "documento": {
+            "type": "string",
+            "maxLength": 40,
+            "description": "Factura o remision.",
+            "example": "FV-10234"
+          },
+          "observacion": {
+            "type": "string",
+            "maxLength": 300
+          }
+        }
+      },
+      "Movimiento": {
+        "type": "object",
+        "properties": {
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "entrada",
+              "salida",
+              "reserva",
+              "liberacion",
+              "ajuste"
+            ]
+          },
+          "cantidad": {
+            "type": "integer"
+          },
+          "saldo_despues": {
+            "type": "integer"
+          },
+          "referencia": {
+            "type": "string"
+          },
+          "creado_en": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "AlertaStock": {
+        "type": "object",
+        "properties": {
+          "sku": {
+            "type": "string"
+          },
+          "bodega": {
+            "type": "string"
+          },
+          "cantidad_disponible": {
+            "type": "integer"
+          },
+          "stock_minimo": {
+            "type": "integer"
+          }
+        }
+      },
+      "Entrada": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "sku": {
+            "type": "string"
+          },
+          "bodega": {
+            "type": "string",
+            "example": "BOG-01"
+          },
+          "cantidad": {
+            "type": "integer"
+          },
+          "costo_unitario": {
+            "type": "number",
+            "nullable": true
+          },
+          "documento": {
+            "type": "string",
+            "nullable": true
+          },
+          "observacion": {
+            "type": "string",
+            "nullable": true
+          },
+          "registrado_por": {
+            "type": "string",
+            "nullable": true
+          },
+          "creado_en": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "proveedor_id": {
+            "type": "integer",
+            "nullable": true
+          },
+          "proveedor": {
+            "type": "string",
+            "nullable": true
+          },
+          "proveedor_contacto": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "Proveedor": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "nombre": {
+            "type": "string"
+          },
+          "nit": {
+            "type": "string",
+            "example": "900123456-1"
+          },
+          "contacto": {
+            "type": "string",
+            "nullable": true
+          },
+          "telefono": {
+            "type": "string",
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "nullable": true
+          },
+          "activo": {
+            "type": "boolean"
+          },
+          "creado_en": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ProveedorNuevo": {
+        "type": "object",
+        "required": [
+          "nombre",
+          "nit"
+        ],
+        "properties": {
+          "nombre": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 120
+          },
+          "nit": {
+            "type": "string",
+            "description": "6 a 12 digitos y, opcional, el digito de verificacion.",
+            "example": "900123456-1"
+          },
+          "contacto": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "telefono": {
+            "type": "string",
+            "description": "7 a 15 digitos."
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          }
+        }
+      },
+      "CambiosProveedor": {
+        "type": "object",
+        "minProperties": 1,
+        "properties": {
+          "nombre": {
+            "type": "string"
+          },
+          "nit": {
+            "type": "string"
+          },
+          "contacto": {
+            "type": "string",
+            "nullable": true
+          },
+          "telefono": {
+            "type": "string",
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "nullable": true
+          },
+          "activo": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ItemCarrito": {
+        "type": "object",
+        "properties": {
+          "sku": {
+            "type": "string"
+          },
+          "nombre": {
+            "type": "string"
+          },
+          "cantidad": {
+            "type": "integer"
+          },
+          "precio_unitario": {
+            "type": "number",
+            "description": "Precio vigente leido del catalogo (invariante 2)."
+          }
+        }
+      },
+      "Carrito": {
+        "type": "object",
+        "properties": {
+          "cliente_id": {
+            "type": "integer"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ItemCarrito"
+            }
+          },
+          "cupon": {
+            "type": "string",
+            "nullable": true,
+            "example": "BIENVENIDA10"
+          },
+          "totales": {
+            "type": "object",
+            "description": "El descuento se aplica antes del IVA (19 %); envio de $15.000, gratis desde $500.000.",
+            "properties": {
+              "subtotal": {
+                "type": "number"
+              },
+              "descuento": {
+                "type": "number"
+              },
+              "impuestos": {
+                "type": "number"
+              },
+              "envio": {
+                "type": "number"
+              },
+              "total": {
+                "type": "number"
+              },
+              "cupon_aplicado": {
+                "type": "string"
+              }
+            }
+          },
+          "cantidad_items": {
+            "type": "integer"
+          },
+          "actualizado_en": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "SolicitudCheckout": {
+        "type": "object",
+        "required": [
+          "medio_pago",
+          "token_medio_pago"
+        ],
+        "properties": {
+          "medio_pago": {
+            "type": "string",
+            "enum": [
+              "tarjeta_credito",
+              "tarjeta_debito",
+              "pse",
+              "efecty"
+            ],
+            "example": "tarjeta_credito"
+          },
+          "token_medio_pago": {
+            "type": "string",
+            "description": "Token de la pasarela; nunca el numero de tarjeta (PCI-DSS). En el laboratorio: tok_ok_*, tok_rechazo_*, tok_error_*, tok_lento_*.",
+            "example": "tok_ok_4242"
+          },
+          "direccion_id": {
+            "type": "integer",
+            "example": 1
+          },
+          "cliente_id": {
+            "type": "integer",
+            "description": "Solo personal interno (venta telefonica). Un cliente compra siempre como si mismo (invariante 1)."
+          }
+        }
+      },
+      "EstadoPedido": {
+        "type": "string",
+        "enum": [
+          "creado",
+          "pagado",
+          "en_preparacion",
+          "enviado",
+          "entregado",
+          "cancelado"
+        ]
+      },
+      "ResultadoCheckout": {
+        "type": "object",
+        "properties": {
+          "mensaje": {
+            "type": "string",
+            "example": "Compra confirmada."
+          },
+          "idempotente": {
+            "type": "boolean",
+            "description": "true si es la replica de una compra ya hecha con la misma clave."
+          },
+          "pedido": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "numero": {
+                "type": "string"
+              },
+              "estado": {
+                "$ref": "#/components/schemas/EstadoPedido"
+              },
+              "subtotal": {
+                "$ref": "#/components/schemas/Dinero"
+              },
+              "impuestos": {
+                "$ref": "#/components/schemas/Dinero"
+              },
+              "envio": {
+                "$ref": "#/components/schemas/Dinero"
+              },
+              "descuento": {
+                "$ref": "#/components/schemas/Dinero"
+              },
+              "total": {
+                "$ref": "#/components/schemas/Dinero"
+              },
+              "creado_en": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ItemCarrito"
+            }
+          },
+          "pago": {
+            "type": "object",
+            "properties": {
+              "referencia": {
+                "type": "string",
+                "example": "TRX-7942F14B-FE1"
+              },
+              "estado": {
+                "type": "string",
+                "example": "aprobada"
+              }
+            }
+          }
+        }
+      },
+      "PedidoResumen": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "numero": {
+            "type": "string",
+            "example": "PED-202611-001105"
+          },
+          "cliente_id": {
+            "type": "integer"
+          },
+          "estado": {
+            "$ref": "#/components/schemas/EstadoPedido"
+          },
+          "total": {
+            "$ref": "#/components/schemas/Dinero"
+          },
+          "creado_en": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "actualizado_en": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Ultimo cambio (estado o direccion)."
+          },
+          "cantidad_items": {
+            "type": "integer"
+          }
+        }
+      },
+      "LimiteCompra": {
+        "type": "object",
+        "properties": {
+          "sku": {
+            "type": "string"
+          },
+          "disponible": {
+            "type": "integer",
+            "description": "Stock libre en inventario."
+          },
+          "en_curso": {
+            "type": "integer",
+            "description": "Unidades del cliente en pedidos creados, pagados, en preparacion o enviados."
+          },
+          "maximo_total": {
+            "type": "integer"
+          },
+          "puede_agregar": {
+            "type": "integer"
+          }
+        }
+      },
+      "Pedido": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "numero": {
+            "type": "string"
+          },
+          "cliente_id": {
+            "type": "integer"
+          },
+          "direccion_envio": {
+            "$ref": "#/components/schemas/Direccion"
+          },
+          "estado": {
+            "$ref": "#/components/schemas/EstadoPedido"
+          },
+          "subtotal": {
+            "$ref": "#/components/schemas/Dinero"
+          },
+          "impuestos": {
+            "$ref": "#/components/schemas/Dinero"
+          },
+          "envio": {
+            "$ref": "#/components/schemas/Dinero"
+          },
+          "descuento": {
+            "$ref": "#/components/schemas/Dinero"
+          },
+          "total": {
+            "$ref": "#/components/schemas/Dinero"
+          },
+          "transaccion_pago_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "motivo_cancelacion": {
+            "type": "string",
+            "nullable": true
+          },
+          "creado_en": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "actualizado_en": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "sku": {
+                  "type": "string"
+                },
+                "nombre": {
+                  "type": "string"
+                },
+                "cantidad": {
+                  "type": "integer"
+                },
+                "precio_unitario": {
+                  "$ref": "#/components/schemas/Dinero"
+                },
+                "subtotal": {
+                  "$ref": "#/components/schemas/Dinero"
+                },
+                "reserva_id": {
+                  "type": "string",
+                  "nullable": true
+                }
+              }
+            }
+          },
+          "historial": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "estado_anterior": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "estado_nuevo": {
+                  "type": "string"
+                },
+                "motivo": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "creado_en": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          }
+        }
+      },
+      "PasoSaga": {
+        "type": "object",
+        "properties": {
+          "paso": {
+            "type": "string",
+            "example": "reservar_stock"
+          },
+          "estado": {
+            "type": "string",
+            "enum": [
+              "iniciado",
+              "completado",
+              "fallido",
+              "compensado"
+            ]
+          },
+          "detalle": {
+            "type": "object",
+            "nullable": true,
+            "additionalProperties": true
+          },
+          "creado_en": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ResultadoCancelacion": {
+        "type": "object",
+        "properties": {
+          "mensaje": {
+            "type": "string",
+            "example": "Pedido cancelado."
+          },
+          "pedido": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "numero": {
+                "type": "string"
+              },
+              "estado": {
+                "$ref": "#/components/schemas/EstadoPedido"
+              }
+            }
+          },
+          "compensaciones": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "reembolso_procesado",
+              "stock_devuelto:SKU-HOG-001"
+            ]
+          }
+        }
+      },
+      "CambioDireccionPedido": {
+        "type": "object",
+        "required": [
+          "direccion_id"
+        ],
+        "properties": {
+          "direccion_id": {
+            "type": "integer",
+            "example": 3,
+            "description": "Una direccion de envio del propio cliente."
+          }
+        }
+      },
+      "Transaccion": {
+        "type": "object",
+        "description": "Sin numero de tarjeta, CVV ni vencimiento (invariante 9, PCI-DSS).",
+        "properties": {
+          "referencia": {
+            "type": "string",
+            "example": "TRX-4B2CB23F-814"
+          },
+          "pedido_id": {
+            "type": "integer"
+          },
+          "numero_pedido": {
+            "type": "string"
+          },
+          "monto": {
+            "$ref": "#/components/schemas/Dinero"
+          },
+          "medio_pago": {
+            "type": "string"
+          },
+          "estado": {
+            "type": "string",
+            "enum": [
+              "iniciada",
+              "aprobada",
+              "rechazada",
+              "reembolsada"
+            ]
+          },
+          "ultimos_cuatro": {
+            "type": "string",
+            "nullable": true,
+            "example": "4242"
+          },
+          "marca": {
+            "type": "string",
+            "nullable": true,
+            "example": "VISA"
+          },
+          "creado_en": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Notificacion": {
+        "type": "object",
+        "properties": {
+          "_id": {
+            "type": "string"
+          },
+          "evento": {
+            "type": "string",
+            "example": "pedido.confirmado"
+          },
+          "canal": {
+            "type": "string",
+            "enum": [
+              "email",
+              "sms",
+              "push"
+            ]
+          },
+          "destinatario": {
+            "type": "string"
+          },
+          "asunto": {
+            "type": "string"
+          },
+          "cuerpo": {
+            "type": "string"
+          },
+          "estado": {
+            "type": "string",
+            "enum": [
+              "pendiente",
+              "enviado",
+              "fallido"
+            ]
+          },
+          "clave_dedupe": {
+            "type": "string",
+            "description": "Evita enviar dos veces el mismo aviso (entrega al menos una vez)."
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "creado_en": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "enviado_en": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "proveedor": {
+            "type": "string"
+          }
+        }
+      },
+      "Bandeja": {
+        "type": "object",
+        "properties": {
+          "no_leidas": {
+            "type": "integer",
+            "example": 2
+          },
+          "total": {
+            "type": "integer",
+            "description": "Cuantas hay con el filtro pedido."
+          },
+          "pagina": {
+            "type": "integer"
+          },
+          "paginas": {
+            "type": "integer"
+          },
+          "notificaciones": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "evento": {
+                  "type": "string",
+                  "example": "asistente.consulta_respondida"
+                },
+                "asunto": {
+                  "type": "string"
+                },
+                "texto": {
+                  "type": "string"
+                },
+                "destino": {
+                  "type": "string",
+                  "enum": [
+                    "pedidos",
+                    "consultas",
+                    "inventario",
+                    "carrito",
+                    "inicio"
+                  ]
+                },
+                "ticket": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "pedido": {
+                  "type": "string",
+                  "nullable": true,
+                  "description": "Numero del pedido (PED-...) si la notificacion es de un pedido."
+                },
+                "de_operaciones": {
+                  "type": "boolean"
+                },
+                "leida": {
+                  "type": "boolean"
+                },
+                "creado_en": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          }
+        }
+      },
+      "Plantilla": {
+        "type": "object",
+        "properties": {
+          "_id": {
+            "type": "string"
+          },
+          "clave": {
+            "type": "string",
+            "example": "pedido.confirmado"
+          },
+          "canal": {
+            "type": "string",
+            "enum": [
+              "email",
+              "sms",
+              "push"
+            ]
+          },
+          "asunto": {
+            "type": "string"
+          },
+          "cuerpo": {
+            "type": "string",
+            "description": "Texto con variables {{nombre}}, {{numero}}..."
+          },
+          "activo": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CambiosPlantilla": {
+        "type": "object",
+        "minProperties": 1,
+        "properties": {
+          "canal": {
+            "type": "string",
+            "enum": [
+              "email",
+              "sms",
+              "push"
+            ]
+          },
+          "asunto": {
+            "type": "string"
+          },
+          "cuerpo": {
+            "type": "string"
+          },
+          "activo": {
+            "type": "boolean"
+          }
+        }
+      },
+      "MensajeAsistente": {
+        "type": "object",
+        "required": [
+          "texto"
+        ],
+        "properties": {
+          "texto": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500,
+            "example": "Cuanto cuesta el envio?"
+          },
+          "conversacion_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Para continuar una conversacion (contexto de varios turnos). Si es de otra persona, se empieza una nueva."
+          }
+        }
+      },
+      "RespuestaAsistente": {
+        "type": "object",
+        "properties": {
+          "conversacion_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "intencion": {
+            "type": "string",
+            "example": "faq_envio",
+            "description": "Intencion reconocida, o no_entendido."
+          },
+          "respuestas": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "tipo"
+              ],
+              "description": "Segun tipo: texto (texto), productos (productos[]), pedido (pedido), pedidos (pedidos[]) u opciones (opciones[] con etiqueta y texto o accion).",
+              "properties": {
+                "tipo": {
+                  "type": "string",
+                  "enum": [
+                    "texto",
+                    "productos",
+                    "pedido",
+                    "pedidos",
+                    "opciones"
+                  ]
+                },
+                "texto": {
+                  "type": "string"
+                },
+                "productos": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "sku": {
+                        "type": "string"
+                      },
+                      "nombre": {
+                        "type": "string"
+                      },
+                      "precio_final": {
+                        "type": "number"
+                      },
+                      "disponible": {
+                        "type": "integer",
+                        "nullable": true
+                      },
+                      "hay_stock": {
+                        "type": "boolean",
+                        "nullable": true
+                      }
+                    }
+                  }
+                },
+                "pedido": {
+                  "$ref": "#/components/schemas/PedidoResumen"
+                },
+                "pedidos": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PedidoResumen"
+                  }
+                },
+                "opciones": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "etiqueta": {
+                        "type": "string"
+                      },
+                      "texto": {
+                        "type": "string"
+                      },
+                      "accion": {
+                        "type": "string",
+                        "enum": [
+                          "iniciar_sesion",
+                          "ir_pedidos",
+                          "ir_carrito"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "TicketAsistente": {
+        "type": "object",
+        "properties": {
+          "numero": {
+            "type": "string",
+            "example": "TCK-MI0ABC12F3"
+          },
+          "conversacion_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "usuario_id": {
+            "type": "integer",
+            "nullable": true
+          },
+          "cliente_id": {
+            "type": "integer",
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "nullable": true
+          },
+          "texto": {
+            "type": "string",
+            "description": "Mensaje del usuario con los datos sensibles enmascarados."
+          },
+          "estado": {
+            "type": "string",
+            "example": "abierto"
+          },
+          "creado_en": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Consulta": {
+        "type": "object",
+        "properties": {
+          "numero": {
+            "type": "string",
+            "example": "TCK-MBX1Z2A3F4E5"
+          },
+          "motivo": {
+            "type": "string"
+          },
+          "motivo_texto": {
+            "type": "string",
+            "example": "Pregunta sobre un producto"
+          },
+          "referencia": {
+            "type": "string",
+            "nullable": true
+          },
+          "estado": {
+            "type": "string",
+            "enum": [
+              "abierta",
+              "respondida",
+              "cerrada"
+            ]
+          },
+          "email": {
+            "type": "string"
+          },
+          "mensajes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "autor": {
+                  "type": "string",
+                  "enum": [
+                    "cliente",
+                    "vendedor"
+                  ]
+                },
+                "nombre": {
+                  "type": "string"
+                },
+                "texto": {
+                  "type": "string"
+                },
+                "en": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          },
+          "creado_en": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "actualizado_en": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ConsultaNueva": {
+        "type": "object",
+        "required": [
+          "motivo",
+          "mensaje"
+        ],
+        "properties": {
+          "motivo": {
+            "type": "string",
+            "enum": [
+              "producto",
+              "pedido",
+              "garantia",
+              "pago",
+              "otro"
+            ]
+          },
+          "referencia": {
+            "type": "string",
+            "nullable": true,
+            "description": "Numero de pedido o SKU.",
+            "example": "SKU-TEC-002"
+          },
+          "mensaje": {
+            "type": "string",
+            "minLength": 5,
+            "maxLength": 1000,
+            "description": "Se guarda enmascarado (tarjetas, telefonos y correos)."
+          },
+          "conversacion_id": {
+            "type": "string"
+          }
+        }
+      },
+      "IntencionAsistente": {
+        "type": "object",
+        "properties": {
+          "clave": {
+            "type": "string",
+            "example": "faq_envio"
+          },
+          "descripcion": {
+            "type": "string"
+          },
+          "prioridad": {
+            "type": "number"
+          },
+          "requiere_sesion": {
+            "type": "boolean"
+          },
+          "terminos": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "texto": {
+                  "type": "string"
+                },
+                "peso": {
+                  "type": "number"
+                }
+              }
+            }
+          },
+          "refuerzos": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number"
+            }
+          }
+        }
+      }
+    },
+    "responses": {
+      "LimiteExcedido": {
+        "description": "Rate limit del gateway (LIMITE_EXCEDIDO, LIMITE_LOGIN, LIMITE_CHECKOUT) o cuenta bloqueada (CUENTA_BLOQUEADA).",
+        "headers": {
+          "RateLimit": {
+            "description": "Estado del limite (draft-7 de express-rate-limit).",
+            "schema": {
+              "type": "string"
+            }
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "mensaje": "Demasiadas peticiones. Intente de nuevo en un momento.",
+              "codigo": "LIMITE_EXCEDIDO"
+            }
+          }
+        }
+      },
+      "SolicitudInvalida": {
+        "description": "Datos faltantes o invalidos (SOLICITUD_INVALIDA, VALOR_INVALIDO, JSON_INVALIDO).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "mensaje": "Campos obligatorios: email",
+              "codigo": "SOLICITUD_INVALIDA"
+            }
+          }
+        }
+      },
+      "Prohibido": {
+        "description": "El rol no tiene permiso o el recurso es de otro cliente (PROHIBIDO).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "mensaje": "Solo puede consultar su propia informacion.",
+              "codigo": "PROHIBIDO"
+            }
+          }
+        }
+      },
+      "Conflicto": {
+        "description": "Conflicto de negocio (CONFLICTO, STOCK_INSUFICIENTE).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "mensaje": "El correo ya se encuentra registrado.",
+              "codigo": "CONFLICTO"
+            }
+          }
+        }
+      },
+      "NoDisponible": {
+        "description": "Un servicio dependiente esta caido o su circuito esta abierto (SERVICIO_NO_DISPONIBLE, SERVICIO_SATURADO).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "mensaje": "El servicio de inventario no esta disponible en este momento.",
+              "codigo": "SERVICIO_NO_DISPONIBLE"
+            }
+          }
+        }
+      },
+      "NoAutenticado": {
+        "description": "Falta el token, es invalido o expiro (NO_AUTENTICADO, TOKEN_INVALIDO, TOKEN_EXPIRADO).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "mensaje": "Se requiere autenticacion.",
+              "codigo": "NO_AUTENTICADO"
+            }
+          }
+        }
+      },
+      "NoEncontrado": {
+        "description": "El recurso no existe, o no es del usuario (NO_ENCONTRADO).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "mensaje": "Pedido no encontrado.",
+              "codigo": "NO_ENCONTRADO"
+            }
+          }
+        }
+      }
+    },
+    "parameters": {
+      "IdCliente": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "description": "Id del cliente. Un cliente solo puede usar el suyo (el del JWT).",
+        "schema": {
+          "type": "integer",
+          "example": 1
+        }
+      },
+      "Sku": {
+        "name": "sku",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "example": "SKU-TEC-001"
+        }
+      },
+      "ClienteId": {
+        "name": "clienteId",
+        "in": "path",
+        "required": true,
+        "description": "Id del cliente. Un cliente solo puede usar el suyo (el del JWT).",
+        "schema": {
+          "type": "integer",
+          "example": 1
+        }
+      },
+      "IdempotencyKey": {
+        "name": "Idempotency-Key",
+        "in": "header",
+        "required": true,
+        "description": "Obligatoria (invariante 4). Un reintento con la misma clave devuelve el resultado original sin repetir el efecto.",
+        "schema": {
+          "type": "string",
+          "maxLength": 100,
+          "example": "checkout-ana-0001"
+        }
+      },
+      "FiltroClienteId": {
+        "name": "cliente_id",
+        "in": "query",
+        "description": "Solo personal interno. Para un cliente se ignora y se usa el del JWT.",
+        "schema": {
+          "type": "integer",
+          "example": 1
+        }
+      },
+      "IdPedido": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "description": "Id numerico o numero de pedido (PED-...).",
+        "schema": {
+          "type": "string",
+          "example": "1"
+        }
+      },
+      "Referencia": {
+        "name": "referencia",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "example": "TRX-4B2CB23F-814"
+        }
+      }
+    }
+  }
+}

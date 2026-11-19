@@ -1,0 +1,76 @@
+Regresion tras las correcciones de usabilidad U-01, U-02, U-03 y U-04 (2026-11-15T17:37:12-05:00)
+
+===== npm run typecheck
+codigo de salida: 0
+
+===== npm run test:salud
+         └─ postgres:pedidos_db  conectado
+         └─ rabbitmq             conectado
+  OK   pagos            ok
+         └─ postgres:pagos_db    conectado
+         └─ rabbitmq             conectado
+  OK   notificaciones   ok
+         └─ mongo:notificaciones_db conectado
+         └─ rabbitmq             conectado
+
+Los nueve servicios responden. El sistema esta listo.
+Siguiente paso: npm run test:e2e
+
+codigo de salida: 0
+
+===== npm run test:http
+           auth             ok=true  estado=ok
+           clientes         ok=true  estado=ok
+           catalogo         ok=true  estado=ok
+           inventario       ok=true  estado=ok
+           carrito          ok=true  estado=ok
+           pedidos          ok=true  estado=ok
+           pagos            ok=true  estado=ok
+           notificaciones   ok=true  estado=ok
+
+============================================================================
+ RESULTADO: 73 casos PASA, 0 casos FALLA
+============================================================================
+codigo de salida: 0
+
+===== npm run test:concurrencia
+  PASA  Las unidades salen de reservado: descuento definitivo
+  PASA  Se registro un movimiento de salida
+  PASA  Confirmar dos veces es idempotente
+
+Escenario 6: el stock nunca puede quedar negativo
+-------------------------------------------------
+  PASA  Una reserva mayor al stock se rechaza
+  PASA  El stock permanece intacto tras el rechazo
+  PASA  La restriccion CHECK de la base impide un stock negativo directo
+
+Todas las comprobaciones pasaron: la sobreventa es imposible.
+
+codigo de salida: 0
+
+===== npm run test:e2e
+Escenario F: controles de seguridad
+===================================
+  PASA  Sin token: 401
+  PASA  Token invalido: 401
+  PASA  Un cliente no accede a rutas de personal interno: 403
+  PASA  Un cliente no puede reservar stock por su cuenta: 403
+  PASA  Un cliente no ve el perfil de otro: 403
+  PASA  El catalogo es publico: 200 sin token
+
+--------------------------------------------------------------
+Las 49 comprobaciones pasaron.
+
+codigo de salida: 0
+
+===== npm run build:web
+vite v5.4.21 building for production...
+transforming...
+✓ 36 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.44 kB │ gzip:  0.29 kB
+dist/assets/index-DfhVMSkf.css   19.07 kB │ gzip:  4.44 kB
+dist/assets/index-zBma8clI.js   183.76 kB │ gzip: 56.32 kB
+✓ built in 4.18s
+codigo de salida: 0

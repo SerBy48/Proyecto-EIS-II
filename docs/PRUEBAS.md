@@ -6,10 +6,10 @@ electrónico.
 
 | | |
 |---|---|
-| **Última ejecución** | 1 de octubre de 2026 |
-| **Casos ejecutados** | 142 (33 de concurrencia + 60 por HTTP + 49 extremo a extremo) |
-| **Resultado** | 142 pasan, 0 fallan |
-| **Entorno** | Windows 11, Node 25, Docker: PostgreSQL 16 (puerto 5434 del host), MongoDB 7, Redis 7, RabbitMQ 3. Infraestructura completa |
+| **Última ejecución** | 18 de noviembre de 2026, gestión de la tienda (F5c): sistema completo en contenedores desde volúmenes vacíos, secretos propios en `.env` |
+| **Casos ejecutados** | 369: 215 de integración (33 de concurrencia + 73 por HTTP + 53 extremo a extremo + 56 del asistente) y 154 unitarias. Además, 23 criterios de aceptación en la interfaz (`test:e2e:ui`), 505 comprobaciones de cobertura de OpenAPI, 26 verificaciones de seguridad y axe en los temas claro y oscuro |
+| **Resultado** | 369 pasan, 0 fallan; 23/23 criterios de aceptación; las 505 comprobaciones de OpenAPI pasan; seguridad: 1 hallazgo de 26 (S-09, aceptado); axe: 0 reglas WCAG incumplidas en las 20 pantallas nuevas (claro y oscuro). Evidencia: [`evidencia/trabajo-final/regresion-f5c/`](evidencia/trabajo-final/regresion-f5c/) (sección 4.41) |
+| **Entorno** | Windows 11, Node 25, Docker: PostgreSQL 16 (puerto 5434 del host), MongoDB 7, Redis 7, RabbitMQ 3 y Mailpit 1.27. Infraestructura completa |
 | **Evidencia** | [`evidencia/`](evidencia/) — salida literal de cada suite |
 
 ---
@@ -25,7 +25,10 @@ los siguientes no aportan información útil.
 | 2. Salud | Que los nueve servicios respondan | `npm run test:salud` | infraestructura + servicios |
 | 3. Concurrencia | Que no haya sobreventa | `npm run test:concurrencia` | PostgreSQL |
 | 4. Contrato HTTP | Códigos de estado, RBAC, idempotencia, aislamiento | `npm run test:http` | infraestructura + servicios |
-| 5. Integración E2E | El flujo de compra completo de 15 pasos | `npm run test:e2e` | **infraestructura completa** |
+| 5. Integración E2E | El flujo de compra completo de 15 pasos, incluido el correo real en Mailpit | `npm run test:e2e` | **infraestructura completa** |
+| 0. Unitarias | Lógica aislada: circuit breaker, reintentos, JWT y RBAC, bus de eventos, totales del carrito, plantillas, esquema del ORM | `npm run test:unit` | nada |
+| 0. Documentación | La especificación OpenAPI cubre exactamente las rutas y los roles del código | `npm run test:openapi` | nada |
+| 6. Asistente | Intenciones, contexto, aislamiento entre clientes, escalamiento, degradación | `npm run test:asistente` | **infraestructura completa** |
 
 El nivel 3 es el central del laboratorio: verifica la pregunta 5 del análisis
 atacando directamente la función `reservar_stock` de PostgreSQL, sin pasar por la
@@ -117,14 +120,14 @@ Escenario 2: veinte compradores, cinco unidades
 
 ### Nivel 4 — Contrato HTTP
 
-`npm run test:http` → **60 casos, 60 pasan**
+`npm run test:http` → **73 casos, 73 pasan**
 ([`evidencia/02-contrato-http.txt`](evidencia/02-contrato-http.txt)).
 
 | Suite | Área | Casos |
 |---|---|---|
-| A | Autenticación y emisión de tokens | 5 |
-| B | Control de acceso: RBAC y propiedad del dato | 14 |
-| C | Inventario: reservas, idempotencia, compensación | 9 |
+| A | Autenticación, emisión de tokens y registro | 9 |
+| B | Control de acceso, circuit breaker y validación de entradas | 20 |
+| C | Inventario: reservas, idempotencia, compensación | 12 |
 | D | Pagos: los cuatro desenlaces de la pasarela | 9 |
 | E | Pedidos: identificadores y ciclo de vida | 16 |
 | F | Limitación de peticiones y bloqueo de cuenta | informativa |
@@ -134,17 +137,38 @@ Escenario 2: veinte compradores, cinco unidades
 
 ### Nivel 5 — Integración extremo a extremo
 
-`npm run test:e2e` → **49 comprobaciones, 49 pasan**
+`npm run test:e2e` → **51 comprobaciones, 51 pasan**
 ([`evidencia/04-e2e-compra.txt`](evidencia/04-e2e-compra.txt)).
 
 | Escenario | Qué recorre |
 |---|---|
-| A | Compra exitosa: los 15 pasos del flujo, bitácora de la saga y notificación asíncrona por RabbitMQ |
+| A | Compra exitosa: los 15 pasos del flujo, bitácora de la saga, notificación asíncrona por RabbitMQ y correo de confirmación recibido en Mailpit |
 | B | Pago rechazado: la saga compensa y el stock se libera |
 | C | Dos clientes disputan la última unidad: un solo ganador |
 | D | Doble clic en «Pagar»: un solo pedido (idempotencia del checkout) |
 | E | Cancelación de un pedido pagado: reembolso y devolución de stock |
 | F | Controles de seguridad |
+
+### Pruebas unitarias y de documentación (Trabajo Final, Fase 2)
+
+`npm run test:unit` → **94 pruebas en 10 archivos, 94 pasan**
+([`evidencia/05-pruebas-unitarias.txt`](evidencia/05-pruebas-unitarias.txt); cobertura en [`evidencia/05-cobertura-unitarias.txt`](evidencia/05-cobertura-unitarias.txt)).
+No necesitan Docker.
+
+| Archivo | Qué fija |
+|---|---|
+| `circuit-breaker.test.ts` | Transiciones cerrado → abierto → semiabierto → cerrado; los 4xx no cuentan (invariante 14) |
+| `cliente-servicio.test.ts` | Reintentos solo ante red y 5xx, nunca 409 (invariante 7); el cobro sin reintentos; timeout → 504; cabeceras de la llamada interna |
+| `autenticacion.test.ts` | Token manipulado, forjado o expirado; secretos (invariante 13); RBAC; llamada interna con dos condiciones (invariante 11) |
+| `bus-eventos.test.ts` | Publicar nunca lanza (invariante 12); reintento en la propia cola; DLQ al agotar los intentos |
+| `errores.test.ts`, `utilidades.test.ts` | Traducción de errores de PostgreSQL (también envueltos por Drizzle), inyección NoSQL |
+| `totales.test.ts` | IVA tras el descuento, envío gratis, cupones y cuadre del total |
+| `plantillas.test.ts` | Escape de HTML en el correo (S-11) y canales de envío |
+| `esquema.test.ts` (auth y clientes) | El esquema de Drizzle refleja columna por columna el SQL de `infra/postgres` |
+
+La cobertura es del 71,2 % de las líneas. Lo que queda fuera es el arranque de los servicios y la conexión a los motores (`servicio.ts`, `postgres.ts`), que ejercitan las suites de integración.
+
+`npm run test:openapi` → **313 comprobaciones, 313 pasan** ([`evidencia/06-openapi-cobertura.txt`](evidencia/06-openapi-cobertura.txt)). Cada una de las 52 rutas del código está documentada una sola vez, con los mismos roles y el mismo carácter público, y el empaquetado que sirve el gateway corresponde a las fuentes.
 
 ---
 
@@ -344,10 +368,21 @@ notificaciones   ok=False  estado=inalcanzable
 
 ---
 
+### Nivel 6 — Asistente virtual (Trabajo Final, Fase 3)
+
+`npm run test:asistente` → **46 comprobaciones, 46 pasan**, con la degradación activada
+([`evidencia/07-asistente.txt`](evidencia/07-asistente.txt)). El detalle y la tasa de acierto
+del motor están en [`especificacion/03-asistente-virtual.md`](especificacion/03-asistente-virtual.md).
+
+---
+
 ## 4. Defectos encontrados y corregidos
 
-Las pruebas encontraron cinco defectos reales. Los cinco están corregidos y
-tienen un caso que impide que vuelvan.
+Las pruebas encontraron veinticinco defectos reales, y los veinticinco están corregidos:
+- Los nueve primeros salieron de las pruebas funcionales y tienen un caso que impide que vuelvan.
+- Del 4.10 al 4.12 solo aparecen bajo carga. Su verificación es la medición de antes y después de [`calidad/RENDIMIENTO.md`](calidad/RENDIMIENTO.md), que se repite con `npm run test:carga:bateria`.
+- Del 4.13 al 4.22 son de seguridad o surgieron al verificar las correcciones de seguridad.
+- Del 4.23 al 4.25 son de usabilidad. Se verifican con el recorrido automatizado (`npm run usabilidad:recorrido`). Tienen casos en `test:http` y en `npm run test:seguridad`, documentados en [`calidad/SEGURIDAD.md`](calidad/SEGURIDAD.md).
 
 ### 4.1 Escalada de privilegios por el token interno — **grave**
 
@@ -431,6 +466,727 @@ de estados del cliente se aplica después.
 
 **Casos que lo cubren.** E-15, E-16.
 
+> Los defectos 4.6 a 4.9 se encontraron el 14 de noviembre de 2026, al preparar
+> las pruebas no funcionales (Fase 1 de
+> [`PLAN-ESTRATEGIAS-VALIDACION.md`](PLAN-ESTRATEGIAS-VALIDACION.md)). Fue la
+> primera vez que el sistema se desplegó **completo en contenedores** y se pobló
+> con volumen. Las ejecuciones anteriores usaban `npm run dev` y los diez
+> productos de la semilla.
+
+### 4.6 Los servicios no arrancaban en contenedores — **grave**
+
+**Síntoma.** Con `docker compose up`, los nueve servicios entraban en un bucle de
+reinicio:
+
+```
+Error: The package "@esbuild/linux-x64" could not be found, and is needed by esbuild.
+```
+
+Una vez corregido eso, el gateway seguía marcado como `unhealthy` aunque
+respondía bien. Y en un arranque en frío, `rabbitmq` fallaba su healthcheck y
+arrastraba a los servicios que dependen de él.
+
+**Causa.** Tres problemas de despliegue:
+
+- `infra/Dockerfile.servicio` instalaba con `npm install --omit=optional`. Así
+  se excluía el binario nativo de esbuild, del que depende `tsx`.
+- El `HEALTHCHECK` de la imagen consulta `/health`, pero el gateway solo
+  exponía `/api/health` y respondía 404.
+- El healthcheck de RabbitMQ daba 5 s de timeout y 25 s de gracia. Con nueve
+  servicios compilando TypeScript al mismo tiempo, el broker tardó 75 s en
+  arrancar.
+- Además, ese healthcheck usaba `rabbitmq-diagnostics ping`, que da sano en
+  cuanto el nodo responde, **antes** de que el listener AMQP acepte
+  conexiones. `notificaciones` se conectaba en ese hueco, recibía
+  `ECONNREFUSED` y, como `BusEventos` no reintenta la primera conexión
+  (sección 5), quedaba caído.
+
+**Corrección.**
+
+- Se quita `--omit=optional`.
+- El gateway tiene un `GET /health` de *liveness*. No consulta a los demás
+  servicios a propósito: si uno cae, no se debe reiniciar el gateway.
+- El healthcheck de RabbitMQ pasa a 15 s de timeout y 90 s de gracia, y usa
+  `check_port_connectivity`, que espera a que los listeners estén arriba. Con
+  eso, un arranque en frío (`docker compose down` seguido de `up --wait`) deja
+  los 13 contenedores sanos al primer intento.
+
+**Evidencia.** `evidencia/no-funcionales/00-salud-previa.txt` (los 13
+contenedores `healthy`).
+
+### 4.7 Error 500 al listar las direcciones de un cliente
+
+**Síntoma.** `GET /api/clientes/:id/direcciones` devolvía siempre
+`500 ERROR_INTERNO`, también para el propio dueño.
+
+**Causa.** El `SELECT id, …` hace `JOIN` de `clientes` con `direcciones`, y las
+dos tablas tienen columna `id`:
+
+```
+column reference "id" is ambiguous
+```
+
+Ningún cliente (web ni móvil) ni ninguna suite usaba la ruta, y por eso no se
+había detectado.
+
+**Corrección.** Las columnas se califican con el alias `d.`.
+
+**Casos que lo cubren.** B-15, B-16.
+
+### 4.8 Un producto nuevo no se podía abastecer nunca
+
+**Síntoma.** Un producto creado con `POST /api/catalogo/productos` (o desde el
+panel de administración) quedaba agotado para siempre. La entrada de mercancía
+respondía `404 No hay registro de inventario`. Al poblar 60 productos, la primera
+página del catálogo quedó entera sin stock y `test:e2e` falló en «Hay al menos un
+producto con existencias».
+
+**Causa.** `registrarEntrada` solo hacía `UPDATE` sobre filas existentes de
+`stock`, y ningún endpoint creaba la fila. Solo existían las diez de
+`06-datos-prueba.sql`.
+
+**Corrección.** La entrada hace un *upsert* (`INSERT … ON CONFLICT DO UPDATE`).
+La fila la sigue escribiendo inventario, su único propietario (invariante 3).
+Las condiciones son:
+
+- El registro nuevo solo se abre si el catálogo confirma que el producto
+  existe. Así un SKU mal escrito no deja filas huérfanas.
+- Una `bodega_id` inexistente responde `400`.
+
+**Casos que lo cubren.** C-10, C-11, C-12.
+
+### 4.9 Una entrada sin bodega se sumaba en todas las bodegas del SKU
+
+**Síntoma.** Un defecto latente que ningún dato de prueba activaba: todos los
+SKU de la semilla están en una sola bodega. Una entrada de 5 unidades sin
+`bodega_id`, sobre un SKU con stock en dos bodegas, sumaba 10.
+
+**Causa.** El `UPDATE … WHERE sku = $1 AND ($3 IS NULL OR bodega_id = $3)`
+alcanzaba todas las filas del SKU. La respuesta mostraba solo la primera, así que
+el efecto no se veía. `pedidos-service` usa esta misma ruta para devolver
+inventario al cancelar, de modo que una cancelación habría devuelto unidades de
+más.
+
+**Corrección.** Sin `bodega_id`, la entrada va a una sola bodega: la que ya
+tiene el SKU (la de menor id) o, si el SKU es nuevo, la primera bodega activa.
+Es la misma corrección que la del defecto 4.8.
+
+**Caso que lo cubre.** C-09 (ruta sin `bodega_id`). E-14 y E-15 validan la
+devolución de stock al cancelar.
+
+### 4.10 El login no pasaba de ~10 por segundo — **grave bajo carga**
+
+Encontrado con las pruebas de carga del Módulo 1 (hallazgos R1 y R2 de
+[`calidad/RENDIMIENTO.md`](calidad/RENDIMIENTO.md)).
+
+**Síntoma.**
+- Con 50 usuarios, el p95 del login fue de 4,3 s.
+- Con 200 usuarios, el 96 % de los logins no respondía.
+- Al terminar la carga, auth tardaba 30–40 s en volver a responder.
+
+**Causa.**
+- `bcryptjs` es JavaScript puro: cada comparación ocupaba el hilo principal de Node unos 100 ms. El contenedor usaba un solo núcleo (99,5 % de CPU) aunque tuviera ocho disponibles.
+- Sin límite de cola, el servicio seguía calculando hashes de clientes que ya habían abandonado.
+
+**Corrección** (`auth-service/src/pool-hash.ts`):
+- Los hashes corren en un pool de `worker_threads` (`AUTH_HILOS_HASH`, por defecto hasta 4 hilos).
+- La cola está acotada (`AUTH_COLA_HASH`). Si se llena, se responde `503 SERVICIO_SATURADO` con `Retry-After`.
+- Las tareas de clientes que cerraron la conexión se descartan sin calcularse.
+- El estado del pool se publica en `/health`.
+- No cambia el formato de los hashes guardados.
+
+**Verificación.**
+- Con 50 usuarios, el throughput pasó de 9,5 a 23,4 logins/s y el p95 de 4 294 a 1 280 ms.
+- En estrés, los logins exitosos se multiplicaron por cuatro. El exceso recibe un 503 en ~100 ms, en lugar de esperar 15 s y recibir un EOF.
+
+### 4.11 El gateway abría dos conexiones TCP por petición
+
+**Síntoma.** Con 300 usuarios, el 14 % de las búsquedas en el catálogo fallaba con `connectex: Only one usage of each socket address`: el equipo cliente se quedaba sin puertos.
+
+**Causa.** Sin un `agent`, `http-proxy` fuerza `Connection: close` hacia el servicio y reenvía esa cabecera al cliente. Cada petición abría por tanto dos conexiones nuevas.
+
+**Corrección.**
+- El gateway usa un `http.Agent` con keep-alive y no reenvía la cabecera de salto `Keep-Alive`.
+- Los servicios mantienen las conexiones ociosas 65 s (`keepAliveTimeout`, en `shared/src/servicio.ts`), para que el gateway nunca reutilice un socket que el servicio está cerrando.
+
+**Verificación.**
+- Tres peticiones seguidas con curl usan una sola conexión (`num_connects` 1, 0, 0).
+- El estrés del catálogo pasó del 5,3 % al 0 % de errores.
+- El p95 a 100 VU bajó de 193 a 79 ms.
+
+### 4.12 El gateway cortaba la conexión en lugar de responder 504
+
+**Síntoma.** Cuando un servicio no respondía, el cliente recibía un cierre abrupto (EOF) a los 15 s, sin código ni mensaje.
+
+**Causa.** La opción `timeout` de `http-proxy` se aplica al socket **del cliente**, y al vencer lo destruye. El manejador de errores, que tenía programado un 503 en español, nunca llegaba a ejecutarse.
+
+**Corrección.** Solo se usa `proxyTimeout`, que es la espera por el servicio. Si vence, el cliente recibe `504 TIEMPO_AGOTADO` con un mensaje en español; los demás errores de conexión siguen respondiendo `503 SERVICIO_NO_DISPONIBLE`.
+
+**Verificación.** Con auth congelado (`docker pause`), el login responde 504 con el mensaje a los 15,07 s. En la batería del después no hubo ni un solo estado 0 (EOF).
+
+### 4.13 Secretos por defecto: tokens de administrador forjables — **crítico**
+
+Encontrado con las verificaciones de seguridad (S-02 y S-03 de [`calidad/SEGURIDAD.md`](calidad/SEGURIDAD.md)).
+
+**Síntoma.**
+- Un JWT de administrador firmado con `FirmaSecretaEcommerceDesarrollo`, para un usuario inexistente, leía todos los pedidos.
+- Directo al puerto 3004, con `x-internal-token: secreto-interno-desarrollo` y sin ningún JWT, se reservaba stock.
+
+**Causa.**
+- Los tres secretos tenían un valor de respaldo publicado en el código, en `docker-compose.yml` y en `.env.example`, y ese valor era el que corría.
+- Los puertos de los servicios estaban publicados en todas las interfaces.
+
+**Corrección.**
+- Sin valores por defecto. `verificarSecretos()` (`shared/src/autenticacion.ts`) detiene cada servicio y el gateway si un secreto falta, si tiene menos de 32 caracteres o si es uno de los valores publicados.
+- `docker compose` exige las variables (`${VAR:?…}`).
+- `.env.example` las deja vacías, con la instrucción `openssl rand -hex 32`.
+- Los servicios y los motores de datos se publican solo en `127.0.0.1`.
+
+**Caso que lo cubre.** V-10 y V-16 de `test:seguridad`. Además, un servicio arrancado con el secreto publicado termina con código 1 y enumera los problemas.
+
+### 4.14 Registro con el cliente_id de otra persona — **grave**
+
+**Síntoma.** `POST /auth/registro` con `cliente_id: 1` y cualquier correo creaba una cuenta vinculada a Ana, y esa cuenta leía su perfil y sus direcciones. Rompía el invariante 1.
+
+**Causa.** El `cliente_id` del cuerpo se guardaba sin comprobar a quién pertenecía.
+
+**Corrección.**
+- Auth consulta a clientes-service y exige que el correo del cliente sea el de la cuenta (si no, 403) y que el cliente no tenga ya una cuenta (si la tiene, 409).
+- Un índice único parcial (`uq_usuarios_cliente`) cierra la carrera entre dos registros simultáneos.
+
+**Casos que lo cubren.** A-07, A-08 y A-09 de `test:http`, y V-01.
+
+### 4.15 Seis 404 de un cliente dejaban a todos sin carrito
+
+**Síntoma.** Seis peticiones de Ana con SKU inexistentes hacían que, durante 15 s, el carrito de cualquier cliente respondiera 503. Durante el escaneo activo de ZAP, el gateway devolvió 1 030 respuestas 503 por este motivo.
+
+**Causa.** `CircuitBreaker.ejecutar()` contaba como fallo cualquier error, incluidos los 4xx de negocio.
+
+**Corrección.** `esFalloDelServicio()` (`shared/src/errores.ts`) solo considera fallos los errores de red, los 5xx y los timeouts. Es el mismo criterio que ya decidía los reintentos (invariante 7). Un 4xx cuenta como éxito para el circuito.
+
+**Caso que lo cubre.** B-17 de `test:http` y V-14. En el escaneo de ZAP repetido hubo 0 respuestas 503 y ningún circuito se abrió.
+
+### 4.16 El correo no se validaba
+
+**Síntoma.** El registro aceptaba `no-es-un-correo`, y el escaneo activo creó 115 administradores con "correos" como `http://www.google.com/`.
+
+**Corrección.** Formato y longitud máxima (150) en `/auth/registro` y `/auth/usuarios`, que también exige una contraseña de 8 caracteres como mínimo.
+
+**Caso que lo cubre.** A-10 de `test:http` y V-15.
+
+### 4.17 Inyección de operadores NoSQL en los filtros del catálogo
+
+**Síntoma.** `?categoria[$ne]=tecnologia` devolvía los 45 productos de las otras categorías, y `?marca[$regex]=.*` los 70. MongoDB ejecutaba el operador.
+
+**Causa.** Express convierte `categoria[$ne]=x` en el objeto `{ $ne: 'x' }`, y el controlador lo pasaba al filtro tal cual.
+
+**Corrección.** `textoDeConsulta()` (`shared/src/utilidades.ts`) rechaza con 400 cualquier parámetro que no sea una cadena.
+
+**Caso que lo cubre.** B-18 de `test:http` y V-02.
+
+### 4.18 Entradas inválidas que respondían 500
+
+**Síntoma.** Durante el escaneo activo de ZAP hubo 781 respuestas 500, por textos más largos que la columna, `NaN` en un entero, `"1"` como UUID, un byte nulo, un ID fuera de rango o un JSON mal formado. Esos 500 además abrían los circuit breakers.
+
+**Causa.** No había validación en la entrada; el error de PostgreSQL o de body-parser llegaba al manejador como un error no controlado.
+
+**Corrección.** `traducirErrorDeEntrada()` (`shared/src/errores.ts`) responde 400 para los errores de body-parser y para los códigos de PostgreSQL que solo provoca una entrada mal formada (22001, 22003, 22007, 22008, 22021, 22P02, 23502 y 23514), sin revelar la columna. Cada caso queda registrado como advertencia con su código de origen.
+
+**Verificación.** En el escaneo repetido, **0 respuestas 500 y 0 errores no controlados**. Casos: B-19 y V-03/V-07.
+
+### 4.19 El rechazo de CORS respondía 500
+
+**Corrección.** El origen no permitido se responde con `403 ORIGEN_NO_PERMITIDO`.
+
+**Caso que lo cubre.** B-20 y V-11.
+
+### 4.20 La web se servía sin cabeceras de seguridad
+
+**Síntoma.** ZAP marcó la ausencia de CSP, de protección contra clickjacking, de `nosniff`, de `Permissions-Policy` y de COOP, COEP y CORP.
+
+**Corrección.** `clients/web/cabeceras-seguridad.js`, que aplica `vite preview` (con CSP estricta) y el servidor de desarrollo (sin CSP).
+
+**Verificación.** El baseline de ZAP baja de 8 a 2 advertencias, ambas informativas. Playwright recorre la tienda e inicia sesión con la CSP activa, sin violaciones.
+
+### 4.21 Los correos interpolaban HTML del usuario sin escapar
+
+**Corrección.** `notificaciones-service/src/plantillas.ts` escapa los valores en el canal de correo.
+
+**Caso que lo cubre.** V-05.
+
+### 4.22 El build de producción no podía iniciar sesión
+
+**Síntoma.** Encontrado al verificar 4.20 con Playwright: desde la web servida en el 4173, el login respondía 500.
+
+**Causa.** `CORS_ORIGENES` solo incluía el 5173 de desarrollo, y el rechazo se respondía como 500 (4.19).
+
+**Corrección.** Se agregó `http://localhost:4173` en `docker-compose.yml`, `.env.example` y el valor por defecto del gateway.
+
+### 4.23 El inicio de sesión solo admitía cuatro cuentas de demostración
+
+Encontrado con la evaluación heurística (U-01 de [`calidad/USABILIDAD.md`](calidad/USABILIDAD.md), severidad 4).
+
+**Síntoma.** El correo se elegía en un desplegable con 4 cuentas y la contraseña venía escrita: ningún otro usuario podía entrar (E11, Carla).
+
+**Corrección.** Campo de correo y contraseña vacía; las cuentas de prueba quedan como ayuda plegable.
+
+**Verificación.** E11 de `npm run usabilidad:recorrido`: Carla entra escribiendo sus credenciales.
+
+### 4.24 El catálogo solo mostraba 20 de 71 productos
+
+**Corrección.** Paginación con el total de resultados (U-02).
+
+**Verificación.** E3: 71 de 71 productos alcanzables en 4 páginas.
+
+### 4.25 Cancelar un pedido sin confirmación, con el error tapado por el modal
+
+**Corrección.** Confirmación en dos pasos, aviso de éxito y error dentro del diálogo, con foco y desplazamiento (U-03 y U-04).
+
+**Verificación.** T6 y E8: el error queda visible y completo, y el detalle muestra el estado real.
+
+### 4.26 Un correo que fallaba se perdía en el reintento — **grave**
+
+Lo encontró el diseño del envío real por SMTP (Trabajo Final, Fase 2).
+
+**Síntoma.** Si el envío fallaba, el bus reintentaba el evento. Pero el segundo intento chocaba con el índice único de `clave_dedupe` y `procesarEvento` lo trataba como un duplicado del broker. El mensaje quedaba `pendiente` para siempre, sin correo y sin llegar a la DLQ.
+
+Con el envío simulado no se veía, porque nunca fallaba.
+
+**Corrección.** Ante el duplicado se consulta el estado: solo se ignora si ya está `enviado`. Un fallo de envío se registra (`fallido`, `intentos`, `ultimo_error`) y se relanza para que el bus reintente.
+
+**Verificación.**
+- Con Mailpit detenido, una compra se confirma igual.
+- El aviso queda `fallido` tras 3 intentos y llega a `notificaciones.envio.fallidos`.
+- Notificaciones sigue sano, con la dependencia `correo` caída marcada como no crítica.
+
+### 4.27 El reintento de un evento llegaba también a otros consumidores
+
+**Síntoma.** El bus reencolaba un evento fallido publicándolo **otra vez en el exchange**. El reintento de notificaciones le llegaba también a `clientes.historial`, que lo procesaba de nuevo. Era inocuo solo porque esa proyección es idempotente.
+
+**Corrección.** El reintento va directo a la cola del consumidor que falló (`sendToQueue`).
+
+**Verificación.** Prueba unitaria `bus-eventos.test.ts`: el reintento usa `sendToQueue` hacia su propia cola y nunca `publish`.
+
+### 4.28 Todos los escalamientos de visitantes compartían la misma clave de deduplicación
+
+Lo encontró el diseño del escalamiento del asistente (Fase 3).
+
+**Síntoma.** Notificaciones arma `clave_dedupe` con el evento y el primer identificador disponible (`pedido_id`, `sku` o `cliente_id`). Un escalamiento de un visitante no trae ninguno, así que su clave era siempre `asistente.escalamiento::`. Solo se avisaba a operaciones del **primero**; los siguientes se descartaban como duplicados.
+
+**Corrección.** El número de ticket entra en la clave.
+
+**Verificación.** `test:asistente`, sección 4: el correo de cada ticket llega a Mailpit.
+
+### Defectos del código nuevo que encontraron sus propias pruebas
+
+No llegaron a integrarse, pero se documentan porque muestran qué detectó cada prueba:
+
+| Prueba | Defecto | Corrección |
+|---|---|---|
+| Frases de desarrollo (`asistente:metricas`) | Un número de pedido suelto, como respuesta a «¿cuál quieres ver?», se clasificaba como cancelación: los refuerzos por entidad contaban como palabras | El contexto solo mira los términos |
+| Unitaria del enmascarado | `PED-202611-001105` se ocultaba como si fuera una tarjeta | El patrón excluye los números precedidos de letras y guion |
+| axe en el recorrido de la interfaz | Contraste insuficiente (`text-gray-400`) en el SKU y la fecha de las tarjetas | `text-gray-500` (4,8:1) |
+| `npm run test:seguridad` (V-05) | Falso positivo: un comentario mencionaba la API de HTML crudo de React | Se reformuló el comentario; la verificación no se tocó |
+
+### 4.29 Dependencias de producción vulnerables (S-12)
+
+Lo encontró la auditoría de dependencias de la Fase 4 (`npm audit --omit=dev`): `body-parser` y `follow-redirects` (altas) y `qs` (moderada), todas transitivas.
+
+**Corrección.** `npm audit fix`, que solo cambia el `package-lock.json`.
+
+**Verificación.** 0 vulnerabilidades de producción y la regresión completa en verde ([`calidad/SEGURIDAD.md`](calidad/SEGURIDAD.md), sección 10.3).
+
+### 4.30 El circuit breaker en semiabierto dejaba pasar todas las peticiones (R7)
+
+Lo encontró la carga con fallo inyectado: inventario detenido durante la búsqueda en el catálogo.
+
+**Síntoma.** En cada paso a semiabierto, las ~40 peticiones por segundo del catálogo iban contra inventario caído, y el p95 subía a 6,4 s.
+
+**Corrección.** Una sola llamada de prueba a la vez; las demás reciben la alternativa al instante.
+
+**Verificación.**
+- Pruebas unitarias en `circuit-breaker.test.ts`.
+- La misma carga con fallo: p99 de 6 373 a 76 ms, con 0 errores ([`calidad/RENDIMIENTO.md`](calidad/RENDIMIENTO.md), sección 9.6).
+
+### 4.31 El correo de cancelación iba al buzón de operaciones (H-F5-01)
+
+Lo encontró el E2E de interfaz de la Fase 5, al tomar la captura del correo para el manual de usuario.
+
+**Síntoma.** Al cancelar un pedido pagado:
+- el correo «no pudo completarse» llegaba a `operaciones@tienda.co` y no al cliente;
+- empezaba con «Hola ,»;
+- decía «No se realizo ningun cobro», aunque el pago sí se había cobrado y se reembolsó.
+
+Lo mismo pasaba cuando el personal cambiaba el estado de un pedido: el aviso «fue confirmado» también iba a operaciones.
+
+**Causa.** La saga publica `pedido.cancelado` con `email` y `nombre`, pero `POST /pedidos/:id/cancelar` y `PATCH /pedidos/:id/estado` no los incluían. Sin destinatario, notificaciones usa el buzón de operaciones. La plantilla, además, daba por hecho que nunca había cobro.
+
+**Corrección:**
+- `pedidos-service` consulta el contacto del cliente (`GET /clientes/:id`, con la identidad de quien hace el cambio) y lo agrega al evento. Si clientes no responde, el cambio de estado se mantiene igual (invariante 12).
+- El evento lleva `detalle_cobro`: «El reembolso del pago ya fue procesado», «…está en trámite» o «No se realizó ningún cobro».
+- La plantilla `pedido.cancelado` ahora dice «Tu pedido … fue cancelado. Motivo: … {{detalle_cobro}}».
+  - En volúmenes nuevos: `infra/mongo/init-mongo.js`.
+  - En una base existente: `PATCH /api/notificaciones/plantillas/pedido.cancelado`.
+
+**Verificación:**
+- `test:e2e`, escenario E: dos comprobaciones nuevas (el correo le llega al cliente; saluda por su nombre e informa el reembolso). Pasa de 51 a 53 comprobaciones.
+- CA-08 de `test:e2e:ui`.
+
+### 4.32 Regresión de la Fase 5 (despliegue y aceptación)
+
+**Cambios que se probaron:**
+- web en contenedor (nginx con proxy `/api`);
+- perfil prod;
+- bus de eventos con reconexión;
+- registro de cuentas y bitácora de la saga en la web;
+- tratamiento de `Origin` en nginx;
+- H-F5-01.
+
+| Suite | Resultado | Evidencia |
+|---|---|---|
+| `typecheck` | sin errores | `regresion-f5/typecheck.txt` |
+| `test:unit` | 115/115 (2 nuevas: el bus arranca sin broker y vuelve a suscribirse tras una caída) | `regresion-f5/test-unit.txt` |
+| `test:openapi` | 355/355 | `regresion-f5/test-openapi.txt` |
+| `build:web` | compila | `regresion-f5/build-web.txt` |
+| `test:salud` | 10/10 servicios | `regresion-f5/test-salud.txt` |
+| `test:http` | 73/73 | `regresion-f5/test-http.txt` |
+| `test:concurrencia` | 33/33 | `regresion-f5/test-concurrencia.txt` |
+| `test:e2e` | 53/53 | `regresion-f5/test-e2e.txt` |
+| `test:asistente` | 46/46, con `ASISTENTE_PROBAR_DEGRADACION=1` (44/44 sin ella) | `regresion-f5/test-asistente.txt` |
+| `test:seguridad` | 20 seguras y 1 hallazgo aceptado (V-13 / S-09). Desde la Fase 5, un riesgo aceptado no hace fallar la suite; uno nuevo sí | `regresion-f5/test-seguridad.txt` |
+| **`test:e2e:ui`** | **12/12 criterios** | `trabajo-final/e2e-ui/` |
+| `npm audit --omit=dev --audit-level=high` | 0 vulnerabilidades | — |
+| Lint de OpenAPI (Redocly) | válido | — |
+
+**Arranque en frío del perfil prod (RNF-11):**
+- `docker compose down -v` y luego `npm run prod:up`;
+- 16/16 contenedores sanos en 276 s, sin intervención;
+- solo se publica el 8081, más Mailpit en `127.0.0.1:8025`;
+- el gateway no responde en el host; `/api/health` responde por el proxy de la web;
+- evidencia: [`evidencia/trabajo-final/arranque-en-frio-prod.txt`](evidencia/trabajo-final/arranque-en-frio-prod.txt).
+
+**Estabilidad de `test:e2e:ui`.** Pasó 12/12 en cuatro ejecuciones seguidas: dos sobre el perfil prod, una dentro de la regresión y una con la grabación de video. Las primeras ejecuciones fallaron por causas de la prueba, ya corregidas:
+- CORS: el 8081 no estaba entre los orígenes permitidos;
+- una espera que no aguardaba al inicio de sesión;
+- `waitForFunction`, que la CSP de la web bloquea (`unsafe-eval`).
+
+### 4.33 Una sesión que el servidor ya no aceptaba dejaba la web «con sesión» y el chat «no disponible» (H-F5-02)
+
+Lo encontró el equipo al probar la web en `localhost:5173` después de que las bases se recrearon durante la regresión de la Fase 5.
+
+**Síntoma:**
+- la cabecera seguía mostrando la sesión iniciada;
+- el asistente respondía «El asistente no está disponible en este momento» a cualquier mensaje;
+- el carrito y «Salir» respondían 401.
+
+**Causa.** El navegador conservaba en `localStorage` un token que el servidor ya no aceptaba (`TOKEN_INVALIDO`, o un refresh revocado). `api.js` solo manejaba `TOKEN_EXPIRADO` con una renovación exitosa; en los demás casos lanzaba el error sin borrar la sesión. El chat es público, pero enviaba ese token, el asistente respondía 401 y la web lo mostraba como servicio caído.
+
+**Corrección** (`clients/web/src/servicios/api.js` y `App.jsx`):
+- si el servidor rechaza el token o la renovación falla, se borra la sesión y se emite el evento `sesion-expirada`;
+- `App` vuelve al modo visitante y avisa «Tu sesión expiró. Inicia sesión de nuevo.»;
+- las peticiones marcadas `publica: true` (catálogo y chat) se repiten una vez sin token.
+
+**Verificación:** CA-18 de `test:e2e:ui` (token inválido en `localStorage` → aviso, botón «Iniciar sesión» y el chat responde como visitante).
+
+### 4.34 `singular()` convertía «disponibles» en «disponibl»
+
+Lo encontró la **primera medición** del conjunto de evaluación de SerByTek (`tests/asistente/frases-serbytek.json`, 50 frases escritas antes del motor nuevo): 49/50. La frase fallida era justamente la del equipo, «Hay audífonos disponibles?».
+
+**Causa.** La regla del plural quitaba «es» después de cualquier l, r, n, d, z o j. «disponibles» termina en «-bles»: la «l» va precedida de una consonante, así que el singular correcto es quitar solo la «s».
+
+**Corrección.** Se quita «es» solo tras vocal + l/r/n/d/z/j (celular-es, monitor-es, red-es); en los demás casos, solo la «s». El mismo defecto estaba en la búsqueda tolerante del catálogo (`busqueda.ts`) y se corrigió igual. **No se tocaron los términos de las intenciones.**
+
+**Verificación:** 50/50 en la medición posterior; `motor.test.ts` fija los casos (celulares, monitores, redes, disponibles, audífonos, tablets). El informe de métricas registra las dos cifras: [`evidencia/trabajo-final/asistente-metricas.md`](evidencia/trabajo-final/asistente-metricas.md).
+
+### 4.35 Hallazgos al construir los cambios de SerByTek (F5b)
+
+Los encontraron las pruebas de humo y de aceptación antes de la regresión; ninguno llegó a `develop`.
+
+| Hallazgo | Causa | Corrección |
+|---|---|---|
+| «Muéstrame Celulares, tablets y relojes» devolvía 1 de 6 productos | El índice de texto de MongoDB, con su lematizador de español, no hace coincidir «celulares» con «Celular» | Si el mensaje solo nombra una sección (todas sus palabras son sinónimos de esa misma sección), el asistente lista la sección completa sin buscar el texto |
+| El segundo cambio de dirección de un pedido no habría enviado correo | La clave de deduplicación de notificaciones es evento + pedido + estado, igual para los dos cambios | La clave incluye el número de cambio (`datos.cambio`) |
+| Eliminar la cuenta respondía 503 | `auth-service` no tenía `URL_PEDIDOS` ni `URL_CARRITO` en `docker-compose.yml` | Variables agregadas |
+| `GET /api/clientes/departamentos` respondía 401 a un visitante | El gateway exige sesión fuera de su lista blanca | La ruta se agregó a `RUTAS_PUBLICAS` (el registro la necesita) |
+| Un administrador podía llamar `POST /clientes/:id/anonimizar` desde afuera | `requiereRol('administrador')` deja pasar al administrador con su token | Nuevo guardia `soloLlamadaInterna` en `@ecommerce/shared`; verificado por V-22 de `test:seguridad` |
+
+### 4.36 Regresión de SerByTek (F5b)
+
+**Cambios que se probaron:**
+- catálogo solo de tecnología (60 productos, 10 subcategorías) con búsqueda tolerante;
+- asistente reforzado (plural, errores de tipeo, vocabulario del catálogo, precios, ofertas, búsqueda de respaldo y sugerencias);
+- perfil, direcciones con departamento, eliminar la cuenta (anonimizar), dirección al pagar y dos cambios posteriores;
+- administración de usuarios; tema oscuro; contraseña visible; identidad SerByTek en la web y la app móvil;
+- H-F5-02.
+
+Desde volúmenes vacíos (`docker compose down -v` y `npm run infra:normal`): 16/16 contenedores sanos en 98 s con las imágenes en caché. Tras agregar la fuente (que invalida la caché de las imágenes) la reconstrucción tomó 464 s; `--wait` venció con notificaciones *unhealthy* porque RabbitMQ seguía arrancando, y el servicio se recuperó solo unos 25 s después (el bus reconecta y vuelve a declarar su cola), sin intervención.
+
+| Suite | Resultado | Evidencia |
+|---|---|---|
+| `typecheck` | sin errores | `regresion-f5b/typecheck.txt` |
+| `test:unit` | 135/135 (20 nuevas: motor del asistente, marcas, búsqueda tolerante, semilla del catálogo y sus fotos) | `regresion-f5b/test-unit.txt` |
+| `test:openapi` | 409/409 (68 rutas: 57 públicas + 11 internas) | `regresion-f5b/test-openapi.txt` |
+| `build:web` | compila | `regresion-f5b/build-web.txt` |
+| `test:salud` | 10/10 servicios | `regresion-f5b/test-salud.txt` |
+| `test:http` | 73/73 | `regresion-f5b/test-http.txt` |
+| `test:concurrencia` | 33/33 | `regresion-f5b/test-concurrencia.txt` |
+| `test:e2e` | 53/53 | `regresion-f5b/test-e2e.txt` |
+| `test:asistente` | 46/46 con `ASISTENTE_PROBAR_DEGRADACION=1` | `regresion-f5b/test-asistente.txt` |
+| `asistente:metricas` | SerByTek 50/50 (primera medición 49/50, 4.34); marcas 27/27 (4.37); Fase 3 35/36; desarrollo 57/57 | `trabajo-final/asistente-metricas.md` |
+| `test:seguridad` | 22 seguras (2 nuevas: V-22 y V-23) y 1 hallazgo aceptado (V-13 / S-09) | `regresion-f5b/test-seguridad.txt` |
+| **`test:e2e:ui`** | **18/18 criterios** (6 nuevos: CA-13 a CA-18) | `trabajo-final/e2e-ui/` |
+| `usabilidad:recorrido` (axe, tema claro; `ETIQUETA=f5b` para no pisar la evidencia de la Fase 4) | 14 pantallas, 0 reglas WCAG incumplidas | `regresion-f5b/usabilidad-recorrido.txt`, `no-funcionales/usabilidad/*-f5b*` |
+| axe, tema oscuro (`tests/usabilidad/axe-tema-oscuro.ts`) | 7 pantallas, 0 reglas incumplidas | `regresion-f5b/axe-tema-oscuro.json` |
+| `flutter analyze` (app móvil) | sin problemas | — |
+| `npm audit --omit=dev --audit-level=high` | 0 vulnerabilidades | `regresion-f5b/npm-audit.txt` |
+| Lint de OpenAPI (Redocly) | válido, sin advertencias | `regresion-f5b/docs-openapi.txt` |
+
+**Ajustes a las pruebas** (por el catálogo nuevo, no por defectos): los SKU de hogar y deportes se reemplazaron por `SKU-TEC-006` a `010` con el mismo stock, precio y descuento; los filtros `categoria=hogar|deportes` pasaron a `subcategoria=accesorios|gaming`; `test:http` desactiva al terminar el producto de evidencia (U-17). En el recorrido de usabilidad, E6 ahora espera a que el token renovado quede guardado: si E7 escribía sus tokens antes, la renovación en curso los sobrescribía (carrera de la prueba, no de la tienda). Estable en 3 ejecuciones seguidas. La tarea T2 elige la sección con su botón, porque el catálogo ya no tiene la lista «Todas las secciones».
+
+
+### 4.37 Marcas reales, reconocimiento de marcas y fuente Space Grotesk (F5b)
+
+**Cambios.** El catálogo pasa a productos y marcas reales (Lenovo, ASUS, Logitech, Samsung, Sony, TP-Link…) con precios de referencia y los mismos SKU, stock y papeles de prueba; el pie aclara que es una tienda de demostración. El catálogo publica las marcas en `GET /api/catalogo/categorias` y el asistente las reconoce como entidad (con plural, error de tipeo y formas como «tp link»), las combina con la sección y el precio y abre el catálogo filtrado por marca. La web usa Space Grotesk (OFL 1.1), empaquetada con la web porque la CSP solo admite fuentes del propio sitio.
+
+**Medición del asistente** (`tests/asistente/frases-marcas.json`, 27 frases escritas y versionadas antes del reconocimiento de marcas):
+
+| Momento | Marcas | SerByTek |
+|---|---|---|
+| Línea base, sin reconocer marcas | 20/27 | 50/50 |
+| Primera medición con el reconocimiento | 26/27 | 50/50 |
+| Intento descartado: los mismos refuerzos para precio_disponibilidad | 19/27 | 46/50 |
+| Regla final: las entidades confirman una intención sugerida por palabras, no la crean | **27/27** | **50/50** |
+
+No se tocaron los pesos de los términos. La regla final evita que una marca o sección sueltas inclinen la intención; esos mensajes los resuelve la regla «solo nombra productos → búsqueda».
+
+**Fallo intermitente de CA-01.** En las tres primeras ejecuciones de `test:e2e:ui` tras la reconstrucción, CA-01 falló con `page.goto: Timeout`. La traza mostró el CSS sin respuesta en el navegador, aunque nginx lo registró servido (200) y el navegador pidió la fuente que ese CSS declara. No se reprodujo de forma aislada (con y sin traza, y con la misma secuencia de inicios de sesión) y las tres ejecuciones siguientes pasaron 18/18. Causa sin identificar; queda en observación. En la regresión siguiente (tras agregar las fotos y reconstruir desde volúmenes vacíos) `test:e2e:ui` pasó 18/18 a la primera.
+
+### 4.38 Fotos de los productos (F5b)
+
+Una foto ilustrativa por sección (10 en total, unos 200 KB en WebP) en `clients/web/public/productos/`, servidas por la propia web porque la CSP solo admite imágenes del sitio. Son de Unsplash bajo su licencia (uso libre, sin atribución obligatoria); se acreditan por cortesía en `clients/web/public/productos/CREDITOS.md` y se descartaron las de Unsplash+, con personas identificables o con logotipos destacados. La semilla asigna a cada producto la foto de su sección; la web la muestra como imagen decorativa (`alt=""`, porque no es el modelo exacto y el nombre está en el título), con carga diferida y el ícono de la sección si no carga. El asistente muestra la miniatura en sus tarjetas.
+
+Verificación: `test:unit` comprueba que cada producto de la semilla tenga su archivo; 20/20 fotos cargan en la primera página en los dos temas; axe sin reglas incumplidas (14 pantallas en tema claro y 7 en oscuro); `test:e2e:ui` 18/18. La reconstrucción falló una vez por el caché de compilación de Docker («parent snapshot … does not exist»), un error del entorno; el reintento construyó y dejó 16/16 contenedores sanos.
+
+### 4.39 Gestión de la tienda (F5c): cambios y hallazgos
+
+**Cambios.**
+- **Límite por cliente (RF-47):** un cliente debe dejar 5 unidades para los demás, mínimo 1. Cuenta sus pedidos en curso y el checkout lo verifica antes de reservar (paso 10b de la saga, `LIMITE_POR_CLIENTE`, sin nada que compensar).
+- **Pestaña Productos (RF-48 a RF-50):**
+  - precio, oferta con fecha de fin e historial de precios;
+  - alta de productos con foto y stock inicial;
+  - subida de fotos a GridFS.
+- **Fotos:** una foto propia por cada producto de la semilla. El catálogo las sirve por el gateway, también a la app móvil.
+- **Entradas de mercancía (RF-51):** proveedor, costo y factura, con el historial de entradas.
+- **Campana de notificaciones (RF-52).**
+- **Consultas al vendedor desde el asistente (RF-53).**
+
+**Hallazgos.** Los encontraron las pruebas al construir F5c; ninguno llegó a `develop`.
+
+| Hallazgo | Causa | Corrección |
+|---|---|---|
+| H-F5c-01: el selector de foto del panel Productos no tenía etiqueta (axe, regla `label`, en «editar» y en «nuevo») | El texto «Foto (opcional)» era un párrafo, no un `<label>` | `SelectorFoto` recibe su etiqueta y la asocia al `input type=file`; axe pasa a 0 reglas incumplidas |
+| H-F5c-02: el correo «No pudimos procesar tu pago» llegaba al buzón de operaciones, con «Hola ,» y sin número de pedido. Defecto anterior a F5c; la campana del personal lo dejó a la vista | El evento `pago.rechazado` no llevaba el correo ni el nombre del cliente ni el número que usa la plantilla; notificaciones lo enviaba a operaciones | La saga le pasa a pagos el contacto que ya validó en el paso 9 y pagos lo agrega al evento (`email`, `nombre`, `numero`). Verificado: el aviso le llega a carla@correo.co con su nombre y el pedido |
+| La validación del catálogo era mínima: un PATCH aceptaba un descuento del 100 % o un precio negativo | `actualizarProducto` copiaba los campos sin validar | `gestion.ts` valida rangos, fechas, secciones e imágenes, y descarta los campos que el panel no puede escribir; V-25 de `test:seguridad` |
+| H-F5c-04: en el panel Productos, buscar un SKU podía mostrar el listado completo sin filtrar (lo vio CA-19 tras el merge) | Condición de carrera: la petición del listado completo, hecha al abrir la pestaña, llegaba después de la filtrada y la sobrescribía | Solo se pinta la respuesta de la última petición; lo mismo en el buscador de «Registrar entrada» y en el filtro de Consultas |
+| Los productos que crean CA-19, CA-20 y CA-22 quedaban activos: tras 5 corridas había 15 en la primera página de la tienda (lo notó el usuario tras el merge) | A diferencia de CA-07 y U-17, los criterios nuevos no desactivaban sus productos | La suite desactiva al final todos los productos que creó, aunque un criterio falle. Los 15 de la base local se desactivaron |
+| El registro de una entrada no era atómico: stock y movimiento iban en dos sentencias | Código anterior a F5c | Stock, movimiento y soporte de la entrada van en una sola transacción |
+
+**Ajustes a las pruebas**, por errores de la prueba y no de la tienda:
+- **CA-20** esperaba el texto «foto subida», que también está en la ayuda del formulario, así que seguía antes de terminar la subida. Ahora espera el aviso exacto.
+- **CA-23** esperaba «Respondida» y encontraba primero la opción oculta «Respondidas» del filtro. Ahora espera la respuesta del servidor.
+- **CA-23**, al abrir la consulta: el texto aparece en la lista y en el hilo, y la búsqueda se limita al hilo.
+- **`test:asistente` (sección 4):** un cliente con sesión ya no recibe el ticket de inmediato, sino el formulario. La prueba crea la consulta, la responde y verifica la campana, el aislamiento y el cierre (56 comprobaciones; antes 46).
+- **V-05 de `test:seguridad`** indica la sección del producto, que ahora es obligatoria.
+
+### 4.40 Contactar al vendedor: medición del asistente (F5c)
+
+`tests/asistente/frases-consultas.json` tiene dos conjuntos.
+
+**Conjunto de ajuste: 20 frases, escritas antes de tocar la intención `humano`.**
+- **Línea base:** 10/20 aciertos, y solo 4 de las 14 frases de contacto. «quiero contactar al vendedor» y «tengo una duda para el vendedor» daban `no_entendido`; «necesito hablar con el vendedor» daba `buscar_producto`.
+- **Ajuste:** se agregaron términos a la intención (vendedor, contactar, comunicarme, escribirle…). Como se eligieron viendo esos fallos, el 20/20 posterior **no es una medición independiente**.
+
+**Conjunto de validación: 15 frases nuevas, escritas después del ajuste.**
+- Se midió una sola vez y no se volvió a ajustar.
+- Resultado: **13/15 (86,7 %)**. Fallan «tengo una inquietud sobre una garantía, con quién hablo» (`faq_devoluciones`) y «atención al cliente» (`faq_horario`).
+- Es la cifra que se reporta.
+
+Los conjuntos anteriores no cambiaron: SerByTek 50/50, marcas 27/27, Fase 3 35/36 y desarrollo 57/57 (`asistente-metricas.md`).
+
+### 4.41 Regresión de la gestión de la tienda (F5c)
+
+Desde volúmenes vacíos (`docker compose down -v`), con las imágenes reconstruidas: 16/16 contenedores sanos. Igual que en F5b, notificaciones arrancó *unhealthy* mientras RabbitMQ terminaba de iniciar y se recuperó solo, sin intervención. La primera reconstrucción falló por el caché de compilación de Docker («parent snapshot … does not exist»); el reintento construyó.
+
+| Suite | Resultado | Evidencia (`regresion-f5c/`) |
+|---|---|---|
+| `typecheck` | sin errores | `typecheck.txt` |
+| `test:unit` | 154/154 (19 nuevas: límite por cliente, validación del panel, oferta con fecha de fin, tipo de imagen por contenido, proveedores y entradas, foto de cada producto de la semilla, contactar al vendedor) | `test-unit.txt` |
+| `test:openapi` | 505/505 (84 rutas: 73 públicas + 11 internas; 16 rutas nuevas) | `test-openapi.txt` |
+| Lint de OpenAPI (Redocly) | válido | `docs-openapi.txt` |
+| `build:web` | compila | `build-web.txt` |
+| `test:salud` | 10/10 servicios | `test-salud.txt` |
+| `test:http` | 73/73 | `test-http.txt` |
+| `test:concurrencia` | 33/33 | `test-concurrencia.txt` |
+| `test:e2e` | 53/53 | `test-e2e.txt` |
+| `test:asistente` | 56/56 con `ASISTENTE_PROBAR_DEGRADACION=1` (10 nuevas: consulta, aislamiento, enmascarado, respuesta, campana, cierre y ticket del visitante) | `test-asistente.txt` |
+| `asistente:metricas` | contactar al vendedor: validación 13/15 (4.40); SerByTek 50/50; marcas 27/27; Fase 3 35/36; desarrollo 57/57 | `asistente-metricas.txt`, `trabajo-final/asistente-metricas.md` |
+| `test:seguridad` | 25 seguras (3 nuevas: V-24 subida de archivos, V-25 precio, V-26 consultas y campana) y 1 hallazgo aceptado (V-13 / S-09) | `test-seguridad.txt` |
+| **`test:e2e:ui`** | **23/23 criterios** (5 nuevos: CA-19 a CA-23), en dos corridas seguidas | `test-e2e-ui.txt`, `trabajo-final/e2e-ui/` |
+| axe de las vistas nuevas (`tests/usabilidad/axe-f5c.ts`), temas claro y oscuro | 20 pantallas, 0 reglas WCAG incumplidas (tras corregir H-F5c-01) | `axe-f5c.txt`, `axe-f5c.json` |
+| `flutter analyze` (app móvil con fotos y límite por cliente) | sin problemas | `flutter-analyze.txt` |
+| `npm audit --omit=dev --audit-level=high` | 3 avisos altos de un mismo aviso nuevo (GHSA-fc5q-39xc-vjpf, ver abajo) | `npm-audit.txt` |
+| `auditar:dependencias` (paso del CI desde F5c) | 0 avisos altos sin aceptar; GHSA-fc5q-39xc-vjpf aceptado como S-13, con revisión antes del 2027-01-31 | `auditar-dependencias.txt` |
+
+**CA-23, fallo intermitente de la prueba.** En la corrida desde volúmenes vacíos, CA-23 se agotó en el paso del vendedor:
+- **Qué pasó:** la segunda página, que abría su propia sesión por la interfaz, cargó el catálogo pero nunca envió `POST /auth/login`. El registro del gateway no muestra ningún 429, así que no fue el límite de inicios de sesión.
+- **Cómo se resolvió:** la sesión del vendedor se prepara por la API, como en CA-18. El criterio acepta la consulta y la campana; el inicio de sesión lo cubre CA-02.
+- **Resultado:** dos corridas seguidas, 23/23. La causa de que el clic no enviara la petición no se identificó y queda en observación, igual que CA-01 (4.37).
+
+**`npm audit`.** Hay un aviso publicado después de F5b (GHSA-fc5q-39xc-vjpf: ReDoS en `picomatch` con extglobs repetidos).
+- **Por dónde llega:** `micromatch` lo trae a `http-proxy-middleware` del gateway. El `package-lock.json` no cambió en F5c.
+- **Arreglo propuesto:** npm no tiene una versión corregida; solo propone bajar `http-proxy-middleware` a 0.19.2, un cambio incompatible.
+- **Por qué no se aplica:** el gateway monta el proxy por prefijo de Express, sin `pathFilter` ni patrones glob, así que no compila patrones extglob.
+- **Decisión:** el CI falló por este aviso en el PR de F5c. Por decisión del equipo se acepta como riesgo (S-13, `docs/calidad/SEGURIDAD.md` 11.2) con fecha de revisión. El paso del CI usa `npm run auditar:dependencias`, que sigue fallando con cualquier otro aviso alto o crítico y con este cuando venza la fecha. No se degrada la dependencia.
+
+**CI del PR: H-F5c-03.** En GitHub Actions, `test:e2e:ui` recibió 429 al iniciar sesión en varios criterios (CA-11 y CA-12; tras reiniciar el gateway, CA-14 y siguientes).
+- **Primera hipótesis, incompleta:** el límite de intentos fallidos acumulado por `test:http`. Reiniciar el gateway antes de la suite (paso que se conserva en el CI) no lo resolvió.
+- **Causa:** F5c movió las fotos de nginx al gateway (`/api/catalogo/imagenes`). El navegador no envía el token al pedir una imagen, así que cada foto contaba por IP contra el **límite general** (300 por minuto). Una vista del catálogo gasta 15 peticiones, 13 de ellas en fotos, y las capturas de página completa cargan las 20. El CI, más rápido, superaba las 300 en un minuto y el siguiente `POST /auth/login` recibía 429. En una tienda real habría pasado lo mismo con varios clientes detrás de una misma IP.
+- **Corrección:** las fotos (`GET /api/catalogo/imagenes/*`) tienen su propio límite por IP (`LIMITE_IMAGENES`, 1500 por minuto) y ya no gastan el cupo general. Son lecturas baratas y cacheables (Cache-Control de un día o un año).
+
+**App móvil.** Las fotos se cargan con `Image.network` desde el gateway (`Config.gateway` + `/api/catalogo/imagenes/...`), con un recuadro mientras cargan y el ícono de antes si fallan. `flutter analyze` pasa, pero no se probó en un emulador ni en un teléfono: ⚠️ PENDIENTE: verificación manual en un dispositivo.
+
+### 4.42 Ajustes de la revisión manual (F5d)
+
+La revisión manual del aplicativo, tras fusionar F5c, dejó estos ajustes:
+- **Datos viejos de las pruebas:** cuentas, productos y notificaciones de prueba visibles en la tienda. Se limpiaron recreando los volúmenes.
+- **Notificaciones:** «Ver todas» y abrir una consulta lista para responder.
+- **Pedidos:** detalle con fecha y hora de cada cambio de estado, en lugar de la bitácora de la saga.
+- **Catálogo:** vista previa para el personal.
+- **Inventario:** nombres de producto en la reposición.
+- **Salud del sistema:** solo para el administrador, con medidas correctivas.
+- **Contraseña:** recuperación por enlace de correo.
+- **Cierre de sesión:** pantalla de salida y opción de seguir como visitante.
+
+Son los requisitos RF-54 a RF-59, los criterios CA-24 a CA-27 y el CA-12 actualizado.
+
+**Corrida.** Desde volúmenes vacíos (`docker compose down -v`), con las imágenes reconstruidas: 16/16 contenedores sanos en 230 s. Como en F5b y F5c, notificaciones arrancó *unhealthy* mientras RabbitMQ terminaba de iniciar y se recuperó solo.
+
+| Suite | Resultado | Evidencia (`regresion-f5d/`) |
+|---|---|---|
+| `typecheck` | sin errores | `typecheck.txt` |
+| `test:unit` | 160/160 (6 nuevas: tabla `restablecimientos_contrasena` en Drizzle y el enlace de recuperación fuera de lo guardado, `secretos.test.ts`) | `test-unit.txt` |
+| `test:openapi` | 517/517 (86 rutas; nuevas: `recuperar`, `restablecer`; parámetros `pagina`, `solo_no_leidas` y `skus`) | `test-openapi.txt` |
+| Lint de OpenAPI (Redocly) | válido | `docs-openapi.txt` |
+| `build:web` y `build:web:pruebas` | compilan | `build-web.txt`, `build-web-pruebas.txt` |
+| `auditar:dependencias` | 0 avisos altos o críticos sin aceptar | `auditar-dependencias.txt` |
+| `test:salud` | 10/10 servicios | `test-salud.txt` |
+| `test:http` | 73/73 | `test-http.txt` |
+| `test:concurrencia` | 33/33 | `test-concurrencia.txt` |
+| `test:e2e` | 53/53 | `test-e2e.txt` |
+| `test:seguridad` | 26 seguras (1 nueva: V-27 recuperación de contraseña) y 1 hallazgo aceptado (V-13 / S-09) | `test-seguridad.txt` |
+| **`test:e2e:ui`** | **27/27 criterios** (4 nuevos: CA-24 a CA-27; CA-12 cambia la bitácora por el historial de estados) | `test-e2e-ui.txt`, `trabajo-final/e2e-ui/` |
+| axe F5c y F5d (`tests/usabilidad/axe-f5c.ts`, `axe-f5d.ts`), temas claro y oscuro | 20 + 18 pantallas, 0 reglas WCAG incumplidas | `axe-f5c.txt`, `axe-f5d.txt`, `axe-f5d.json` |
+| Capturas del manual (`scripts/capturas/manual-usuario.ts`) | regeneradas; `13b-admin-bitacora.png` pasa a `13b-admin-detalle-pedido.png` | `capturas-manual.txt` |
+| `test:asistente` | 56/56 con `ASISTENTE_PROBAR_DEGRADACION=1` | `test-asistente.txt` |
+
+**Recuperación de contraseña, en el sistema real.**
+- **El correo llega a Mailpit:** con el enlace como vínculo en el HTML y como texto en la versión plana.
+- **La copia guardada en `notificaciones_db`** dice «[enlace enviado solo al correo]» en `texto`, `cuerpo` y `datos_evento`.
+- **Lo que cubren las pruebas:** CA-24 recorre el flujo por la interfaz y V-27 verifica los controles (`SEGURIDAD.md` 12).
+
+**`test:asistente` y el límite del chat.** La suite termina agotando a propósito el límite de 30 mensajes por minuto (sección 8). Al repetirla dentro del mismo minuto, la segunda corrida falla con `LIMITE_ASISTENTE` en las comprobaciones que van después. No es un defecto: hay que esperar un minuto entre corridas. Quedó anotado en el manual técnico.
+
+**Datos de prueba en la tienda.** Las suites crean cuentas (`ca13-…`, `vendedor-…`), productos (`SKU-CA19-…`, desactivados al final) y notificaciones con nombres únicos.
+- **Lo que se veía en la tienda:** después de varias corridas, el panel mostraba 7 vendedores de prueba desactivados, 32 productos de prueba inactivos y 146 notificaciones. Entre los productos estaban los 3 de $1.000 de la verificación de XSS, cuyo nombre es una etiqueta `<img>`.
+- **Qué se hizo:** al terminar la regresión se recrearon los volúmenes (`down -v` y `up`), así que la tienda queda solo con la semilla.
+- **Antes de una demostración:** el manual técnico (10.3) indica volver a la semilla igual.
+
+**App móvil.** No cambia en F5d. La recuperación de contraseña se hace desde la web; el enlace del correo abre la web.
+
+### 4.43 Segunda revisión manual (F5e)
+
+La revisión manual después de fusionar F5d encontró tres defectos y una mejora:
+
+- **Visitante que pide un asesor (defecto).**
+  - **Síntoma:** el asistente creaba un ticket `TCK-…` sin dueño y publicaba `asistente.escalamiento`. El vendedor recibía en su bandeja un aviso sin cliente a quien responder, y al iniciar sesión el chat empezaba de cero, sin rastro del ticket.
+  - **Corrección:** el visitante recibe la invitación a iniciar sesión, sin ticket ni aviso. La opción lleva `retomar` y la web la reenvía al volver con la sesión, así que el chat se abre con el formulario de la consulta (RF-60). Se retiraron el evento, su constante y su plantilla; `infra/mongo/asistente.js` la borra de los volúmenes anteriores.
+  - **Pruebas:** `test:asistente` (sin ticket, opción `retomar`) y CA-28.
+- **Filtros entre cuentas (defecto).**
+  - **Síntoma:** el filtro de ofertas que el asistente aplicó a un cliente seguía en el catálogo al entrar como administrador o vendedor.
+  - **Causa:** no estaba en el navegador sino en la memoria de la página. `App.jsx` guardaba `filtrosCatalogo` y nunca lo limpiaba, y cada vez que se volvía al catálogo este se montaba de nuevo con esos filtros.
+  - **Corrección:** al cambiar de identidad se limpian los filtros y el destino de la campana (RF-61).
+  - **Prueba:** CA-29.
+- **Formularios sin validación visible (defecto de usabilidad).**
+  - **Síntoma:** en **Proveedor nuevo** se podían escribir letras en el teléfono y un correo sin `@`. El servidor sí los rechazaba (los tres proveedores de la base eran válidos), pero el error solo aparecía arriba y después de enviar. `type="email"` no actuaba porque el formulario se envía con un botón.
+  - **Corrección:** validación junto al campo (al salir de él y al guardar) con `aria-invalid` y `aria-describedby`, un ejemplo en cada placeholder y el teléfono filtrado al escribir. Aplica en proveedor, Mi perfil (teléfono y documento), registro y cuentas internas (correo) (RF-62).
+  - **Paridad con el servidor:** las reglas viven en `clients/web/src/servicios/reglas.js`, y `clients/web/test/reglas.test.ts` comprueba con los mismos valores que la web acepta exactamente lo que acepta `validarProveedor()`.
+- **Asistente para el personal (mejora).** Muestra la franja «Modo demostración» y, en cada producto, «Solo clientes». El aviso del catálogo de F5d ya estaba; el usuario lo confirmó al recargar la página.
+
+**Corrida.** Desde volúmenes vacíos (`docker compose down -v`), con las imágenes reconstruidas: 16/16 contenedores sanos en 132 s.
+
+| Suite | Resultado | Evidencia (`regresion-f5e/`) |
+|---|---|---|
+| `typecheck` | sin errores | `typecheck.txt` |
+| `test:unit` | 184/184 (24 nuevas: paridad de reglas web y servidor; 1 aserción nueva en `proveedores.test.ts`) | `test-unit.txt` |
+| `test:openapi` | 517/517 | `test-openapi.txt` |
+| Lint de OpenAPI (Redocly) | válido | — |
+| `build:web` y `build:web:pruebas` | compilan | — |
+| `auditar:dependencias` | 0 avisos altos o críticos sin aceptar | `auditar-dependencias.txt` |
+| `test:salud` | 10/10 servicios | `test-salud.txt` |
+| `test:http` | 73/73 | `test-http.txt` |
+| `test:concurrencia` | 33/33 | `test-concurrencia.txt` |
+| `test:e2e` | 53/53 | `test-e2e.txt` |
+| `test:asistente` | 57/57 con `ASISTENTE_PROBAR_DEGRADACION=1` (el visitante sin ticket reemplaza la comprobación anterior y se agrega la de tickets sin dueño) | `test-asistente.txt` |
+| `test:seguridad` | 26 seguras y 1 hallazgo aceptado (V-13 / S-09) | `test-seguridad.txt` |
+| **`test:e2e:ui`** | **29/29 criterios** (CA-28 y CA-29 nuevos) | `test-e2e-ui.txt`, `trabajo-final/e2e-ui/` |
+| axe F5c, F5d y F5e, temas claro y oscuro | 20 + 18 + 10 pantallas, 0 reglas WCAG incumplidas | `axe-f5c.txt`, `axe-f5d.txt`, `axe-f5e.txt`, `axe-f5e.json` |
+
+**V-12 necesita la web en 4173.** En la primera corrida de `test:seguridad`, V-12 (cabeceras de la web) salió como informativa porque `vite preview` no estaba en marcha. Se repitió con la vista previa en 4173 y quedó segura; la tabla muestra esa segunda corrida.
+
+**Lo que no se repitió.** No se volvió a correr `asistente:metricas`, porque el clasificador (`motor.ts`) y las intenciones no cambiaron: el visitante sigue cayendo en la intención `humano` y solo cambió la respuesta.
+
+### 4.44 Despliegue en la nube (ADR-0010)
+
+Preparación para publicar la tienda en una VM (Azure u Oracle) con HTTPS. Las decisiones están en [ADR-0010](adr/0010-despliegue-en-una-vm.md), los controles en `SEGURIDAD.md` 13 y la guía en `manuales/DESPLIEGUE.md`. Cambios:
+- **Cuentas por entorno:** `07-cuentas-produccion.sh`.
+- **Correo real:** `SMTP_*_PROD`.
+- **Proxies del gateway:** `PROXIES_CONFIANZA` configurable.
+- **Caddy:** `docker-compose.nube.yml`.
+- **Inicio de sesión:** ya no muestra el recuadro de cuentas de prueba.
+
+**Verificación local del despliegue.** Se corrió `npm run nube:up` desde volúmenes vacíos con `DOMINIO=localhost`; Caddy emite su propio certificado para ese nombre.
+- **Arranque:** 338 s; 17 contenedores (16 sanos más Caddy). Solo Caddy publica puertos (80 y 443).
+- **Lo que se comprobó:**
+  - HTTPS 200 y HTTP 308 hacia HTTPS;
+  - las tres cuentas de producción entran y las de prueba responden 401;
+  - el gateway y los servicios no responden desde el host;
+  - CORS ajeno 403;
+  - el límite de inicios de sesión no se evade con un `X-Forwarded-For` falso;
+  - el correo de recuperación llega con el enlace `https://localhost/#restablecer=…`.
+- **Detalle:** `despliegue-nube/verificacion-local.txt`.
+- **Lo que no se puede verificar aquí:** el envío por Gmail y el certificado público. Se verifican en la VM con la sección 7 de la guía.
+
+**Hallazgo al bajar.** `down` con el perfil prod también exige las variables de las cuentas (`${VAR:?}`), porque Compose valida el archivo completo. Sin ellas, el comando falla y los contenedores siguen arriba. En el servidor no ocurre, porque están en el `.env`. Quedó anotado en CLAUDE.md.
+
+**Regresión del laboratorio.** Desde volúmenes vacíos, con las imágenes reconstruidas. En el laboratorio, `07-cuentas-produccion.sh` registró «laboratorio, se conservan las cuentas de prueba».
+
+| Suite | Resultado | Evidencia (`despliegue-nube/`) |
+|---|---|---|
+| `typecheck` | sin errores | — |
+| `test:unit` | 187/187 (3 nuevas: `proxies.test.ts`) | `test-unit.txt` |
+| `test:openapi` | 517/517 | — |
+| `auditar:dependencias` | 0 avisos altos o críticos sin aceptar | — |
+| `build:web` y `build:web:pruebas` | compilan | — |
+| `test:salud` | 10/10 servicios (en la primera corrida, notificaciones aún estaba *degradado* mientras RabbitMQ terminaba de iniciar; se recuperó solo, como en F5b a F5e, y la repetición pasó) | `test-salud.txt` |
+| `test:http` | 73/73 | `test-http.txt` |
+| `test:concurrencia` | 33/33 | `test-concurrencia.txt` |
+| `test:e2e` | 53/53 | `test-e2e.txt` |
+| `test:asistente` | 57/57 con degradación | `test-asistente.txt` |
+| `test:seguridad` | 26 seguras y 1 hallazgo aceptado (V-13 / S-09) | `test-seguridad.txt` |
+| `test:e2e:ui` | 29/29 criterios | `test-e2e-ui.txt` |
+| axe F5c, F5d y F5e | 20 + 18 + 10 pantallas, 0 reglas WCAG incumplidas | `axe-f5c.txt`, `axe-f5d.txt`, `axe-f5e.txt` |
+| Capturas del manual | regeneradas; `02-iniciar-sesion.png` ya sin el recuadro de cuentas | `docs/manuales/img/` |
+
 ---
 
 ## 5. Lo que queda por probar
@@ -443,16 +1199,17 @@ Quedan las pruebas que requieren provocar fallos a mano:
 | Sin verificar en ejecución | Cómo verificarlo |
 |---|---|
 | Caída y recuperación del broker | escenario 5.1 de [`../PLAN.md`](../PLAN.md) |
-| Circuit breaker abriéndose por fallos reales | escenario 5.3 de `PLAN.md` |
 
-### Limitación conocida: arranque antes que el broker
+El circuit breaker abriéndose por fallos reales ya está verificado, y bajo carga: la Fase 4 detuvo inventario y notificaciones en plena corrida ([`calidad/RENDIMIENTO.md`](calidad/RENDIMIENTO.md), secciones 9.3, 9.4 y 9.6).
 
-`BusEventos` reintenta la conexión cuando una conexión **ya establecida** se
-cierra, pero no cuando el **primer** intento falla. Si los servicios arrancan
-mientras RabbitMQ aún se está iniciando, notificaciones queda sin suscripción y
-`test:salud` lo reporta caído hasta reiniciar `npm run dev`. Se mitiga con
-`npm run infra:up`, que usa `docker compose up --wait` y no termina hasta que los
-cuatro contenedores están sanos.
+### Resuelto en la Fase 5: arranque antes que el broker
+
+Antes, `BusEventos` no reintentaba si fallaba el **primer** intento de conexión. Desde la Fase 5:
+- reintenta con espera exponencial (1 s, 2 s… hasta 30 s);
+- al reconectar, vuelve a declarar sus consumidores;
+- el arranque en frío del perfil prod pasa sin intervención (4.32).
+
+Las pruebas unitarias de `bus-eventos.test.ts` cubren el arranque sin broker y la caída de una conexión ya establecida.
 
 ### Observación sobre el control de rol
 

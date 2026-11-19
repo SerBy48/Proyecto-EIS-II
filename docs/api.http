@@ -486,7 +486,7 @@ GET {{api}}/inventario/alertas
 Authorization: Bearer {{ana}}
 x-usuario-rol: administrador
 x-llamada-interna: 1
-x-internal-token: secreto-interno-desarrollo
+x-internal-token: cualquier-valor
 
 ### Un cliente viendo la bitacora de la saga: 403
 GET {{api}}/pedidos/1/saga
