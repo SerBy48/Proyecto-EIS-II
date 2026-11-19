@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../servicios/api';
+import { ErrorCampo, atributosError, reglas, soloTelefono, validar } from '../servicios/validaciones.jsx';
 import CampoContrasena from '../componentes/CampoContrasena.jsx';
 import Consultas from '../componentes/Consultas.jsx';
 import Notificaciones from '../componentes/Notificaciones.jsx';
@@ -29,11 +30,20 @@ const Aviso = ({ tipo, children }) =>
     </div>
   ) : null;
 
+// Las reglas de clientes-service (controlador.ts), visibles junto al campo.
+const ESQUEMA_DATOS = {
+  nombre: [reglas.obligatorio('tu nombre')],
+  apellido: [reglas.obligatorio('tu apellido')],
+  telefono: [reglas.telefonoCliente],
+  documento: [reglas.documento]
+};
+
 /** Datos personales: el correo es la identidad de la cuenta y no se edita aqui. */
 function DatosPersonales({ clienteId }) {
   const [datos, setDatos] = useState(null);
   const [guardando, setGuardando] = useState(false);
   const [mensaje, setMensaje] = useState(null);
+  const [tocados, setTocados] = useState({});
 
   useEffect(() => {
     api(`/clientes/${clienteId}`)
@@ -41,10 +51,17 @@ function DatosPersonales({ clienteId }) {
       .catch((e) => setMensaje({ tipo: 'error', texto: e.message }));
   }, [clienteId]);
 
+  const errores = datos ? validar(datos, ESQUEMA_DATOS) : {};
+
   const guardar = async (e) => {
     e.preventDefault();
-    setGuardando(true);
     setMensaje(null);
+    if (Object.keys(errores).length) {
+      setTocados({ nombre: true, apellido: true, telefono: true, documento: true });
+      document.getElementById(`perfil-${Object.keys(errores)[0]}`)?.focus();
+      return;
+    }
+    setGuardando(true);
     try {
       await api(`/clientes/${clienteId}`, {
         metodo: 'PATCH',
@@ -66,11 +83,14 @@ function DatosPersonales({ clienteId }) {
 
   if (!datos) return mensaje ? <Aviso tipo={mensaje.tipo}>{mensaje.texto}</Aviso> : <p className="text-gray-500">Cargando…</p>;
 
+  const visible = (nombre) => (tocados[nombre] ? errores[nombre] : null);
   const campo = (nombre) => ({
     id: `perfil-${nombre}`,
     value: datos[nombre],
-    onChange: (e) => setDatos((d) => ({ ...d, [nombre]: e.target.value })),
-    className: 'w-full bg-superficie border border-gray-300 rounded-lg px-3 py-2'
+    onChange: (e) => setDatos((d) => ({ ...d, [nombre]: nombre === 'telefono' ? soloTelefono(e.target.value) : e.target.value })),
+    onBlur: () => setTocados((t) => ({ ...t, [nombre]: true })),
+    className: `w-full bg-superficie border border-gray-300 rounded-lg px-3 py-2 ${visible(nombre) ? '!border-red-600' : ''}`,
+    ...atributosError(`perfil-${nombre}`, visible(nombre))
   });
   const etiqueta = (nombre, texto) => (
     <label htmlFor={`perfil-${nombre}`} className="block text-sm font-semibold text-gray-700 mb-1">
@@ -85,10 +105,12 @@ function DatosPersonales({ clienteId }) {
         <div>
           {etiqueta('nombre', 'Nombre')}
           <input {...campo('nombre')} required maxLength={100} autoComplete="given-name" />
+          <ErrorCampo id="perfil-nombre" error={visible('nombre')} />
         </div>
         <div>
           {etiqueta('apellido', 'Apellido')}
           <input {...campo('apellido')} required maxLength={100} autoComplete="family-name" />
+          <ErrorCampo id="perfil-apellido" error={visible('apellido')} />
         </div>
         <div>
           <label htmlFor="perfil-correo" className="block text-sm font-semibold text-gray-700 mb-1">
@@ -99,7 +121,8 @@ function DatosPersonales({ clienteId }) {
         </div>
         <div>
           {etiqueta('telefono', 'Teléfono')}
-          <input {...campo('telefono')} type="tel" maxLength={20} autoComplete="tel" placeholder="300 123 4567" />
+          <input {...campo('telefono')} type="tel" inputMode="tel" maxLength={20} autoComplete="tel" placeholder="300 123 4567" />
+          <ErrorCampo id="perfil-telefono" error={visible('telefono')} />
         </div>
         <div>
           {etiqueta('tipo_documento', 'Tipo de documento')}
@@ -112,7 +135,8 @@ function DatosPersonales({ clienteId }) {
         </div>
         <div>
           {etiqueta('documento', 'Número de documento')}
-          <input {...campo('documento')} maxLength={30} />
+          <input {...campo('documento')} maxLength={30} placeholder="1075123456" />
+          <ErrorCampo id="perfil-documento" error={visible('documento')} />
         </div>
       </div>
       <button type="submit" disabled={guardando} className="mt-4 btn-primario px-5 py-2">

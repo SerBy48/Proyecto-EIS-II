@@ -9,7 +9,7 @@ Trabajo Final, Fase 5. Une cada requisito de [`01-escenario-requisitos.md`](../e
 
 | Suite | Resultado |
 |---|---|
-| `test:e2e:ui` | 27/27 criterios |
+| `test:e2e:ui` | 29/29 criterios |
 | `test:e2e` | 53 comprobaciones |
 | `test:http` | 73 casos |
 | `test:concurrencia` | 33 comprobaciones |
@@ -98,6 +98,9 @@ Trabajo Final, Fase 5. Une cada requisito de [`01-escenario-requisitos.md`](../e
 | RF-57 Salud del sistema solo del administrador, con medidas (F5d) | CA-27 | axe F5d | Pasa | `CA-27-salud.png` |
 | RF-58 Detalle del pedido con su historial de estados (F5d) | CA-12 | `test:http` (transiciones) | Pasa | `CA-12.png` |
 | RF-59 Vista previa del catálogo y nombres en inventario (F5d) | CA-27 | `test:openapi` (`skus`) | Pasa | `CA-27-vista-previa.png` |
+| RF-60 El visitante inicia sesión para escribirle al vendedor (F5e) | CA-28 | `test:asistente` (sin ticket sin dueño, opción `retomar`) | Pasa | `CA-28-formulario.png` |
+| RF-61 Los filtros no pasan de una cuenta a otra (F5e) | CA-29 | — | Pasa | `CA-29.png` |
+| RF-62 Validación junto al campo y modo demostración del asistente (F5e) | — | `test:unit` (`clients/web/test/reglas.test.ts`: las reglas de la web = las del servicio), axe F5e | Pasa | `regresion-f5e/axe-f5e.json` |
 
 ## Requisitos no funcionales
 

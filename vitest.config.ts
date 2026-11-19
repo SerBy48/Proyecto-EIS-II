@@ -7,7 +7,7 @@ import { defineConfig } from 'vitest/config';
  */
 export default defineConfig({
   test: {
-    include: ['packages/*/test/**/*.test.ts', 'services/*/test/**/*.test.ts'],
+    include: ['packages/*/test/**/*.test.ts', 'services/*/test/**/*.test.ts', 'clients/web/test/**/*.test.ts'],
     setupFiles: ['tests/unitarias/preparacion.ts'],
     environment: 'node',
     // Los logs de los modulos probados no aportan a la salida de las pruebas.

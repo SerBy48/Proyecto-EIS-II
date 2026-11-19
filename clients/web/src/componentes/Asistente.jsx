@@ -52,12 +52,22 @@ export default function Asistente({ usuario, alAgregar, onNavegar, onIniciarSesi
   const campoRef = useRef(null);
   const finalRef = useRef(null);
   const secuencia = useRef(0);
+  // Mensaje que se envia solo al volver con la sesion iniciada: el visitante que
+  // pidio escribirle al vendedor encuentra el formulario sin repetir la pregunta.
+  const retomarRef = useRef(null);
 
   // La conversacion pertenece a una identidad: al entrar o salir se empieza otra.
   useEffect(() => {
     setMensajes([bienvenida()]);
     setConversacionId(null);
     setError(null);
+    const retomar = retomarRef.current;
+    retomarRef.current = null;
+    if (retomar && usuario?.rol === 'cliente') {
+      setAbierto(true);
+      // Conversacion nueva: la del visitante no pasa a la cuenta.
+      enviar(retomar, null);
+    }
   }, [usuario?.id]);
 
   useEffect(() => {
@@ -73,7 +83,7 @@ export default function Asistente({ usuario, alAgregar, onNavegar, onIniciarSesi
     botonRef.current?.focus();
   };
 
-  const enviar = async (contenido) => {
+  const enviar = async (contenido, idConversacion = conversacionId) => {
     const limpio = contenido.trim();
     if (!limpio || escribiendo) return;
     setError(null);
@@ -85,7 +95,7 @@ export default function Asistente({ usuario, alAgregar, onNavegar, onIniciarSesi
         metodo: 'POST',
         // Una sesion vencida no deja al visitante sin chat (H-F5-02).
         publica: true,
-        cuerpo: { texto: limpio, ...(conversacionId ? { conversacion_id: conversacionId } : {}) }
+        cuerpo: { texto: limpio, ...(idConversacion ? { conversacion_id: idConversacion } : {}) }
       });
       setConversacionId(respuesta.conversacion_id);
       setMensajes((m) => [...m, { id: `a${++secuencia.current}`, de: 'asistente', respuestas: respuesta.respuestas }]);
@@ -103,6 +113,7 @@ export default function Asistente({ usuario, alAgregar, onNavegar, onIniciarSesi
 
   const elegirOpcion = (opcion) => {
     if (opcion.accion === 'iniciar_sesion') {
+      retomarRef.current = opcion.retomar ?? null;
       onIniciarSesion();
       cerrar();
     } else if (opcion.accion === 'ir_pedidos') {
@@ -119,6 +130,8 @@ export default function Asistente({ usuario, alAgregar, onNavegar, onIniciarSesi
   };
 
   const esCliente = usuario?.rol === 'cliente';
+  // Admin y vendedor usan el chat como demostracion: no compran ni consultan.
+  const demostracion = Boolean(usuario) && !esCliente;
 
   return (
     <div className="fixed bottom-4 right-4 z-50 flex flex-col items-end gap-3">
@@ -137,6 +150,12 @@ export default function Asistente({ usuario, alAgregar, onNavegar, onIniciarSesi
               ✕
             </button>
           </header>
+          {demostracion && (
+            <p className="px-4 py-2 border-b border-amber-300 bg-amber-50 text-amber-900 text-xs">
+              <strong>Modo demostración:</strong> así responde el asistente a los clientes. Desde una cuenta de {usuario.rol} no se agrega al carrito ni se
+              envían consultas al vendedor.
+            </p>
+          )}
 
           <div role="log" aria-live="polite" aria-label="Conversacion" className="flex-1 overflow-y-auto px-4 py-3 space-y-3 text-sm">
             {mensajes.map((m) =>
@@ -153,6 +172,7 @@ export default function Asistente({ usuario, alAgregar, onNavegar, onIniciarSesi
                       key={i}
                       r={r}
                       esCliente={esCliente}
+                      demostracion={demostracion}
                       alAgregar={alAgregar}
                       alElegir={elegirOpcion}
                       deshabilitado={escribiendo}
@@ -221,7 +241,7 @@ export default function Asistente({ usuario, alAgregar, onNavegar, onIniciarSesi
   );
 }
 
-function Respuesta({ r, esCliente, alAgregar, alElegir, deshabilitado, conversacionId, alVerConsultas }) {
+function Respuesta({ r, esCliente, demostracion, alAgregar, alElegir, deshabilitado, conversacionId, alVerConsultas }) {
   if (r.tipo === 'formulario_consulta') {
     return esCliente ? <FormularioConsulta r={r} conversacionId={conversacionId} alVerConsultas={alVerConsultas} /> : null;
   }
@@ -253,6 +273,7 @@ function Respuesta({ r, esCliente, alAgregar, alElegir, deshabilitado, conversac
                 Agregar al carrito
               </button>
             )}
+            {demostracion && <p className="mt-1 text-xs font-semibold text-amber-900">Solo clientes: aquí no se agrega al carrito</p>}
             </div>
           </li>
         ))}

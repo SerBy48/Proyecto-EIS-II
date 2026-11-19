@@ -90,7 +90,7 @@ export const marcarLeidas = async (req: PeticionAutenticada, res: Response): Pro
 };
 
 /**
- * Plantillas de las consultas al vendedor (la del escalamiento la crea infra/mongo/asistente.js). El servicio las crea si faltan
+ * Plantillas de las consultas al vendedor. El servicio las crea si faltan
  * ($setOnInsert): un volumen creado antes de esta version las recibe al
  * arrancar, y una plantilla que el administrador ya edito no se pisa.
  */

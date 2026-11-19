@@ -49,7 +49,6 @@ export const Eventos = {
   STOCK_MINIMO: 'inventario.stock_minimo',
   RESERVA_EXPIRADA: 'inventario.reserva_expirada',
   CARRITO_ABANDONADO: 'carrito.abandonado',
-  ASISTENTE_ESCALAMIENTO: 'asistente.escalamiento',
   // Consultas al vendedor desde el asistente (RF-53).
   CONSULTA_NUEVA: 'asistente.consulta_nueva',
   CONSULTA_MENSAJE_CLIENTE: 'asistente.consulta_mensaje',

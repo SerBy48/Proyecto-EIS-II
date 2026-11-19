@@ -35,7 +35,7 @@ Documentación de la Fase 3 del Trabajo Final: el módulo de automatización con
 | `precio_disponibilidad` | No | Precio vigente del catálogo (invariante 2) y unidades disponibles |
 | `estado_pedido` | **Sí** | Pedidos del usuario con **su** token; contexto de dos turnos |
 | `cancelar_pedido` | **Sí** | Explica la regla según el estado real del pedido y lleva a «Mis pedidos» |
-| `humano` | No | Ticket en `tickets` y evento `asistente.escalamiento`: notificaciones avisa a `CORREO_OPERACIONES` |
+| `humano` | Para enviar, **sí** | Cliente: formulario de consulta al vendedor en el chat (RF-53, eventos `asistente.consulta_*`). Visitante: se le pide iniciar sesión, sin ticket ni aviso; la opción lleva `retomar` y la web reenvía la petición al volver con la sesión. Personal: se le indica la pestaña Consultas |
 | `no_entendido` | — | Pide reformular y muestra el menú; con la IA activa, la usa como respaldo |
 
 ## 3.3 Seguridad
@@ -90,7 +90,7 @@ Matriz de confusión y detalle: [`evidencia/trabajo-final/asistente-metricas.md`
 
 - **`test:asistente`: 46 comprobaciones, 46 pasan** ([`evidencia/07-asistente.txt`](../evidencia/07-asistente.txt)).
   - Cubren una frase por intención, sinónimos y tildes, entidades, contexto de dos turnos y aislamiento: Bruno no ve los pedidos de Ana ni por número, ni por id, ni por la guía de cancelación, ni con el id de la conversación de Ana.
-  - También: conversaciones ajenas, enmascarado, escalamiento con correo en Mailpit, edición de la FAQ, validaciones, token inválido, degradación y rate limit.
+  - También: conversaciones ajenas, enmascarado, consultas al vendedor con correo en Mailpit (el visitante inicia sesión primero, sin ticket), edición de la FAQ, validaciones, token inválido, degradación y rate limit.
 - **Interfaz** (`scripts/capturas/asistente.ts`, Chromium):
   - el foco va al campo al abrir, y Esc cierra el panel y devuelve el foco al botón;
   - Ana ve solo sus 3 pedidos recientes;
@@ -102,6 +102,6 @@ Matriz de confusión y detalle: [`evidencia/trabajo-final/asistente-metricas.md`
 
 ## 3.6 Operación
 
-- **Volumen de Mongo existente:** `npm run infra:asistente` crea el usuario de `asistente_db` y la plantilla del escalamiento. Es idempotente; en un volumen nuevo lo hace Mongo al inicializarse.
+- **Volumen de Mongo existente:** `npm run infra:asistente` crea el usuario de `asistente_db` y borra la plantilla del escalamiento de los volúmenes anteriores a F5e. Es idempotente; en un volumen nuevo lo hace Mongo al inicializarse.
 - **Activar la IA:** `ASISTENTE_IA=anthropic` y `ANTHROPIC_API_KEY` en `.env`. El modelo por defecto es `claude-opus-5-5` (`ASISTENTE_IA_MODELO`) con esfuerzo bajo y respaldo de rechazos del lado del servidor (`fallbacks: "default"`).
 - **Analítica:** cada turno guarda la intención y la confianza. Con eso se ve qué preguntas terminan en `no_entendido` y conviene agregar como términos.

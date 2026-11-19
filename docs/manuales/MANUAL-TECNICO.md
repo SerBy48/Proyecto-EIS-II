@@ -194,7 +194,7 @@ Al cambiar `JWT_SECRET` o `JWT_REFRESH_SECRET`, todas las sesiones abiertas deja
 | Preguntas frecuentes | `src/datos/faq.json` | Igual, con las rutas de FAQ del asistente |
 | Productos y secciones | Catálogo: `infra/mongo/init-mongo.js` (subcategorías con `sinonimos`) o la pestaña **Productos** del panel (`POST /api/catalogo/productos` con `subcategoria`) | Cada producto de la semilla tiene su foto en `services/catalogo-service/imagenes/` (`sku-tec-NNN.webp`, créditos en `CREDITOS.md`); un producto nuevo usa la foto de su sección (`<seccion>.webp`) hasta que se le suba una desde el panel (GridFS en `catalogo_db`, bucket `imagenes`). Una sección nueva necesita su foto de respaldo. **No se toca el asistente**: lee las secciones, los sinónimos y las marcas de `GET /api/catalogo/categorias` cada minuto y busca los productos en vivo |
 | Cifras (envío, IVA, plazos) | `.env` (`COSTO_ENVIO_BASE`, `DIAS_ENTREGA`…) | Son las mismas que usa el carrito |
-| Tickets de escalamiento | `GET /api/asistente/tickets` | administrador y vendedor |
+| Tickets de las consultas al vendedor | `GET /api/asistente/tickets` | administrador y vendedor |
 | Consultas al vendedor (RF-53) | `/api/asistente/consultas*`, colección `tickets` con `tipo: consulta` | El cliente las crea desde el formulario del chat; el personal responde en la pestaña Consultas. Cada mensaje publica `asistente.consulta_*`; notificaciones crea sus plantillas al arrancar si faltan |
 | Tasa de acierto | `npm run asistente:metricas` | matriz de confusión; las cifras que se reportan son las de los conjuntos de SerByTek (`frases-serbytek.json`, 50 frases), de marcas (`frases-marcas.json`, 27) y la validación de contactar al vendedor (`frases-consultas.json`, 15), que no se usan para ajustar |
 | IA opcional | `ASISTENTE_IA=anthropic` y `ANTHROPIC_API_KEY` | Solo para preguntas generales; nunca recibe datos personales |
@@ -216,7 +216,7 @@ Los términos van sin tildes y en minúsculas, porque el motor normaliza el text
 | `npm run test:e2e` | Flujo de compra completo por la API, con el correo en Mailpit | laboratorio |
 | `npm run test:asistente` | 54 comprobaciones del asistente, incluido el aislamiento por chat (56 con `ASISTENTE_PROBAR_DEGRADACION=1`). Agota a propósito el límite del chat al final: espere un minuto antes de repetirla | laboratorio |
 | `npm run test:seguridad` | 27 verificaciones de seguridad (V-27: recuperación de contraseña) | laboratorio, Mailpit y `vite preview` en 4173 |
-| `npm run test:e2e:ui` | **27 criterios de aceptación en la web** (Playwright), con capturas | web en modo pruebas (8081) |
+| `npm run test:e2e:ui` | **29 criterios de aceptación en la web** (Playwright), con capturas | web en modo pruebas (8081) |
 | `npx tsx tests/usabilidad/axe-tema-oscuro.ts` | axe (WCAG 2.2 AA) en 7 pantallas con el tema oscuro | web (8081) |
 | `npx tsx tests/usabilidad/axe-f5c.ts`, `axe-f5d.ts` | axe (WCAG 2.2 AA) en las vistas de F5c (20) y F5d (18), temas claro y oscuro | web (8081) |
 | `npm run usabilidad:recorrido` | 9 tareas, KLM y axe (WCAG 2.2 AA) | `build:web:pruebas` y `vite preview` |

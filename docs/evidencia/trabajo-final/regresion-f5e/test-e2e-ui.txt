@@ -1,0 +1,40 @@
+
+> ecommerce-distribuido@1.0.0 test:e2e:ui
+> tsx --env-file-if-exists=.env tests/e2e-ui/aceptacion.ts
+
+
+Aceptacion E2E de interfaz contra http://localhost:8081
+
+  PASA  CA-01 Registro de un cliente nuevo — e2e-ui-1795062479820@correo.co con sesión iniciada y dirección (Neiva, Huila) lista para comprar
+  PASA  CA-02 Inicio de sesión (error y éxito) — error: "Credenciales invalidas."; luego entra
+  PASA  CA-03 Búsqueda y filtro — 3 portátiles, todos de la sección Computadores
+  PASA  CA-04 Carrito y cupón — descuento de 189900 sobre 1899000
+  PASA  CA-05 Compra aprobada — PED-202611-001007 pagado; carrito vacío
+  PASA  CA-09 Correo de confirmación — correo de PED-202611-001007 para ana@correo.co
+  PASA  CA-08 Cancelación — PED-202611-001007 cancelado; aviso: "El pedido PED-202611-001007 fue cancelado. Si ya se había co…"
+  PASA  CA-06 Compra rechazada con compensación — stock de SKU-TEC-006: 47 antes y 47 después (devuelto)
+  PASA  CA-07 Última unidad — Ana compra SKU-ACE-593; Bruno ve "Se agoto el producto SKU-ACE-593 mientras completa…" y no se le cobra
+  PASA  CA-10 Asistente virtual — FAQ y "¿hay audífonos disponibles?" como visitante; Ana ve PED-202611-001010 y no ve PED-202611-001011 (de Bruno)
+  PASA  CA-11 Vendedor: entrada de stock — SKU-TEC-007: 3 -> 13
+  PASA  CA-12 Administrador: estado del pedido con fecha y hora de cada cambio — PED-202611-001012 en preparación; el detalle muestra 3 cambios de estado con fecha y hora (18/11/2026, 11:28:37 p. m.)
+  PASA  CA-13 Perfil: datos y direcciones — 2 direcciones; "Oficina" (Bogotá D.C.) predeterminada; teléfono guardado
+  PASA  CA-14 Dirección al pagar y dos cambios después — PED-202611-001013 pagado con envío a Cali; 2 cambios hechos y el tercero rechazado (409)
+  PASA  CA-15 Eliminar cuenta (bloqueada con pedidos en curso) — bloqueada con PED-202611-001014 pagado; tras cancelarlo se elimina y el perfil queda anonimizado
+  PASA  CA-16 Modo oscuro y contraseña visible — tema oscuro recordado tras recargar; el ojo muestra y oculta la contraseña
+  PASA  CA-17 Administrador: crear y desactivar un vendedor — vendedor-1795062530818@serbytek.co creado como vendedor, entra; desactivado, ya no entra
+  PASA  CA-18 Sesión vencida: la web vuelve a modo visitante — aviso de sesión vencida, botón "Iniciar sesión" y el chat responde como visitante
+  PASA  CA-19 Productos: precio y oferta con fecha de fin desde el panel — SKU-CA19-MWN1VWZ5: $200.000 -> $180.000 con 25 % hasta el 2026-11-28 (precio final $135.000), en el historial
+  PASA  CA-20 Productos: subir una foto desde el PC — SKU-CA20-MWN1VZ7R: foto subida y servida en /api/catalogo/imagenes/6afe7b0ceeed9eb1a59e787e
+  PASA  CA-21 Inventario: entrada con proveedor, costo y factura — SKU-TEC-026: 40 -> 44; FV-CA21-43352 de Distribuidora Andina de Tecnologia S.A.S. a $550.000 c/u
+  PASA  CA-22 Límite por cliente: el carrito dice cuántas puede llevar — 7 unidades: la web muestra "hasta 2" y desactiva +; con 3, 409 LIMITE_POR_CLIENTE ("De Producto CA22 1W3IF puedes llevar máximo 2 unidades. Ajusta la cantidad en tu carrito.")
+  PASA  CA-23 Consulta al vendedor desde el asistente y respuesta en la campana — TCK-MWN1W70K54D0: enviada desde el chat, respondida en el panel; el cliente la abre desde la campana
+  PASA  CA-24 Recuperar la contraseña con el enlace del correo — ca24-1795062551857@correo.co: enlace recibido en Mailpit, contraseña cambiada e inicio de sesión con la nueva; el enlace no sirve dos veces
+  PASA  CA-25 Notificaciones: ver todas y responder una consulta desde la notificación — TCK-MWN1WC1QF926: desde "Ver todas" se abre la consulta con el cursor en la respuesta y se responde
+  PASA  CA-26 Cerrar sesión: pantalla de salida y seguir como visitante — pantalla "Cerrando sesión…", inicio de sesión con el aviso y catálogo como visitante
+  PASA  CA-27 Vendedor: sin salud del sistema, catálogo en vista previa y nombres en inventario — sin pestaña de salud; Disco SSD externo Samsung T7 1 TB junto a SKU-TEC-007 en inventario; catálogo en vista previa sin compra; el administrador ve la salud con sus pasos
+  PASA  CA-28 Visitante que pide un asesor: inicia sesión y el chat retoma la consulta — sin ticket para el visitante; tras iniciar sesión el chat muestra el formulario de la consulta
+  PASA  CA-29 Los filtros del catálogo no pasan de una cuenta a otra — cliente: catálogo en oferta desde el asistente; vendedor después: "Mostrando 1–20 de 63 productos"
+
+29 de 29 criterios de aceptación pasan.
+Evidencia: docs\evidencia\trabajo-final\e2e-ui
+

@@ -1,4 +1,4 @@
-import { BusEventos, ClaimsToken, Eventos, crearLogger } from '@ecommerce/shared';
+import { ClaimsToken, crearLogger } from '@ecommerce/shared';
 import {
   FiltrosBusqueda,
   PedidoResumen,
@@ -56,6 +56,8 @@ export interface Opcion {
   /** Accion de la interfaz: ir a una vista, iniciar sesion... */
   accion?: 'iniciar_sesion' | 'ir_pedidos' | 'ir_carrito' | 'ir_perfil' | 'ir_catalogo';
   filtros?: FiltrosCatalogo;
+  /** Con iniciar_sesion: mensaje que la web envia sola al volver con la sesion iniciada. */
+  retomar?: string;
 }
 
 export type Respuesta =
@@ -79,8 +81,6 @@ export interface Contexto {
   intenciones?: Intencion[];
   /** Subcategorias del catalogo (con sus sinonimos y conteos). */
   vocabulario?: Vocabulario;
-  bus?: BusEventos;
-  registrarTicket: (datos: { texto: string; usuario?: ClaimsToken }) => Promise<string>;
 }
 
 export interface Salida {
@@ -515,11 +515,13 @@ const motivoSugerido = (r: Resultado, ctx: Contexto): string => {
  *  - Cliente con sesion: un formulario dentro del chat (motivo, referencia y
  *    pregunta). Al enviarlo, la web llama a POST /consultas y el vendedor
  *    responde desde el panel; la respuesta le llega a la campana y al correo.
- *  - Visitante: se registra el ticket de antes (F3) y se le ofrece iniciar
- *    sesion, porque sin cuenta no hay a quien devolverle la respuesta.
+ *  - Visitante: se le pide iniciar sesion, porque sin cuenta no hay a quien
+ *    devolverle la respuesta. No se registra nada ni se avisa al personal: un
+ *    aviso sin cliente no se podia responder. Al volver con la sesion, la web
+ *    envia sola el mensaje de `retomar` y aparece el formulario.
  *  - Personal: las consultas se atienden en el panel, no en el chat.
  */
-const responderEscalamiento = async (r: Resultado, ctx: Contexto): Promise<Salida> => {
+const responderEscalamiento = (r: Resultado, ctx: Contexto): Salida => {
   if (ctx.usuario?.rol === 'cliente') {
     return {
       respuestas: [
@@ -536,20 +538,10 @@ const responderEscalamiento = async (r: Resultado, ctx: Contexto): Promise<Salid
   if (ctx.usuario) {
     return { respuestas: [texto('Las consultas de los clientes se responden en el panel de administración, pestaña Consultas.')] };
   }
-
-  const numero = await ctx.registrarTicket({ texto: ctx.texto, usuario: ctx.usuario });
-  // El aviso a operaciones es asincrono: si el broker falla, el ticket ya quedo
-  // registrado y la conversacion sigue (invariante 12).
-  await ctx.bus?.publicar(Eventos.ASISTENTE_ESCALAMIENTO, {
-    ticket: numero,
-    conversacion_id: ctx.conversacionId,
-    cliente_id: null,
-    contacto: 'visitante sin sesión'
-  }, ctx.requestId);
   return {
     respuestas: [
-      texto(`Registré tu solicitud con el número ${numero}. Para que el vendedor pueda responderte, inicia sesión y escríbeme "contactar al vendedor": te mostraré un formulario para tu pregunta.`),
-      opciones([{ etiqueta: 'Iniciar sesión', accion: 'iniciar_sesion' }])
+      texto('Para escribirle al vendedor necesitas iniciar sesión: así sabe a quién responderte. Cuando entres, te muestro aquí mismo el formulario para tu pregunta.'),
+      opciones([{ etiqueta: 'Iniciar sesión', accion: 'iniciar_sesion', retomar: ASESOR.texto }])
     ]
   };
 };

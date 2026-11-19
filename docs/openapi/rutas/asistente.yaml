@@ -50,7 +50,7 @@ conversacion:
 tickets:
   get:
     tags: [asistente]
-    summary: Tickets de escalamiento a un asesor
+    summary: Tickets de las consultas al vendedor (desde F5e el visitante no crea tickets, primero inicia sesion)
     operationId: listarTickets
     x-roles: [administrador, vendedor]
     parameters:

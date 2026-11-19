@@ -1,22 +1,22 @@
 {
-  "fecha": "2026-11-18T22:28:14.939Z",
+  "fecha": "2026-11-19T04:29:31.935Z",
   "web": "http://localhost:8081",
-  "total": 27,
+  "total": 29,
   "fallidos": 0,
   "resultados": [
     {
       "id": "CA-01",
       "titulo": "Registro de un cliente nuevo",
       "resultado": "PASA",
-      "segundos": 23.5,
-      "detalle": "e2e-ui-1795040786400@correo.co con sesión iniciada y dirección (Neiva, Huila) lista para comprar",
+      "segundos": 6.6,
+      "detalle": "e2e-ui-1795062479820@correo.co con sesión iniciada y dirección (Neiva, Huila) lista para comprar",
       "captura": "CA-01.png"
     },
     {
       "id": "CA-02",
       "titulo": "Inicio de sesión (error y éxito)",
       "resultado": "PASA",
-      "segundos": 4.4,
+      "segundos": 3.3,
       "detalle": "error: \"Credenciales invalidas.\"; luego entra",
       "captura": "CA-02.png"
     },
@@ -24,7 +24,7 @@
       "id": "CA-03",
       "titulo": "Búsqueda y filtro",
       "resultado": "PASA",
-      "segundos": 2.1,
+      "segundos": 2,
       "detalle": "3 portátiles, todos de la sección Computadores",
       "captura": "CA-03.png"
     },
@@ -32,15 +32,15 @@
       "id": "CA-04",
       "titulo": "Carrito y cupón",
       "resultado": "PASA",
-      "segundos": 2.9,
-      "detalle": "descuento de 314910 sobre 3149100",
+      "segundos": 4.7,
+      "detalle": "descuento de 189900 sobre 1899000",
       "captura": "CA-04.png"
     },
     {
       "id": "CA-05",
       "titulo": "Compra aprobada",
       "resultado": "PASA",
-      "segundos": 2.6,
+      "segundos": 4,
       "detalle": "PED-202611-001007 pagado; carrito vacío",
       "captura": "CA-05.png"
     },
@@ -56,7 +56,7 @@
       "id": "CA-08",
       "titulo": "Cancelación",
       "resultado": "PASA",
-      "segundos": 2,
+      "segundos": 2.1,
       "detalle": "PED-202611-001007 cancelado; aviso: \"El pedido PED-202611-001007 fue cancelado. Si ya se había co…\"",
       "captura": "CA-08.png"
     },
@@ -64,7 +64,7 @@
       "id": "CA-06",
       "titulo": "Compra rechazada con compensación",
       "resultado": "PASA",
-      "segundos": 3.1,
+      "segundos": 2.4,
       "detalle": "stock de SKU-TEC-006: 47 antes y 47 después (devuelto)",
       "captura": "CA-06.png"
     },
@@ -72,15 +72,15 @@
       "id": "CA-07",
       "titulo": "Última unidad",
       "resultado": "PASA",
-      "segundos": 2.7,
-      "detalle": "Ana compra SKU-ACE-924; Bruno ve \"Se agoto el producto SKU-ACE-924 mientras completa…\" y no se le cobra",
+      "segundos": 2.4,
+      "detalle": "Ana compra SKU-ACE-593; Bruno ve \"Se agoto el producto SKU-ACE-593 mientras completa…\" y no se le cobra",
       "captura": "CA-07.png"
     },
     {
       "id": "CA-10",
       "titulo": "Asistente virtual",
       "resultado": "PASA",
-      "segundos": 5.4,
+      "segundos": 4.9,
       "detalle": "FAQ y \"¿hay audífonos disponibles?\" como visitante; Ana ve PED-202611-001010 y no ve PED-202611-001011 (de Bruno)",
       "captura": "CA-10.png"
     },
@@ -88,7 +88,7 @@
       "id": "CA-11",
       "titulo": "Vendedor: entrada de stock",
       "resultado": "PASA",
-      "segundos": 2.1,
+      "segundos": 2,
       "detalle": "SKU-TEC-007: 3 -> 13",
       "captura": "CA-11.png"
     },
@@ -96,15 +96,15 @@
       "id": "CA-12",
       "titulo": "Administrador: estado del pedido con fecha y hora de cada cambio",
       "resultado": "PASA",
-      "segundos": 3,
-      "detalle": "PED-202611-001012 en preparación; el detalle muestra 3 cambios de estado con fecha y hora (18/11/2026, 5:27:21 p. m.)",
+      "segundos": 2.1,
+      "detalle": "PED-202611-001012 en preparación; el detalle muestra 3 cambios de estado con fecha y hora (18/11/2026, 11:28:37 p. m.)",
       "captura": "CA-12.png"
     },
     {
       "id": "CA-13",
       "titulo": "Perfil: datos y direcciones",
       "resultado": "PASA",
-      "segundos": 2.7,
+      "segundos": 2.9,
       "detalle": "2 direcciones; \"Oficina\" (Bogotá D.C.) predeterminada; teléfono guardado",
       "captura": "CA-13.png"
     },
@@ -112,7 +112,7 @@
       "id": "CA-14",
       "titulo": "Dirección al pagar y dos cambios después",
       "resultado": "PASA",
-      "segundos": 4.4,
+      "segundos": 3.6,
       "detalle": "PED-202611-001013 pagado con envío a Cali; 2 cambios hechos y el tercero rechazado (409)",
       "captura": "CA-14.png"
     },
@@ -120,7 +120,7 @@
       "id": "CA-15",
       "titulo": "Eliminar cuenta (bloqueada con pedidos en curso)",
       "resultado": "PASA",
-      "segundos": 5.6,
+      "segundos": 3.6,
       "detalle": "bloqueada con PED-202611-001014 pagado; tras cancelarlo se elimina y el perfil queda anonimizado",
       "captura": "CA-15.png"
     },
@@ -136,15 +136,15 @@
       "id": "CA-17",
       "titulo": "Administrador: crear y desactivar un vendedor",
       "resultado": "PASA",
-      "segundos": 2.3,
-      "detalle": "vendedor-1795040858008@serbytek.co creado como vendedor, entra; desactivado, ya no entra",
+      "segundos": 2.6,
+      "detalle": "vendedor-1795062530818@serbytek.co creado como vendedor, entra; desactivado, ya no entra",
       "captura": "CA-17.png"
     },
     {
       "id": "CA-18",
       "titulo": "Sesión vencida: la web vuelve a modo visitante",
       "resultado": "PASA",
-      "segundos": 2,
+      "segundos": 1.9,
       "detalle": "aviso de sesión vencida, botón \"Iniciar sesión\" y el chat responde como visitante",
       "captura": "CA-18.png"
     },
@@ -153,47 +153,47 @@
       "titulo": "Productos: precio y oferta con fecha de fin desde el panel",
       "resultado": "PASA",
       "segundos": 2.8,
-      "detalle": "SKU-CA19-MWMOZE1M: $200.000 -> $180.000 con 25 % hasta el 2026-11-28 (precio final $135.000), en el historial",
+      "detalle": "SKU-CA19-MWN1VWZ5: $200.000 -> $180.000 con 25 % hasta el 2026-11-28 (precio final $135.000), en el historial",
       "captura": "CA-19.png"
     },
     {
       "id": "CA-20",
       "titulo": "Productos: subir una foto desde el PC",
       "resultado": "PASA",
-      "segundos": 2.9,
-      "detalle": "SKU-CA20-MWMOZGD7: foto subida y servida en /api/catalogo/imagenes/6afe2664754e3c9078d0da32",
+      "segundos": 2.8,
+      "detalle": "SKU-CA20-MWN1VZ7R: foto subida y servida en /api/catalogo/imagenes/6afe7b0ceeed9eb1a59e787e",
       "captura": "CA-20.png"
     },
     {
       "id": "CA-21",
       "titulo": "Inventario: entrada con proveedor, costo y factura",
       "resultado": "PASA",
-      "segundos": 3.6,
-      "detalle": "SKU-TEC-026: 40 -> 44; FV-CA21-71444 de Distribuidora Andina de Tecnologia S.A.S. a $550.000 c/u",
+      "segundos": 2.5,
+      "detalle": "SKU-TEC-026: 40 -> 44; FV-CA21-43352 de Distribuidora Andina de Tecnologia S.A.S. a $550.000 c/u",
       "captura": "CA-21.png"
     },
     {
       "id": "CA-22",
       "titulo": "Límite por cliente: el carrito dice cuántas puede llevar",
       "resultado": "PASA",
-      "segundos": 2.5,
-      "detalle": "7 unidades: la web muestra \"hasta 2\" y desactiva +; con 3, 409 LIMITE_POR_CLIENTE (\"De Producto CA22 OZLPY puedes llevar máximo 2 unidades. Ajusta la cantidad en tu carrito.\")",
+      "segundos": 2.1,
+      "detalle": "7 unidades: la web muestra \"hasta 2\" y desactiva +; con 3, 409 LIMITE_POR_CLIENTE (\"De Producto CA22 1W3IF puedes llevar máximo 2 unidades. Ajusta la cantidad en tu carrito.\")",
       "captura": "CA-22.png"
     },
     {
       "id": "CA-23",
       "titulo": "Consulta al vendedor desde el asistente y respuesta en la campana",
       "resultado": "PASA",
-      "segundos": 5.6,
-      "detalle": "TCK-MWMOZPCB7BDD: enviada desde el chat, respondida en el panel; el cliente la abre desde la campana",
+      "segundos": 5.4,
+      "detalle": "TCK-MWN1W70K54D0: enviada desde el chat, respondida en el panel; el cliente la abre desde la campana",
       "captura": "CA-23.png"
     },
     {
       "id": "CA-24",
       "titulo": "Recuperar la contraseña con el enlace del correo",
       "resultado": "PASA",
-      "segundos": 3.4,
-      "detalle": "ca24-1795040881037@correo.co: enlace recibido en Mailpit, contraseña cambiada e inicio de sesión con la nueva; el enlace no sirve dos veces",
+      "segundos": 2.8,
+      "detalle": "ca24-1795062551857@correo.co: enlace recibido en Mailpit, contraseña cambiada e inicio de sesión con la nueva; el enlace no sirve dos veces",
       "captura": "CA-24.png"
     },
     {
@@ -201,14 +201,14 @@
       "titulo": "Notificaciones: ver todas y responder una consulta desde la notificación",
       "resultado": "PASA",
       "segundos": 2.1,
-      "detalle": "TCK-MWMOZV8X70FA: desde \"Ver todas\" se abre la consulta con el cursor en la respuesta y se responde",
+      "detalle": "TCK-MWN1WC1QF926: desde \"Ver todas\" se abre la consulta con el cursor en la respuesta y se responde",
       "captura": "CA-25.png"
     },
     {
       "id": "CA-26",
       "titulo": "Cerrar sesión: pantalla de salida y seguir como visitante",
       "resultado": "PASA",
-      "segundos": 3,
+      "segundos": 3.1,
       "detalle": "pantalla \"Cerrando sesión…\", inicio de sesión con el aviso y catálogo como visitante",
       "captura": "CA-26.png"
     },
@@ -216,9 +216,25 @@
       "id": "CA-27",
       "titulo": "Vendedor: sin salud del sistema, catálogo en vista previa y nombres en inventario",
       "resultado": "PASA",
-      "segundos": 4.3,
+      "segundos": 3.9,
       "detalle": "sin pestaña de salud; Disco SSD externo Samsung T7 1 TB junto a SKU-TEC-007 en inventario; catálogo en vista previa sin compra; el administrador ve la salud con sus pasos",
       "captura": "CA-27.png"
+    },
+    {
+      "id": "CA-28",
+      "titulo": "Visitante que pide un asesor: inicia sesión y el chat retoma la consulta",
+      "resultado": "PASA",
+      "segundos": 2.4,
+      "detalle": "sin ticket para el visitante; tras iniciar sesión el chat muestra el formulario de la consulta",
+      "captura": "CA-28.png"
+    },
+    {
+      "id": "CA-29",
+      "titulo": "Los filtros del catálogo no pasan de una cuenta a otra",
+      "resultado": "PASA",
+      "segundos": 4.6,
+      "detalle": "cliente: catálogo en oferta desde el asistente; vendedor después: \"Mostrando 1–20 de 63 productos\"",
+      "captura": "CA-29.png"
     }
   ]
 }

@@ -7,8 +7,7 @@
 //
 //   npm run infra:asistente
 //
-// Crea la base con su propio usuario y agrega la plantilla de notificacion del
-// escalamiento. Las colecciones, los indices y los datos iniciales (intenciones
+// Crea la base con su propio usuario. Las colecciones, los indices y los datos iniciales (intenciones
 // y preguntas frecuentes) los prepara el propio servicio al arrancar: viven
 // versionados en services/asistente-service/src/datos/.
 // ============================================================================
@@ -25,21 +24,9 @@ if (!asistente.getUser('asistente_user')) {
   print('asistente_db: el usuario ya existia');
 }
 
-// Aviso a operaciones cuando alguien pide hablar con un asesor. Sin destinatario
-// en el evento, notificaciones lo envia a CORREO_OPERACIONES.
+// La plantilla asistente.escalamiento (F3) avisaba al personal cuando un
+// visitante pedia un asesor; ese aviso no tenia cliente a quien responder y se
+// retiro en F5e: ahora el chat pide iniciar sesion. Se borra de los volumenes
+// creados antes.
 const notificaciones = db.getSiblingDB('notificaciones_db');
-notificaciones.plantillas.updateOne(
-  { clave: 'asistente.escalamiento' },
-  {
-    $setOnInsert: {
-      clave: 'asistente.escalamiento',
-      canal: 'email',
-      asunto: 'Nueva solicitud de asesor {{ticket}}',
-      cuerpo:
-        'Un cliente pidio hablar con un asesor desde el asistente virtual. Ticket: {{ticket}}. Contacto: {{contacto}}. Conversacion: {{conversacion_id}}.',
-      activo: true
-    }
-  },
-  { upsert: true }
-);
-print('notificaciones_db: plantilla asistente.escalamiento lista');
+notificaciones.plantillas.deleteOne({ clave: 'asistente.escalamiento' });

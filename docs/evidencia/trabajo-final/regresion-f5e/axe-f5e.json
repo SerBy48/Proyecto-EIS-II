@@ -1,0 +1,58 @@
+{
+  "fecha": "2026-11-19T04:31:38.528Z",
+  "web": "http://localhost:8081",
+  "estandar": "WCAG 2.2 A y AA",
+  "total": 0,
+  "resultados": [
+    {
+      "tema": "claro",
+      "pantalla": "Asistente: el visitante que pide un asesor",
+      "violaciones": []
+    },
+    {
+      "tema": "claro",
+      "pantalla": "Registro con el correo incompleto",
+      "violaciones": []
+    },
+    {
+      "tema": "claro",
+      "pantalla": "Proveedor nuevo con errores junto a cada campo",
+      "violaciones": []
+    },
+    {
+      "tema": "claro",
+      "pantalla": "Asistente en modo demostración (administrador)",
+      "violaciones": []
+    },
+    {
+      "tema": "claro",
+      "pantalla": "Mi perfil con errores junto al campo",
+      "violaciones": []
+    },
+    {
+      "tema": "oscuro",
+      "pantalla": "Asistente: el visitante que pide un asesor",
+      "violaciones": []
+    },
+    {
+      "tema": "oscuro",
+      "pantalla": "Registro con el correo incompleto",
+      "violaciones": []
+    },
+    {
+      "tema": "oscuro",
+      "pantalla": "Proveedor nuevo con errores junto a cada campo",
+      "violaciones": []
+    },
+    {
+      "tema": "oscuro",
+      "pantalla": "Asistente en modo demostración (administrador)",
+      "violaciones": []
+    },
+    {
+      "tema": "oscuro",
+      "pantalla": "Mi perfil con errores junto al campo",
+      "violaciones": []
+    }
+  ]
+}

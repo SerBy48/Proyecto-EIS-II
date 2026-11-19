@@ -16,7 +16,7 @@ import { iaActiva } from './ia';
  * servicio cae, la tienda sigue funcionando: nada depende de el.
  */
 const bus = new BusEventos('asistente-service');
-const controlador = crearControlador(bus);
+const controlador = crearControlador();
 const consultas = crearControladorConsultas(bus);
 
 const rutas = (app: Application): void => {

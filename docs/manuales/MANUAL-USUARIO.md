@@ -85,7 +85,7 @@ El asistente funciona con reglas, sin inteligencia artificial: entiende frases n
 - **El costo del envío**, los medios de pago, los plazos de entrega, las devoluciones, el horario, los cupones, cómo crear la cuenta o cambiar la dirección, la seguridad de los pagos o quiénes somos.
 - **Por productos o marcas**, como lo diría a un vendedor: «¿hay audífonos disponibles?», «busco un mouse Logitech», «¿qué tienen de Samsung?», «portátiles Lenovo de menos de 4 millones», «quiero un celular barato» o «¿qué ofertas hay en monitores?». Responde con las tarjetas de los productos, su precio y su disponibilidad, y un botón para ver todos en el catálogo.
 - **Por sus pedidos**, solo si inició sesión. Por ejemplo, «estado del pedido PED-202611-001035». Si el pedido es de otra persona, responde que no lo encontró: nunca muestra pedidos ajenos.
-- **Por el vendedor**: escriba «quiero contactar al vendedor». Con la sesión iniciada, el asistente muestra un pequeño formulario: elija el motivo, indique si quiere el pedido o el SKU relacionado y escriba su pregunta. La respuesta del vendedor le llega a la **campana** y a su correo, y la conversación queda en **Mi perfil → Mis consultas**, donde puede contestar. Sin sesión, el asistente registra un ticket y le pide iniciar sesión para que le puedan responder.
+- **Por el vendedor**: escriba «quiero contactar al vendedor». Con la sesión iniciada, el asistente muestra un pequeño formulario: elija el motivo, indique si quiere el pedido o el SKU relacionado y escriba su pregunta. La respuesta del vendedor le llega a la **campana** y a su correo, y la conversación queda en **Mi perfil → Mis consultas**, donde puede contestar. Sin sesión, el asistente le pide iniciar sesión para que el vendedor sepa a quién responder: pulse **Iniciar sesión** en el chat y, al entrar, el asistente se abre solo con el formulario. Con una cuenta de administrador o vendedor el chat muestra la franja **Modo demostración**: se ve cómo responde a los clientes, pero no se agrega al carrito ni se envían consultas.
 
 Los botones de opciones rápidas ahorran escribir. La tecla **Esc** cierra el asistente.
 
@@ -213,7 +213,7 @@ Para crear un producto, pulse **Nuevo producto**: SKU, nombre, sección y precio
 2. Indique la cantidad recibida y, si quiere dejar el soporte, el **proveedor**, el **costo unitario**, la **factura o remisión** y una observación. Si el costo es igual o mayor que el precio de venta, el formulario lo advierte.
 3. Pulse **Registrar entrada**. La confirmación indica cuántas unidades hay ahora.
 
-El **Historial de entradas** muestra cada entrada con su proveedor, costo, factura y quién la registró. En **Proveedores** se crean, editan y desactivan los proveedores con su NIT y su contacto; también se puede crear uno al registrar la entrada (**+ Proveedor nuevo**).
+El **Historial de entradas** muestra cada entrada con su proveedor, costo, factura y quién la registró. En **Proveedores** se crean, editan y desactivan los proveedores con su NIT y su contacto; también se puede crear uno al registrar la entrada (**+ Proveedor nuevo**). Cada campo muestra un ejemplo y avisa debajo si el dato no es válido: el NIT con su dígito de verificación (`900123456-1`), el teléfono solo con números (`601 555 0101`; las letras no se pueden escribir) y el correo con `@` y dominio (`compras@proveedor.com`). **Crear proveedor** no envía mientras haya errores.
 
 La lista **Alertas de reposición** muestra los productos que están por debajo de su stock mínimo, con su nombre y su SKU. El equipo también recibe esas alertas por correo. El historial de entradas también muestra el nombre de cada producto.
 
@@ -292,7 +292,7 @@ Los enlaces de recuperación de contraseña no se guardan: en el registro aparec
 Estas dos tareas no tienen pantalla en la web. El administrador las hace desde la documentación interactiva de la API (Swagger UI, en `/api/docs` del entorno de laboratorio), con su sesión:
 
 - **Plantillas:** `GET /api/notificaciones/plantillas` las lista y `PATCH /api/notificaciones/plantillas/{clave}` cambia el asunto o el texto. Los textos entre `{{ }}` (por ejemplo `{{numero}}`) se reemplazan por los datos del pedido.
-- **Tickets:** `GET /api/asistente/tickets` muestra las conversaciones que pidieron un asesor humano. El vendedor también puede verlos.
+- **Tickets:** `GET /api/asistente/tickets` muestra los tickets de las consultas al vendedor, con el contacto del cliente. El vendedor también puede verlos.
 
 ### 5.5 Cuentas del personal
 

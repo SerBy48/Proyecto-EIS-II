@@ -109,8 +109,7 @@ export const procesarEvento = async (evento: EventoDominio): Promise<void> => {
   // agregado afectado: el mismo evento sobre el mismo pedido se envia una vez.
   const claveDedupe = [
     evento.nombre,
-    // El ticket identifica cada escalamiento: sin el, todos los de visitantes
-    // compartirian la clave y solo se avisaria del primero.
+    // El ticket identifica cada consulta al vendedor.
     // La solicitud identifica cada correo de recuperacion de contrasena.
     datos.pedido_id ?? datos.sku ?? datos.ticket ?? datos.solicitud ?? datos.cliente_id ?? '',
     datos.estado ?? '',

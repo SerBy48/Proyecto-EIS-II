@@ -125,7 +125,7 @@ graph LR
     PED["pedidos"] -->|"pedido.confirmado<br/>pedido.cancelado"| EX{{"exchange topic<br/>ecommerce.eventos"}}
     INV["inventario"] -->|"inventario.stock_minimo<br/>inventario.reserva_expirada"| EX
     PAG["pagos"] -->|"pago.aprobado<br/>pago.rechazado"| EX
-    ASI["asistente"] -->|"asistente.escalamiento<br/>asistente.consulta_*"| EX
+    ASI["asistente"] -->|"asistente.consulta_*"| EX
     AUT["auth"] -->|"auth.recuperacion_solicitada"| EX
 
     EX -->|"pedido.*<br/>pago.rechazado<br/>inventario.stock_minimo<br/>asistente.*<br/>auth.recuperacion_solicitada"| Q1["notificaciones.envio"]
@@ -178,7 +178,6 @@ confirmada y cobrada.
 | `pago.rechazado` | pagos | notificaciones | Aviso al cliente |
 | `inventario.stock_minimo` | inventario | notificaciones | Alerta de reposición a operaciones |
 | `inventario.reserva_expirada` | inventario | — | Trazabilidad de reservas devueltas |
-| `asistente.escalamiento` | asistente | notificaciones | Ticket de un visitante al buzón de operaciones |
 | `asistente.consulta_nueva`, `asistente.consulta_mensaje` | asistente | notificaciones | Consulta del cliente al buzón de operaciones (campana y correo del personal, F5c) |
 | `asistente.consulta_respondida` | asistente | notificaciones | Respuesta del vendedor a la campana y al correo del cliente (F5c) |
 | `auth.recuperacion_solicitada` | auth | notificaciones | Correo con el enlace para restablecer la contraseña (F5d). El campo `enlace` va en `secretos`: notificaciones lo envía pero no lo guarda |
