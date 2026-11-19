@@ -13,9 +13,12 @@
 # - La URL (https://<palabras>.trycloudflare.com) cambia en cada ejecucion y
 #   deja de existir al cerrar el tunel (Ctrl+C).
 #
-# CUIDADO: mientras el tunel este abierto, cualquiera con la URL ve la tienda y
-# puede entrar con las cuentas de prueba (Password123). Abrirlo solo durante la
-# demostracion. La interfaz de Mailpit NO se expone (127.0.0.1:8025).
+# CUIDADO: mientras el tunel este abierto, cualquiera con la URL ve la tienda.
+# Con el perfil prod las cuentas son las de produccion del .env; si se abre
+# sobre el laboratorio, cualquiera podria entrar con las cuentas de prueba
+# (Password123). Abrirlo solo durante la demostracion. Con PROXIES_CONFIANZA=2
+# el limite de peticiones cuenta a cada persona. La interfaz de Mailpit NO se
+# expone (127.0.0.1:8025).
 # ============================================================================
 set -euo pipefail
 

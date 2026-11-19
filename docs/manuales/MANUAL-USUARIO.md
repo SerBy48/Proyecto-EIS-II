@@ -328,3 +328,45 @@ Use **¿Olvidaste tu contraseña?** en el inicio de sesión (2.3). Le llega un e
 
 **El asistente no me entiende.**
 Reformule la pregunta con otras palabras, use los botones de opciones rápidas o escriba «hablar con un asesor».
+
+## 8. Mensajes de error y soluciones
+
+Los mensajes que puede ver en la tienda, por qué aparecen y qué hacer.
+
+| Mensaje | Por qué aparece | Qué hacer |
+|---|---|---|
+| «Credenciales invalidas.» | El correo o la contraseña no coinciden | Revise el correo y la contraseña; el ojo del campo muestra lo que escribió. Si la olvidó, use **¿Olvidaste tu contraseña?** |
+| «Cuenta bloqueada temporalmente por intentos fallidos. Intente mas tarde.» | Varios intentos fallidos seguidos protegen la cuenta de quien adivina contraseñas | Espere unos minutos, o restablezca la contraseña: al crear la nueva, la cuenta se desbloquea |
+| «Demasiados intentos de inicio de sesion. Espere 15 minutos.» | Muchos intentos desde la misma conexión | Espere y vuelva a intentarlo |
+| «Ya pediste varios enlaces. Espera 15 minutos antes de pedir otro.» | Se pidieron varios correos de recuperación seguidos | Revise el último correo (y la carpeta de spam) antes de pedir otro |
+| «Tu sesión expiró. Inicia sesión de nuevo.» | La sesión venció o se cerró desde otro lugar | Inicie sesión otra vez; el carrito se conserva |
+| «Puedes llevar máximo N de …» o «Ya alcanzaste el máximo de … por cliente» | Cada cliente deja 5 unidades de cada producto para los demás (con 6 o menos, una por cliente). Cuenta también lo que tiene en pedidos en curso | Ajuste la cantidad en el carrito |
+| «Se agoto el producto … mientras completaba la compra» | Otro cliente compró las últimas unidades en ese momento | El carrito se conserva: ajuste la cantidad e intente de nuevo |
+| «El precio de un producto cambio mientras compraba» | El vendedor cambió un precio o terminó una oferta | El carrito ya muestra el precio vigente: revíselo y vuelva a pagar |
+| Pago rechazado (por ejemplo, fondos insuficientes) | La entidad emisora no aprobó el cobro. No se cobró nada y las unidades se liberaron | Intente con otro medio de pago |
+| «No se puede cancelar un pedido en estado …» o «El pedido ya esta en preparacion» | Solo se cancelan los pedidos creados o pagados | Escríbale al vendedor desde el asistente («quiero contactar al vendedor») |
+| «Demasiados intentos de compra. Espere un momento.» | Muchos pagos seguidos | Espere un minuto antes de volver a pagar |
+| «Estas enviando mensajes muy rapido. Espera un momento.» | El asistente recibe como máximo 30 mensajes por minuto | Espere un momento |
+| «El asistente no está disponible en este momento. La tienda sigue funcionando con normalidad.» | El asistente está caído o reiniciándose | Use la tienda normalmente; vuelva a abrir el chat en unos minutos |
+| «El servicio … no esta disponible en este momento.» o «… no respondio a tiempo» | Una parte del sistema está fuera de servicio o lenta | Intente de nuevo en unos minutos. Si persiste, avise al administrador (lo ve en **Salud del sistema**) |
+| Un campo marcado en rojo con un mensaje debajo (por ejemplo «El correo debe tener una @») | El dato no tiene el formato esperado | Corríjalo como indica el mensaje; el ejemplo gris del campo muestra el formato |
+
+## 9. Glosario
+
+| Término | Significado |
+|---|---|
+| **Asistente virtual** | El chat de **¿Necesitas ayuda?**: responde preguntas, busca productos, consulta sus pedidos y le permite escribirle al vendedor |
+| **Campana** | El ícono junto a su cuenta que avisa de novedades (pedidos, respuestas del vendedor) y cuenta las no leídas |
+| **Carrito** | Los productos que eligió antes de pagar. Se conserva entre sesiones durante 7 días |
+| **Consulta** | Una pregunta al vendedor enviada desde el asistente. Se responde en **Mi perfil → Mis consultas** |
+| **Cupón** | Código de descuento que se aplica en el carrito |
+| **Estado del pedido** | Creado, pagado, en preparación, enviado, entregado o cancelado |
+| **IVA** | Impuesto incluido en el total del carrito (19 %) |
+| **Límite por cliente** | Máximo de unidades de un producto que puede llevar cada cliente, para que todos tengan oportunidad de comprar |
+| **Modo oscuro** | Tema de colores oscuros; se cambia con el botón de la luna |
+| **Oferta** | Precio con descuento por un tiempo; la tarjeta muestra el porcentaje y el precio anterior tachado |
+| **Pasarela de pagos** | El servicio que autoriza el cobro. La tienda nunca recibe ni guarda los datos de la tarjeta |
+| **Reserva** | Las unidades que se apartan mientras se procesa el pago; si el pago falla, se liberan |
+| **Sesión** | El periodo en que está conectado con su cuenta; se cierra con **Salir** |
+| **SKU** | Código interno de cada producto (por ejemplo `SKU-TEC-004`) |
+| **Vista previa** | Cómo ven la tienda el vendedor y el administrador: igual que un cliente, pero sin poder comprar |

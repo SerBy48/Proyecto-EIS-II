@@ -46,6 +46,7 @@
     "test:zap:recorrido": "bash tests/seguridad/zap-recorrido.sh",
     "usabilidad:sus": "tsx tests/usabilidad/calcular-sus.ts",
     "usabilidad:recorrido": "tsx --env-file-if-exists=.env tests/usabilidad/recorrido.ts",
+    "informe:trabajo-final": "tsx scripts/informes/generar-trabajo-final.ts && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/informes/actualizar-indice.ps1 -Docx docs/informes/Informe_Trabajo_Final_EIS_II.docx && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/informes/actualizar-indice.ps1 -Docx docs/informes/Manual_Tecnico_SerByTek.docx && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/informes/actualizar-indice.ps1 -Docx docs/informes/Manual_Usuario_SerByTek.docx",
     "informe:estrategias": "tsx scripts/informes/generar-estrategias.ts && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/informes/actualizar-indice.ps1 -Docx docs/informes/Informe_Estrategias_Validacion_Pruebas.docx",
     "docs:c4": "bash scripts/c4.sh",
     "docs:openapi": "redocly lint docs/openapi/openapi.yaml docs/openapi/openapi-interna.yaml && redocly bundle docs/openapi/openapi.yaml -o services/api-gateway/especificacion/openapi.json && redocly bundle docs/openapi/openapi-interna.yaml -o docs/openapi/generado/openapi-interna.json",

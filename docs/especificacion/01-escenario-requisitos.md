@@ -164,7 +164,7 @@ La columna **Rol** usa: *pública* (sin sesión), *sesión* (cualquier usuario a
 | RF-ASIS-10 | Consultar los tickets de las consultas al vendedor | administrador, vendedor |
 | RF-ASIS-11 F5b | Mostrar las ofertas vigentes, de una sección o de todo el catálogo, con el mayor descuento primero | pública |
 | RF-ASIS-12 F5b | Responder preguntas de la tienda y de la cuenta: secciones del catálogo, cupones, crear cuenta, contraseña, dirección, eliminar cuenta, seguridad de los pagos, factura y quiénes somos | pública |
-| RF-53 F5c | Contactar al vendedor: con sesión, el asistente muestra un formulario (motivo, pedido o SKU y pregunta); la consulta queda como hilo que el personal responde en la pestaña Consultas y el cliente sigue en Mi perfil > Mis consultas; cada mensaje llega a la campana y al correo del otro lado. Un visitante recibe el ticket de F3 y la invitación a iniciar sesión | sesión (cliente); administrador y vendedor responden |
+| RF-53 F5c | Contactar al vendedor: con sesión, el asistente muestra un formulario (motivo, pedido o SKU y pregunta); la consulta queda como hilo que el personal responde en la pestaña Consultas y el cliente sigue en Mi perfil > Mis consultas; cada mensaje llega a la campana y al correo del otro lado. Un visitante debe iniciar sesión primero, y el chat le muestra el formulario al volver (F5e, RF-60) | sesión (cliente); administrador y vendedor responden |
 
 ## 1.4 Atributos de calidad como escenarios medibles
 

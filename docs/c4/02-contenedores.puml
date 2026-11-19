@@ -2,17 +2,17 @@
 !include lib/C4_Container.puml
 !include estilo.puml
 LAYOUT_TOP_DOWN()
-title N2 - Contenedores: Plataforma e-commerce
+title N2 - Contenedores: SerByTek
 
 Person(cliente, "Cliente")
 Person(interno, "Vendedor / Administrador")
 System_Ext(pasarela, "Pasarela de pagos", "Simulada (pasarela.ts)")
 System_Ext(ia, "Proveedor de IA", "Opcional", $tags="opcional")
 
-System_Boundary(plataforma, "Plataforma e-commerce (red Docker 'interna')") {
-  Container(web, "Web", "React + Vite + Tailwind", "Tienda, panel de administracion y chat del asistente. Hoy: vite dev :5173 / preview :4173. F5: nginx que hace proxy de /api")
+System_Boundary(plataforma, "SerByTek (red Docker 'interna')") {
+  Container(web, "Web", "React + Vite + Tailwind", "Tienda, panel de administracion y chat del asistente, servida por nginx (:8081), que hace proxy de /api al gateway")
   Container(movil, "App movil", "Flutter", "Tienda para clientes")
-  Container(gateway, "API Gateway", "Node.js, Express, http-proxy", ":8080 (unico puerto publico). Sanea cabeceras, request_id, rate limit, valida JWT, proxy, /api/health agregado y Swagger UI en /api/docs")
+  Container(gateway, "API Gateway", "Node.js, Express, http-proxy", ":8080 en el laboratorio; en produccion solo detras de nginx. Sanea cabeceras, request_id, rate limit, valida JWT, proxy, /api/health agregado y Swagger UI")
 
   Container(auth, "auth-service", "Node.js/TS", ":3001 Registro, login, refresh rotatorio, usuarios internos")
   Container(clientes, "clientes-service", "Node.js/TS", ":3002 Perfiles, direcciones, historial")
@@ -21,14 +21,14 @@ System_Boundary(plataforma, "Plataforma e-commerce (red Docker 'interna')") {
   Container(carrito, "carrito-service", "Node.js/TS", ":3005 Carrito con TTL y cupones")
   Container(pedidos, "pedidos-service", "Node.js/TS", ":3006 Checkout (saga orquestada), ciclo de vida del pedido")
   Container(pagos, "pagos-service", "Node.js/TS", ":3007 Cobros idempotentes, transacciones sin datos de tarjeta")
-  Container(notif, "notificaciones-service", "Node.js/TS", ":3008 Plantillas y envio por canal; consume eventos")
-  Container(asistente, "asistente-service", "Node.js/TS", ":3009 Motor de intenciones, FAQ, tickets")
+  Container(notif, "notificaciones-service", "Node.js/TS", ":3008 Plantillas, envio por correo y bandeja (campana); consume eventos")
+  Container(asistente, "asistente-service", "Node.js/TS", ":3009 Motor de intenciones, FAQ y consultas al vendedor")
 
   ContainerDb(pg, "PostgreSQL 16", "5 bases logicas con usuario propio", "auth_db, clientes_db, inventario_db, pedidos_db, pagos_db")
   ContainerDb(mongo, "MongoDB 7", "Documental", "catalogo_db, notificaciones_db, asistente_db")
   ContainerDb(redis, "Redis 7", "Clave-valor con TTL", "Carritos")
   ContainerQueue(rabbit, "RabbitMQ 3.13", "Exchange topic ecommerce.eventos + ecommerce.eventos.dlq", "Eventos de dominio")
-  Container(mailpit, "Mailpit", "SMTP :1025, UI :8025", "Servidor de correo de pruebas")
+  Container(mailpit, "Mailpit", "SMTP :1025, UI :8025", "Correo de pruebas (en produccion, Gmail por SMTP)")
 }
 
 Rel(cliente, web, "Usa", "HTTPS")
@@ -74,9 +74,10 @@ Rel(carrito, redis, "carrito:{cliente_id}")
 Rel(pedidos, rabbit, "pedido.confirmado, pedido.cancelado", "AMQP", $tags="asincrono")
 Rel(pagos, rabbit, "pago.aprobado, pago.rechazado", "AMQP", $tags="asincrono")
 Rel(inventario, rabbit, "inventario.stock_minimo, inventario.reserva_expirada", "AMQP", $tags="asincrono")
-Rel(rabbit, notif, "cola notificaciones.envio: pedido.*, pago.rechazado, inventario.stock_minimo, carrito.abandonado, asistente.escalamiento", "AMQP", $tags="asincrono")
+Rel(rabbit, notif, "cola notificaciones.envio: pedido.*, pago.rechazado, inventario.stock_minimo, carrito.abandonado, asistente.consulta_*, auth.recuperacion_solicitada", "AMQP", $tags="asincrono")
 Rel(rabbit, clientes, "cola clientes.historial: pedido.confirmado, pedido.cancelado", "AMQP", $tags="asincrono")
-Rel(asistente, rabbit, "asistente.escalamiento", "AMQP", $tags="asincrono")
+Rel(asistente, rabbit, "asistente.consulta_*", "AMQP", $tags="asincrono")
+Rel(auth, rabbit, "auth.recuperacion_solicitada (enlace solo en el correo)", "AMQP", $tags="asincrono")
 Rel(notif, mailpit, "Correo (nodemailer, CANAL_CORREO=smtp)", "SMTP")
 
 SHOW_LEGEND()

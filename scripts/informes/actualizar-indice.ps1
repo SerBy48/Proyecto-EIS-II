@@ -20,8 +20,13 @@ $word.Visible = $false
 $word.DisplayAlerts = 0
 try {
   $documento = $word.Documents.Open($rutaDocx)
-  foreach ($indice in $documento.TablesOfContents) { $indice.Update() }
+  # Primero los campos (numeros SEQ de figuras y tablas), luego los indices de
+  # figuras y tablas, y al final la tabla de contenido: los indices agregan
+  # paginas y cambian la numeracion.
   $documento.Fields.Update() | Out-Null
+  foreach ($indice in $documento.TablesOfFigures) { $indice.Update() }
+  foreach ($indice in $documento.TablesOfContents) { $indice.Update() }
+  foreach ($indice in $documento.TablesOfFigures) { $indice.UpdatePageNumbers() }
   $documento.Save()
   if ($Pdf) {
     # 17 = wdExportFormatPDF

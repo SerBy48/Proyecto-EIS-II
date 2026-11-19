@@ -1,0 +1,51 @@
+@startuml informe-contenedores
+!include lib/C4_Container.puml
+!include estilo.puml
+' Vista simplificada para el informe: las relaciones con las bases y los
+' eventos van sin etiqueta; el detalle completo esta en 02-contenedores.puml.
+LAYOUT_TOP_DOWN()
+HIDE_STEREOTYPE()
+title Contenedores de SerByTek (vista simplificada)
+
+Person(cliente, "Cliente o visitante")
+Person(personal, "Vendedor o administrador")
+
+System_Boundary(s, "SerByTek") {
+  Container(web, "Web", "React + nginx", "Tienda, panel y chat")
+  Container(gw, "API Gateway", "Express", "JWT, roles, límites y proxy")
+
+  Boundary(compra, "Compra") {
+    Container(catalogo, "catálogo", "", "Productos y precios")
+    Container(carrito, "carrito", "", "Carrito y cupones")
+    Container(pedidos, "pedidos", "", "Saga del checkout")
+    Container(inventario, "inventario", "", "Stock y reservas")
+    Container(pagos, "pagos", "", "Cobro idempotente")
+  }
+  Boundary(cuenta, "Cuenta y atención") {
+    Container(auth, "auth", "", "Cuentas y sesiones")
+    Container(clientes, "clientes", "", "Perfil y direcciones")
+    Container(asistente, "asistente", "", "Chat y consultas")
+    Container(notif, "notificaciones", "", "Correo y campana")
+  }
+
+  ContainerDb(pg, "PostgreSQL", "", "Una base por servicio: auth, clientes, inventario, pedidos, pagos")
+  ContainerDb(mongo, "MongoDB", "", "catálogo, notificaciones, asistente")
+  ContainerDb(redis, "Redis", "", "carritos")
+  ContainerQueue(mq, "RabbitMQ", "", "Eventos y cola de fallidos")
+}
+
+Rel(cliente, web, "HTTPS")
+Rel(personal, web, "HTTPS")
+Rel(web, gw, "/api")
+Rel(gw, compra, "REST")
+Rel(gw, cuenta, "REST")
+Rel(pedidos, inventario, "reserva")
+Rel(pedidos, pagos, "cobra")
+Rel(asistente, pedidos, "con el JWT del usuario")
+Rel(compra, pg, "")
+Rel(compra, mongo, "")
+Rel(carrito, redis, "")
+Rel(cuenta, pg, "")
+Rel(compra, mq, "eventos", $tags="asincrono")
+Rel(mq, notif, "eventos", $tags="asincrono")
+@enduml
